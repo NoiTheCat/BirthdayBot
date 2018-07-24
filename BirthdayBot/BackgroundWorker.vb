@@ -156,32 +156,39 @@ Class BackgroundWorker
     Private Async Function BirthdayAnnounceAsync(g As SocketGuild, c As SocketTextChannel, names As IEnumerable(Of SocketGuildUser)) As Task
         If c Is Nothing Then Return
 
-        Dim display As New StringBuilder()
+        Dim result As String
 
-        Dim multi = names.Count > 1
-        For i = 0 To names.Count - 1
-            If i <> 0 Then display.Append(", ")
-            If i > 0 And i Mod 5 = 0 Then
-                display.AppendLine()
-                display.Append(" - ")
-            End If
-            Dim user = names(i)
-
-            If user.Nickname IsNot Nothing Then
-                display.Append($"{user.Nickname} ({user.Username}#{user.Discriminator})")
+        If names.Count = 1 Then
+            ' Single birthday. No need for tricks.
+            Dim name As String
+            If names(0).Nickname IsNot Nothing Then
+                name = names(0).Nickname
             Else
-                display.Append($"{user.Username}#{user.Discriminator}")
+                name = names(0).Username
             End If
-        Next
-
-        If multi Then
-            display.Insert(0, "Happy birthday to our wonderful members:" + vbLf + " - ")
+            result = $"Hey! Please wish a happy birthday to our wonderful member, **{name}**."
         Else
-            display.Insert(0, "Please wish a happy birthday to ")
+            ' Build name list
+            Dim namedisplay As New StringBuilder()
+            Dim first = True
+            For Each item In names
+                If Not first Then
+                    namedisplay.Append(", ")
+                End If
+                first = False
+                Dim name As String
+                If item.Nickname IsNot Nothing Then
+                    name = item.Nickname
+                Else
+                    name = item.Username
+                End If
+                namedisplay.Append(name)
+            Next
+            result = $"Please wish our members a happy birthday! In no particular order: {namedisplay.ToString()}"
         End If
 
         Try
-            Await c.SendMessageAsync(display.ToString())
+            Await c.SendMessageAsync(result)
         Catch ex As Discord.Net.HttpException
             ' Ignore
         End Try
