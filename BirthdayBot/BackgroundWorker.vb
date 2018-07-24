@@ -57,25 +57,23 @@ Class BackgroundWorker
     ''' </summary>
     Private Async Function BirthdayWorkAsync(guild As SocketGuild) As Task
         ' Gather required information
-        Dim roleId, channelId As ULong?
         Dim tz As String
         Dim users As IEnumerable(Of GuildUserSettings)
+        Dim role As SocketRole = Nothing
+        Dim channel As SocketTextChannel = Nothing
         SyncLock _bot.KnownGuilds
             If Not _bot.KnownGuilds.ContainsKey(guild.Id) Then Return
             Dim gs = _bot.KnownGuilds(guild.Id)
-            roleId = gs.RoleId
-            channelId = gs.AnnounceChannelId
             tz = gs.TimeZone
             users = gs.Users
+
+            If gs.AnnounceChannelId.HasValue Then channel = guild.GetTextChannel(gs.AnnounceChannelId.Value)
+            If gs.RoleId.HasValue Then role = guild.GetRole(gs.RoleId.Value)
+            If role Is Nothing Then
+                gs.RoleWarning = True
+                Return
+            End If
         End SyncLock
-
-        ' Resolve snowflakes to Discord.Net classes
-        Dim role As SocketRole = Nothing
-        If roleId.HasValue Then role = guild.GetRole(roleId.Value)
-        If role Is Nothing Then Return ' Unable to work without it
-
-        Dim channel As SocketTextChannel = Nothing
-        If channelId.HasValue Then channel = guild.GetTextChannel(channelId.Value)
 
         ' Determine who's currently having a birthday
         Dim birthdays = BirthdayCalculate(users, tz)

@@ -5,6 +5,10 @@ Imports Discord
 Imports Discord.WebSocket
 
 Class BirthdayBot
+    Const RoleWarningMsg As String =
+        "Note: This bot does not have a role set or is unable to use the role specified. " +
+        "Update the designated role with `bb.config role (role name/ID). This bot cannot function without it."
+
     Private ReadOnly _dispatchCommands As Dictionary(Of String, CommandHandler)
     Private ReadOnly _cmdsUser As UserCommands
     Private ReadOnly _cmdsHelp As HelpCommands
@@ -98,19 +102,29 @@ Class BirthdayBot
                 Dim channel = CType(msg.Channel, SocketTextChannel)
                 Dim author = CType(msg.Author, SocketGuildUser)
 
-                ' Ban check - but bypass if the author is a manager.
-                If Not author.GuildPermissions.ManageGuild Then
-                    SyncLock KnownGuilds
-                        If KnownGuilds(channel.Guild.Id).IsUserBannedAsync(author.Id).GetAwaiter().GetResult() Then
+                Dim roleWarning As Boolean
+
+                ' Ban and role warning check
+                SyncLock KnownGuilds
+                    Dim gi = KnownGuilds(channel.Guild.Id)
+
+                    ' Skip ban check if user is a manager
+                    If Not author.GuildPermissions.ManageGuild Then
+                        If gi.IsUserBannedAsync(author.Id).GetAwaiter().GetResult() Then
                             Return
                         End If
-                    End SyncLock
-                End If
+                    End If
+
+                    roleWarning = gi.RoleWarning
+                End SyncLock
 
                 Dim h As CommandHandler = Nothing
                 If _dispatchCommands.TryGetValue(csplit(0).Substring(CommandPrefix.Length), h) Then
                     Try
                         Await h(csplit, channel, author)
+                        If roleWarning Then
+                            Await channel.SendMessageAsync(RoleWarningMsg)
+                        End If
                     Catch ex As Exception
                         channel.SendMessageAsync(":x: An unknown error occurred. It has been reported to the bot owner.").Wait()
                         Log("Error", ex.ToString())

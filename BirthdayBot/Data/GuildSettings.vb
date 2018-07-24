@@ -9,7 +9,7 @@ Imports NpgsqlTypes
 ''' guild options, and provides some database abstractions regarding them all.
 ''' Object instances are loaded when entering a guild and discarded when the bot leaves the guild.
 ''' </summary>
-Class GuildSettings
+Friend Class GuildSettings
     Public ReadOnly Property GuildId As ULong
     Private ReadOnly _db As Database
     Private _role As ULong?
@@ -19,9 +19,14 @@ Class GuildSettings
     Private _userCache As Dictionary(Of ULong, GuildUserSettings)
 
     ''' <summary>
+    ''' Flag for notifying servers that the bot is unable to manipulate its role.
+    ''' </summary>
+    Public Property RoleWarning As Boolean
+
+    ''' <summary>
     ''' Gets a list of cached users. Use sparingly.
     ''' </summary>
-    Friend ReadOnly Property Users As IEnumerable(Of GuildUserSettings)
+    Public ReadOnly Property Users As IEnumerable(Of GuildUserSettings)
         Get
             Dim items As New List(Of GuildUserSettings)
             For Each item In _userCache.Values
@@ -77,7 +82,12 @@ Class GuildSettings
         _db = dbconfig
         GuildId = CULng(reader.GetInt64(0))
         ' Weird: if using a ternary operator with a ULong?, Nothing resolves to 0 despite Option Strict On.
-        If Not reader.IsDBNull(1) Then _role = CULng(reader.GetInt64(1))
+        If Not reader.IsDBNull(1) Then
+            _role = CULng(reader.GetInt64(1))
+            RoleWarning = False
+        Else
+            RoleWarning = True
+        End If
         If Not reader.IsDBNull(2) Then _channel = CULng(reader.GetInt64(2))
         _tz = If(reader.IsDBNull(3), Nothing, reader.GetString(3))
         _modded = reader.GetBoolean(4)
@@ -180,6 +190,7 @@ Class GuildSettings
 
     Public Async Function UpdateRoleAsync(roleId As ULong) As Task
         _role = roleId
+        RoleWarning = False
         Await UpdateDatabaseAsync()
     End Function
 

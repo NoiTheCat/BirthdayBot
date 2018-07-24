@@ -90,11 +90,6 @@ Friend Class HelpCommands
     End Function
 
     Private Async Function CmdHelp(param As String(), reqChannel As SocketTextChannel, reqUser As SocketGuildUser) As Task
-        Const FunctionMsg = "Attention server manager: A designated birthday role has not yet been set. " +
-            "This bot requires the ability to be able to set and unset the specified role onto all users. " +
-            "It cannot function without it." + vbLf +
-            "To designate a birthday role, issue the command `{0}config role (role name/ID)`."
-
         ' Determine if an additional message about an invalid role should be added.
         Dim useFunctionMessage = False
         Dim gs As GuildSettings
@@ -108,7 +103,6 @@ Friend Class HelpCommands
         ' Determine if the user asking is a manager
         Dim showManagerCommands = reqUser.GuildPermissions.ManageGuild
 
-        Await reqChannel.SendMessageAsync(If(useFunctionMessage, String.Format(FunctionMsg, CommandPrefix), ""),
-                                          embed:=If(showManagerCommands, _helpEmbedManager, _helpEmbed))
+        Await reqChannel.SendMessageAsync("", embed:=If(showManagerCommands, _helpEmbedManager, _helpEmbed))
     End Function
 End Class
