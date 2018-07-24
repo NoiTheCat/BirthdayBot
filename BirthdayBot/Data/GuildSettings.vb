@@ -130,7 +130,7 @@ Class GuildSettings
 
         Using db = Await _db.OpenConnectionAsync()
             Using c = db.CreateCommand()
-                c.CommandText = $"select * from {BackingTableBans}" +
+                c.CommandText = $"select * from {BackingTableBans} " +
                     "where guild_id = @Gid and user_id = @Uid"
                 c.Parameters.Add("@Gid", NpgsqlDbType.Bigint).Value = GuildId
                 c.Parameters.Add("@Uid", NpgsqlDbType.Bigint).Value = userId
@@ -214,6 +214,7 @@ Class GuildSettings
                 "user_id bigint not null, " +
                 "PRIMARY KEY (guild_id, user_id)" +
                 ")"
+            c.ExecuteNonQuery()
         End Using
     End Sub
 
