@@ -22,17 +22,24 @@ Friend Class ManagerCommands
         _subcommands = New Dictionary(Of String, ConfigSubcommand) From {
             {"role", AddressOf ScmdRole},
             {"channel", AddressOf ScmdChannel},
-            {"set-tz", AddressOf ScmdSetTz},
-            {"ban", AddressOf ScmdBanUnban},
-            {"unban", AddressOf ScmdBanUnban},
-            {"ban-all", AddressOf ScmdSetModerated},
-            {"unban-all", AddressOf ScmdSetModerated}
+            {"zone", AddressOf ScmdZone},
+            {"block", AddressOf ScmdBlock},
+            {"unblock", AddressOf ScmdBlock},
+            {"moderated", AddressOf ScmdModerated}
         }
     End Sub
 
     Private Async Function CmdConfigDispatch(param As String(), reqChannel As SocketTextChannel, reqUser As SocketGuildUser) As Task
-        ' Managers only past this point. (This may have already been checked.)
-        If Not reqUser.GuildPermissions.ManageGuild Then Return
+        ' Managers only past this point.
+        If Not reqUser.GuildPermissions.ManageGuild Then
+            Await reqChannel.SendMessageAsync(":x: This command may only be used by those with the `Manage Server` permission.")
+            Return
+        End If
+
+        If param.Length <> 3 Then
+            Await reqChannel.SendMessageAsync(GenericError)
+            Return
+        End If
 
         ' Subcommands get a subset of the parameters, to make things a little easier.
         Dim confparam(param.Length - 2) As String ' subtract 2???
@@ -137,7 +144,7 @@ Friend Class ManagerCommands
     End Function
 
     ' Guild default time zone set/unset
-    Private Async Function ScmdSetTz(param As String(), reqChannel As SocketTextChannel) As Task
+    Private Async Function ScmdZone(param As String(), reqChannel As SocketTextChannel) As Task
         If param.Length = 1 Then
             ' No extra parameter. Unset guild default time zone.
             SyncLock Instance.KnownGuilds
@@ -175,49 +182,73 @@ Friend Class ManagerCommands
     End Function
 
     ' Block/unblock individual non-manager users from using commands.
-    Private Async Function ScmdBanUnban(param As String(), reqChannel As SocketTextChannel) As Task
+    Private Async Function ScmdBlock(param As String(), reqChannel As SocketTextChannel) As Task
         If param.Length <> 2 Then
             Await reqChannel.SendMessageAsync(GenericError)
             Return
         End If
 
-        Dim doBan As Boolean = param(0).ToLower() = "ban" ' True = ban, False = unban
+        Dim doBan As Boolean = param(0).ToLower() = "block" ' True = block, False = unblock
 
-        ' Parameter must be a mention or explicit ID. No name resolution.
-        Dim input = param(1)
-        Dim m = UserMention.Match(param(1))
-        If m.Success Then input = m.Groups(1).Value
         Dim inputId As ULong
-        If Not ULong.TryParse(input, inputId) Then
-            Await reqChannel.SendMessageAsync(":x: Unable to find user. Specify their `@` mention or their ID.")
+        If Not TryGetUserId(param(1), inputId) Then
+            Await reqChannel.SendMessageAsync(BadUserError)
             Return
         End If
 
         SyncLock Instance.KnownGuilds
             Dim gi = Instance.KnownGuilds(reqChannel.Guild.Id)
-            Dim isBanned = gi.IsUserBannedAsync(inputId).GetAwaiter().GetResult()
+            Dim isBanned = gi.IsUserBlockedAsync(inputId).GetAwaiter().GetResult()
 
             If doBan Then
                 If Not isBanned Then
-                    gi.BanUserAsync(inputId).Wait()
-                    reqChannel.SendMessageAsync(":white_check_mark: User has been banned from using the bot").Wait()
+                    gi.BlockUserAsync(inputId).Wait()
+                    reqChannel.SendMessageAsync(":white_check_mark: User has been blocked.").Wait()
                 Else
-                    reqChannel.SendMessageAsync(":white_check_mark: The specified user is already banned.").Wait()
+                    reqChannel.SendMessageAsync(":white_check_mark: User is already blocked.").Wait()
                 End If
             Else
                 If isBanned Then
                     gi.UnbanUserAsync(inputId).Wait()
-                    reqChannel.SendMessageAsync(":white_check_mark: User may now use the bot").Wait()
+                    reqChannel.SendMessageAsync(":white_check_mark: User is now unblocked.").Wait()
                 Else
-                    reqChannel.SendMessageAsync(":white_check_mark: The specified user is not banned.").Wait()
+                    reqChannel.SendMessageAsync(":white_check_mark: The specified user has not been blocked.").Wait()
                 End If
             End If
         End SyncLock
     End Function
 
-    ' "ban/unban all" - Sets/unsets moderated mode.
-    Private Async Function ScmdSetModerated(param As String(), reqChannel As SocketTextChannel) As Task
-        Throw New NotImplementedException()
+    ' "moderated on/off" - Sets/unsets moderated mode.
+    Private Async Function ScmdModerated(param As String(), reqChannel As SocketTextChannel) As Task
+        If param.Length <> 2 Then
+            Await reqChannel.SendMessageAsync(GenericError)
+            Return
+        End If
+
+        Dim parameter = param(1).ToLower()
+        Dim modSet As Boolean
+        If parameter = "on" Then
+            modSet = True
+        ElseIf parameter = "off" Then
+            modSet = False
+        Else
+            Await reqChannel.SendMessageAsync(GenericError)
+            Return
+        End If
+
+        Dim currentSet As Boolean
+
+        SyncLock Instance.KnownGuilds
+            Dim gi = Instance.KnownGuilds(reqChannel.Guild.Id)
+            currentSet = gi.IsModerated
+            gi.UpdateModeratedModeAsync(modSet).Wait()
+        End SyncLock
+
+        If currentSet = modSet Then
+            Await reqChannel.SendMessageAsync($":white_check_mark: Moderated mode is already {parameter}.")
+        Else
+            Await reqChannel.SendMessageAsync($":white_check_mark: Moderated mode has been turned {parameter}.")
+        End If
     End Function
 #End Region
 

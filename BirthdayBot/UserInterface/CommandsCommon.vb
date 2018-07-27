@@ -10,6 +10,7 @@ Imports NodaTime
 Friend MustInherit Class CommandsCommon
     Public Const CommandPrefix = "bb."
     Public Const GenericError = ":x: Invalid usage. Consult the help command."
+    Public Const BadUserError = ":x: Unable to find user. Specify their `@` mention or their ID."
     Public Const ExpectedNoParametersError = ":x: This command does not take parameters. Did you mean to use another?"
 
     Delegate Function CommandHandler(param As String(), reqChannel As SocketTextChannel, reqUser As SocketGuildUser) As Task
@@ -43,6 +44,11 @@ Friend MustInherit Class CommandsCommon
     End Sub
 
     ''' <summary>
+    ''' On command dispatcher initialization, it will retrieve all available commands through here.
+    ''' </summary>
+    Public MustOverride ReadOnly Property Commands As IEnumerable(Of (String, CommandHandler))
+
+    ''' <summary>
     ''' Checks given time zone input. Returns a valid string for use with NodaTime.
     ''' </summary>
     ''' <param name="tzinput"></param>
@@ -59,7 +65,24 @@ Friend MustInherit Class CommandsCommon
     End Function
 
     ''' <summary>
-    ''' On command dispatcher initialization, it will retrieve all available commands through here.
+    ''' Given user input where a user-like parameter is expected, attempts to resolve to an ID value.
+    ''' Input must be a mention or explicit ID. No name resolution is done here.
     ''' </summary>
-    Public MustOverride ReadOnly Property Commands As IEnumerable(Of (String, CommandHandler))
+    Protected Function TryGetUserId(input As String, ByRef result As ULong) As Boolean
+        Dim doParse As String
+        Dim m = UserMention.Match(input)
+        If m.Success Then
+            doParse = m.Groups(1).Value
+        Else
+            doParse = input
+        End If
+
+        Dim resultVal As ULong
+        If ULong.TryParse(doParse, resultVal) Then
+            result = resultVal
+            Return True
+        End If
+
+        Return False
+    End Function
 End Class

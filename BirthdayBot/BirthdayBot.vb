@@ -2,16 +2,17 @@
 Option Explicit On
 Imports BirthdayBot.CommandsCommon
 Imports Discord
+Imports Discord.Net
 Imports Discord.WebSocket
 
 Class BirthdayBot
     Const RoleWarningMsg As String =
         "Note: This bot does not have a role set or is unable to use the role specified. " +
-        "Update the designated role with `bb.config role (role name/ID). This bot cannot function without it."
+        "Update the designated role with `bb.config role (role name/ID)`. This bot cannot function without it."
 
     Private ReadOnly _dispatchCommands As Dictionary(Of String, CommandHandler)
     Private ReadOnly _cmdsUser As UserCommands
-    Private ReadOnly _cmdsHelp As HelpCommands
+    Private ReadOnly _cmdsHelp As HelpInfoCommands
     Private ReadOnly _cmdsMods As ManagerCommands
 
     Private WithEvents _client As DiscordSocketClient
@@ -40,7 +41,7 @@ Class BirthdayBot
         For Each item In _cmdsUser.Commands
             _dispatchCommands.Add(item.Item1, item.Item2)
         Next
-        _cmdsHelp = New HelpCommands(Me, conf)
+        _cmdsHelp = New HelpInfoCommands(Me, conf)
         For Each item In _cmdsHelp.Commands
             _dispatchCommands.Add(item.Item1, item.Item2)
         Next
@@ -102,15 +103,22 @@ Class BirthdayBot
                 Dim channel = CType(msg.Channel, SocketTextChannel)
                 Dim author = CType(msg.Author, SocketGuildUser)
 
-                Dim roleWarning As Boolean
+                ' Determine if it's something we're listening for.
+                ' Doing this first before the block check because a block check triggers a database query.
+                Dim command As CommandHandler = Nothing
+                If Not _dispatchCommands.TryGetValue(csplit(0).Substring(CommandPrefix.Length), command) Then
+                    Return
+                End If
 
                 ' Ban and role warning check
+                Dim roleWarning As Boolean
+                Dim isManager = author.GuildPermissions.ManageGuild
                 SyncLock KnownGuilds
                     Dim gi = KnownGuilds(channel.Guild.Id)
 
                     ' Skip ban check if user is a manager
-                    If Not author.GuildPermissions.ManageGuild Then
-                        If gi.IsUserBannedAsync(author.Id).GetAwaiter().GetResult() Then
+                    If Not isManager Then
+                        If gi.IsUserBlockedAsync(author.Id).GetAwaiter().GetResult() Then
                             Return
                         End If
                     End If
@@ -118,18 +126,24 @@ Class BirthdayBot
                     roleWarning = gi.RoleWarning
                 End SyncLock
 
-                Dim h As CommandHandler = Nothing
-                If _dispatchCommands.TryGetValue(csplit(0).Substring(CommandPrefix.Length), h) Then
-                    Try
-                        Await h(csplit, channel, author)
-                        If roleWarning Then
+                Try
+                    If roleWarning Then
+                        Try
                             Await channel.SendMessageAsync(RoleWarningMsg)
-                        End If
-                    Catch ex As Exception
+                        Catch ex As HttpException
+                            ' Don't let this prevent the bot from continuing command execution.
+                        End Try
+                    End If
+                    Await command(csplit, channel, author)
+                Catch ex As Exception
+                    If TypeOf ex Is HttpException Then Return
+                    Log("Error", ex.ToString())
+                    Try
                         channel.SendMessageAsync(":x: An unknown error occurred. It has been reported to the bot owner.").Wait()
-                        Log("Error", ex.ToString())
+                    Catch ex2 As HttpException
+                        ' Fail silently.
                     End Try
-                End If
+                End Try
             End If
         End If
     End Function

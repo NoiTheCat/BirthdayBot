@@ -11,7 +11,7 @@ Class UserCommands
         Get
             Return New List(Of (String, CommandHandler)) From {
                 ("set", AddressOf CmdSet),
-                ("set-tz", AddressOf CmdSetTz),
+                ("zone", AddressOf CmdZone),
                 ("remove", AddressOf CmdRemove)
             }
         End Get
@@ -124,7 +124,7 @@ Class UserCommands
         End If
     End Function
 
-    Private Async Function CmdSetTz(param As String(), reqChannel As SocketTextChannel, reqUser As SocketGuildUser) As Task
+    Private Async Function CmdZone(param As String(), reqChannel As SocketTextChannel, reqUser As SocketGuildUser) As Task
         If param.Count <> 2 Then
             Await reqChannel.SendMessageAsync(GenericError)
             Return

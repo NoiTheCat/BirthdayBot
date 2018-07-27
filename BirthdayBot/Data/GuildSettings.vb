@@ -18,10 +18,31 @@ Friend Class GuildSettings
     Private _modded As Boolean
     Private _userCache As Dictionary(Of ULong, GuildUserSettings)
 
+    Private _roleWarning As Boolean
+    Private _roleLastWarning As New DateTimeOffset(DateTime.MinValue, TimeSpan.Zero)
+    Private Shared ReadOnly RoleWarningInterval As New TimeSpan(0, 10, 0)
+
     ''' <summary>
     ''' Flag for notifying servers that the bot is unable to manipulate its role.
+    ''' Can be set at any time. Reading this will only return True once every 10 minutes, if at all.
     ''' </summary>
     Public Property RoleWarning As Boolean
+        Get
+            If _roleWarning = True Then
+                ' Only report a warning every so often.
+                If DateTimeOffset.UtcNow - _roleLastWarning > RoleWarningInterval Then
+                    _roleLastWarning = DateTimeOffset.UtcNow
+                    Return True
+                Else
+                    Return False
+                End If
+            End If
+            Return False
+        End Get
+        Set(value As Boolean)
+            _roleWarning = value
+        End Set
+    End Property
 
     ''' <summary>
     ''' Gets a list of cached users. Use sparingly.
@@ -67,14 +88,10 @@ Friend Class GuildSettings
     ''' Gets or sets if the server is in moderated mode.
     ''' Updating this value updates the database.
     ''' </summary>
-    Public Property IsModerated As Boolean
+    Public ReadOnly Property IsModerated As Boolean
         Get
             Return _modded
         End Get
-        Set(value As Boolean)
-            _modded = value
-            UpdateDatabaseAsync()
-        End Set
     End Property
 
     ' Called by LoadSettingsAsync. Double-check ordinals when changes are made.
@@ -132,10 +149,11 @@ Friend Class GuildSettings
     End Function
 
     ''' <summary>
-    ''' Checks if the given user is banned from issuing commands.
+    ''' Checks if the given user is blocked from issuing commands.
     ''' If the server is in moderated mode, this always returns True.
+    ''' Does not check if the user is a manager.
     ''' </summary>
-    Public Async Function IsUserBannedAsync(userId As ULong) As Task(Of Boolean)
+    Public Async Function IsUserBlockedAsync(userId As ULong) As Task(Of Boolean)
         If IsModerated Then Return True
 
         Using db = Await _db.OpenConnectionAsync()
@@ -154,10 +172,9 @@ Friend Class GuildSettings
     End Function
 
     ''' <summary>
-    ''' Bans the specified user from issuing commands.
-    ''' Does not check if the given user is already banned.
+    ''' Blocks the specified user from issuing commands.
     ''' </summary>
-    Public Async Function BanUserAsync(userId As ULong) As Task
+    Public Async Function BlockUserAsync(userId As ULong) As Task
         Using db = Await _db.OpenConnectionAsync()
             Using c = db.CreateCommand()
                 c.CommandText = $"insert into {BackingTableBans} (guild_id, user_id) " +
@@ -172,8 +189,7 @@ Friend Class GuildSettings
     End Function
 
     ''' <summary>
-    ''' Removes the specified user from the ban list.
-    ''' Does not check if the given user was not banned to begin with.
+    ''' Removes the specified user from the block list.
     ''' </summary>
     Public Async Function UnbanUserAsync(userId As ULong) As Task
         Using db = Await _db.OpenConnectionAsync()
@@ -201,6 +217,11 @@ Friend Class GuildSettings
 
     Public Async Function UpdateTimeZoneAsync(tzString As String) As Task
         _tz = tzString
+        Await UpdateDatabaseAsync()
+    End Function
+
+    Public Async Function UpdateModeratedModeAsync(isModerated As Boolean) As Task
+        _modded = isModerated
         Await UpdateDatabaseAsync()
     End Function
 
