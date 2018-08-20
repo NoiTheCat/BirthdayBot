@@ -7,6 +7,7 @@ Friend Class ManagerCommands
     Private Delegate Function ConfigSubcommand(param As String(), reqChannel As SocketTextChannel) As Task
 
     Private _subcommands As Dictionary(Of String, ConfigSubcommand)
+    Private _usercommands As Dictionary(Of String, CommandHandler)
 
     Public Overrides ReadOnly Property Commands As IEnumerable(Of (String, CommandHandler))
         Get
@@ -17,9 +18,9 @@ Friend Class ManagerCommands
         End Get
     End Property
 
-    Sub New(inst As BirthdayBot, db As Configuration)
+    Sub New(inst As BirthdayBot, db As Configuration, userCommands As IEnumerable(Of (String, CommandHandler)))
         MyBase.New(inst, db)
-        _subcommands = New Dictionary(Of String, ConfigSubcommand) From {
+        _subcommands = New Dictionary(Of String, ConfigSubcommand)(StringComparer.InvariantCultureIgnoreCase) From {
             {"role", AddressOf ScmdRole},
             {"channel", AddressOf ScmdChannel},
             {"zone", AddressOf ScmdZone},
@@ -27,6 +28,12 @@ Friend Class ManagerCommands
             {"unblock", AddressOf ScmdBlock},
             {"moderated", AddressOf ScmdModerated}
         }
+
+        ' Set up local copy of all user commands accessible by the override command
+        _usercommands = New Dictionary(Of String, CommandHandler)(StringComparer.InvariantCultureIgnoreCase)
+        For Each item In userCommands
+            _usercommands.Add(item.Item1, item.Item2)
+        Next
     End Sub
 
     Private Async Function CmdConfigDispatch(param As String(), reqChannel As SocketTextChannel, reqUser As SocketGuildUser) As Task
@@ -42,7 +49,7 @@ Friend Class ManagerCommands
         End If
 
         ' Subcommands get a subset of the parameters, to make things a little easier.
-        Dim confparam(param.Length - 2) As String ' subtract 2???
+        Dim confparam(param.Length - 2) As String ' subtract one extra???
         Array.Copy(param, 1, confparam, 0, param.Length - 1)
         ' confparam has at most 2 items: subcommand name, parameters in one string
 
@@ -254,7 +261,43 @@ Friend Class ManagerCommands
 
     ' Execute command as another user
     Private Async Function CmdOverride(param As String(), reqChannel As SocketTextChannel, reqUser As SocketGuildUser) As Task
-        Throw New NotImplementedException
-        ' obv. check if manager
+        ' Managers only. Silently drop if the check fails.
+        If Not reqUser.GuildPermissions.ManageGuild Then
+            Return
+        End If
+
+        If param.Length <> 3 Then
+            Await reqChannel.SendMessageAsync(GenericError)
+            Return
+        End If
+
+        ' Second parameter: determine the user to act as
+        Dim user As ULong = 0
+        If Not TryGetUserId(param(1), user) Then
+            Await reqChannel.SendMessageAsync(BadUserError)
+            Return
+        End If
+        Dim overuser = reqChannel.Guild.GetUser(user)
+
+        ' Third parameter: determine command to invoke.
+        ' Reminder that we're only receiving a param array of size 3 at maximum. String must be split again.
+        Dim overparam = param(2).Split(" ", 3, StringSplitOptions.RemoveEmptyEntries)
+        Dim cmdsearch = overparam(0)
+        If cmdsearch.StartsWith(CommandPrefix) Then
+            ' Strip command prefix to search for the given command.
+            cmdsearch = cmdsearch.Substring(CommandPrefix.Length)
+        Else
+            ' Add command prefix to input, just in case.
+            overparam(0) = CommandPrefix + overparam(0).ToLower()
+        End If
+        Dim action As CommandHandler = Nothing
+        If Not _usercommands.TryGetValue(cmdsearch, action) Then
+            Await reqChannel.SendMessageAsync($":x: `{cmdsearch}` is not an overridable command.")
+            Return
+        End If
+
+        ' Preparations complete. Run the command.
+        Await reqChannel.SendMessageAsync($"Executing `{cmdsearch.ToLower()}` on behalf of {If(overuser.Nickname, overuser.Username)}:")
+        Await action.Invoke(overparam, reqChannel, overuser)
     End Function
 End Class

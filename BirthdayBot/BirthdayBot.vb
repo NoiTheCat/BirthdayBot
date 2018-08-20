@@ -45,7 +45,7 @@ Class BirthdayBot
         For Each item In _cmdsHelp.Commands
             _dispatchCommands.Add(item.Item1, item.Item2)
         Next
-        _cmdsMods = New ManagerCommands(Me, conf)
+        _cmdsMods = New ManagerCommands(Me, conf, _cmdsUser.Commands)
         For Each item In _cmdsMods.Commands
             _dispatchCommands.Add(item.Item1, item.Item2)
         Next
