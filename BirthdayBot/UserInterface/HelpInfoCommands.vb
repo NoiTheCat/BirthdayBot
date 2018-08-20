@@ -19,7 +19,9 @@ Friend Class HelpInfoCommands
     Public Overrides ReadOnly Property Commands As IEnumerable(Of (String, CommandHandler))
         Get
             Return New List(Of (String, CommandHandler)) From {
-                ("help", AddressOf CmdHelp)
+                ("help", AddressOf CmdHelp),
+                ("help-tzdata", AddressOf CmdHelpTzdata),
+                ("info", AddressOf CmdInfo)
             }
         End Get
     End Property
@@ -69,6 +71,12 @@ Friend Class HelpInfoCommands
         helpManager.AddField(cmdField)
         helpManager.AddField(managerField)
 
+        Const betamsg = "Birthday Bot is still in active development and may be a little rough around the edges. " +
+            "If you encounter problems or have suggestions on improving existing features, please send detailed(!) " +
+            "information to `Noi#7890`." + vbLf + "Thank you for giving this bot a try!"
+        helpManager.Description = betamsg
+        helpNoManager.Description = betamsg
+
         Return (helpNoManager, helpManager)
     End Function
 
@@ -87,5 +95,30 @@ Friend Class HelpInfoCommands
         Dim showManagerCommands = reqUser.GuildPermissions.ManageGuild
 
         Await reqChannel.SendMessageAsync("", embed:=If(showManagerCommands, _helpEmbedManager, _helpEmbed))
+    End Function
+
+    Private Async Function CmdHelpTzdata(param As String(), reqChannel As SocketTextChannel, reqUser As SocketGuildUser) As Task
+        Const tzhelp = "To ensure that events are recognized at your local time, you may specify the time " +
+            "zone in which events take place. Time zone parameters take values from the IANA Time Zone Database, " +
+            "also known as the Olson Database." + vbLf + vbLf +
+            "A list of values can be found at the following link: https://en.wikipedia.org/wiki/List_of_tz_database_time_zones" + vbLf +
+            "Most zone names within this list are supported."
+        Dim embed As New EmbedBuilder
+        embed.AddField(New EmbedFieldBuilder() With {
+            .Name = "About time zone parameters",
+            .Value = tzhelp
+        })
+        Await reqChannel.SendMessageAsync("", embed:=embed)
+    End Function
+
+    Private Async Function CmdInfo(param As String(), reqChannel As SocketTextChannel, reqUser As SocketGuildUser) As Task
+        Dim embed As New EmbedBuilder
+        embed.AddField(New EmbedFieldBuilder With {
+            .Name = "BirthdayBot",
+            .Value = "v" + System.Reflection.Assembly.GetExecutingAssembly().GetName().Version.ToString(2)
+        })
+        ' TODO: Add more fun stats.
+        ' Ideas: number of servers, number of current birthdays, uptime
+        Await reqChannel.SendMessageAsync("", embed:=embed)
     End Function
 End Class
