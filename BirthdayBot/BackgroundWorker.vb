@@ -166,7 +166,7 @@ Class BackgroundWorker
             Else
                 name = names(0).Username
             End If
-            result = $"Hey! Please wish a happy birthday to our wonderful member, **{name}**."
+            result = $"Please wish a happy birthday to our esteemed member, **{name}**."
         Else
             ' Build name list
             Dim namedisplay As New StringBuilder()
@@ -184,7 +184,7 @@ Class BackgroundWorker
                 End If
                 namedisplay.Append(name)
             Next
-            result = $"Please wish our members a happy birthday! In no particular order: {namedisplay.ToString()}"
+            result = $"Please wish our members a happy birthday!{vbLf}In no particular order: {namedisplay.ToString()}"
         End If
 
         Try
