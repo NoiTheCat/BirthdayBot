@@ -11,7 +11,8 @@ Class BackgroundWorker
     Private ReadOnly _db As Database
     Private ReadOnly Property WorkerCancel As New CancellationTokenSource
     Private _workerTask As Task
-    Const Interval = 180 ' How often the worker wakes up, in seconds
+    ' NOTE: Interval greatly lowered. Raise to 45 seconds if server count goes up.
+    Const Interval = 15 ' How often the worker wakes up, in seconds
     Private _clock As IClock
 
     Sub New(instance As BirthdayBot, dbsettings As Database)
