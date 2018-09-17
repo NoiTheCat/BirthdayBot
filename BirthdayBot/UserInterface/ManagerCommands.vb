@@ -1,6 +1,4 @@
-﻿Option Strict On
-Option Explicit On
-Imports Discord.WebSocket
+﻿Imports Discord.WebSocket
 
 Friend Class ManagerCommands
     Inherits CommandsCommon

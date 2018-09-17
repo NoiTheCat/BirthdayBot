@@ -1,6 +1,4 @@
-﻿Option Strict On
-Option Explicit On
-Imports System.Text
+﻿Imports System.Text
 Imports System.Threading
 Imports Discord.WebSocket
 Imports NodaTime

@@ -1,6 +1,4 @@
-﻿Option Strict On
-Option Explicit On
-Imports System.Reflection
+﻿Imports System.Reflection
 Imports Newtonsoft.Json.Linq
 Imports System.IO
 

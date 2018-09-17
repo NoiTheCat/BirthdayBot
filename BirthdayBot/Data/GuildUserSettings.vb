@@ -1,6 +1,4 @@
-﻿Option Strict On
-Option Explicit On
-Imports System.Data.Common
+﻿Imports System.Data.Common
 Imports Npgsql
 Imports NpgsqlTypes
 

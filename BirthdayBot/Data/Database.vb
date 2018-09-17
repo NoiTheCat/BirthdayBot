@@ -1,6 +1,4 @@
-﻿Option Strict On
-Option Explicit On
-Imports Npgsql
+﻿Imports Npgsql
 
 ''' <summary>
 ''' Some database abstractions.

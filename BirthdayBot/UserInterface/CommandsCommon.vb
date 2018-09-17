@@ -1,6 +1,4 @@
-﻿Option Strict On
-Option Explicit On
-Imports System.Text.RegularExpressions
+﻿Imports System.Text.RegularExpressions
 Imports Discord.WebSocket
 Imports NodaTime
 

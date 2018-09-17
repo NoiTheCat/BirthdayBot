@@ -1,6 +1,4 @@
-﻿Option Strict On
-Option Explicit On
-Imports BirthdayBot.CommandsCommon
+﻿Imports BirthdayBot.CommandsCommon
 Imports Discord
 Imports Discord.Net
 Imports Discord.WebSocket

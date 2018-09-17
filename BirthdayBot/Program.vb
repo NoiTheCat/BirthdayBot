@@ -1,5 +1,3 @@
-Option Strict On
-Option Explicit On
 Imports Discord
 Imports Discord.WebSocket
 
