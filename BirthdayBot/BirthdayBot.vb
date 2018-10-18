@@ -70,7 +70,6 @@ Class BirthdayBot
         SyncLock KnownGuilds
             If Not KnownGuilds.ContainsKey(g.Id) Then
                 Dim gi = GuildSettings.LoadSettingsAsync(_cfg.DatabaseSettings, g.Id).GetAwaiter().GetResult()
-                Log("Status", $"Load information for guild {g.Id} ({g.Name})")
                 KnownGuilds.Add(g.Id, gi)
             End If
         End SyncLock
