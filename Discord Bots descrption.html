@@ -1,28 +1,31 @@
 <div style="width: 80%; margin-left: auto; margin-right: auto;">
-<p>Help command: <i>bb.help</i>.</p>
-<hr style="width: 20%" />
-<p><b>Recognize birthdays in your Discord community!</b></p>
-<br />
-<p>This bot will automatically add a role to users during their birthdays. If desired, it will also announce birthdays in a channel of your choosing. Time zones are supported per-server and per-user to ensure that birthdays and events are recognized at appropriate times.</p>
-<br />
-<p>
-<b>Setup</b>
-<ol style="margin-left: 3em;">
-    <li>Create a dedicated birthday role for use by the bot.</li>
-    <li>Invite the bot to your server. Ensure that the bot is able to manipulate this role.</li>
-    <li>Instruct the bot to use the role: `bb.config role (role name)`</li>
-    <li>(Optional) Set a birthday announcement channel: `bb.config channel (channel)`</li>
-    <li>(Optional) Set a server default time zone: `bb.config zone (time zone)`</li>
-</ol>
-</p>
-<br />
-<p>
-<b>Other details</b>
-<ul style="margin-left: 3em;list-style-type: circle;">
-    <li>Birthday information is not shared between servers. If you are in multiple servers that this bot is in, you must register your birthday (including time zone) within each server.</li>
-    <ul style="margin-left: 2em;list-style-type: circle;">
-        <li>This is in case one wishes to share their birthday only in certain communities.</li>
+    <p>Help command: <i>bb.help</i>.</p>
+    <hr style="width: 20%" />
+    <p><b>Recognize birthdays in your Discord community!</b></p>
+    <br />
+    <p>This bot will automatically add a role to users during their birthdays. If desired, it will also announce birthdays in a channel of your choosing. Time zones are supported per-server and per-user to ensure that birthdays and events are recognized at appropriate times.</p>
+    <br />
+    <p>
+    <b>Setup</b>
+    <ol style="margin-left: 3em;">
+        <li>Create a dedicated birthday role for use by the bot.</li>
+        <li>Invite the bot to your server. Ensure that the bot is able to manipulate this role.</li>
+        <ul style="margin-left: 2em;list-style-type: circle;">
+            <li><b>Do not use an existing role!</b> This bot assumes exclusive control over it. Any users not having birthdays will have the role automatically removed.</li>
+        </ul>
+        <li>Instruct the bot to use the role: `bb.config role (role name)`</li>
+        <li>(Optional) Set a birthday announcement channel: `bb.config channel (channel)`</li>
+        <li>(Optional) Set a server default time zone: `bb.config zone (time zone)`</li>
+    </ol>
+    </p>
+    <br />
+    <p>
+    <b>Other details</b>
+    <ul style="margin-left: 3em;list-style-type: circle;">
+        <li>Birthday information is not shared between servers. If you are in multiple servers that this bot is in, you must register your birthday (including time zone) within each server.</li>
+        <ul style="margin-left: 2em;list-style-type: circle;">
+            <li>This is in case one wishes to share their birthday only in certain communities.</li>
+        </ul>
+        <li>Problematic users? This bot supports blocking certain or all users from using commands. Server moderators are able to issue commands on a user's behalf.</li>
     </ul>
-    <li>Problematic users? This bot supports blocking certain or all users from using commands. Server moderators are able to issue commands on a user's behalf.</li>
-</ul>
 </div>
