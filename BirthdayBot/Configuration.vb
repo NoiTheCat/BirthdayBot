@@ -7,6 +7,7 @@ Imports System.IO
 ''' </summary>
 Class Configuration
     Public ReadOnly Property BotToken As String
+    Public ReadOnly Property DBotsToken As String
     Public ReadOnly Property DatabaseSettings As Database
 
     Sub New()
@@ -23,6 +24,13 @@ Class Configuration
         BotToken = jc("BotToken").Value(Of String)()
         If String.IsNullOrWhiteSpace(BotToken) Then
             Throw New Exception("'BotToken' must be specified.")
+        End If
+
+        Dim dbj = jc("DBotsToken")
+        If dbj IsNot Nothing Then
+            DBotsToken = dbj.Value(Of String)()
+        Else
+            DBotsToken = Nothing
         End If
 
         Dim sqlcs = jc("SqlConnectionString").Value(Of String)()

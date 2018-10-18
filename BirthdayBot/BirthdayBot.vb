@@ -14,7 +14,7 @@ Class BirthdayBot
     Private ReadOnly _cmdsMods As ManagerCommands
 
     Private WithEvents _client As DiscordSocketClient
-    Private _cfg As Configuration
+    Friend _cfg As Configuration
     Private ReadOnly _worker As BackgroundWorker
 
     Friend ReadOnly Property DiscordClient As DiscordSocketClient
