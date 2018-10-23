@@ -35,21 +35,24 @@ Class BackgroundWorker
     ''' Background task. Kicks off many other tasks.
     ''' </summary>
     Private Async Function WorkerLoop() As Task
-        Try
-            While Not WorkerCancel.IsCancellationRequested
+        While Not WorkerCancel.IsCancellationRequested
+            Try
                 ' Start background tasks.
                 Dim bgTasks As New List(Of Task) From {
-                    ReportServerCount(),
+                    ReportAsync(),
                     BirthdayAsync()
                 }
                 Await Task.WhenAll(bgTasks)
 
                 ' All done. Wait until we have to work again.
                 Await Task.Delay(Interval * 1000, WorkerCancel.Token)
-            End While
-        Catch ex As TaskCanceledException
-            Return
-        End Try
+            Catch ex As TaskCanceledException
+                Return
+            Catch ex As Exception
+                Log("Background task", "Unhandled exception in background task thread:")
+                Log("Background task", ex.ToString())
+            End Try
+        End While
     End Function
 
 #Region "Birthday handling"
@@ -83,7 +86,7 @@ Class BackgroundWorker
                 guilds += 1
             End If
         Next
-        If announces > 0 Then Log("Background", $"Announcing {announces} birthday(s) in {guilds} guild(s).")
+        If announces > 0 Then Log("Birthday task", $"Announcing {announces} birthday(s) in {guilds} guild(s).")
     End Function
 
     ''' <summary>
@@ -115,7 +118,16 @@ Class BackgroundWorker
         ' Note: Don't quit here if zero people are having birthdays. Roles may still need to be removed by BirthdayApply.
 
         ' Set birthday role, get list of users now having birthdays
-        Dim announceNames = Await BirthdayApplyAsync(guild, role, birthdays)
+        Dim announceNames As IEnumerable(Of SocketGuildUser)
+        Try
+            announceNames = Await BirthdayApplyAsync(guild, role, birthdays)
+        Catch ex As Exception
+            SyncLock _bot.KnownGuilds
+                ' Failed to apply role. Reset the warning.
+                _bot.KnownGuilds(guild.Id).RoleWarning = True
+            End SyncLock
+            Return 0
+        End Try
         If announceNames.Count <> 0 Then
             ' Send out announcement message
             Await BirthdayAnnounceAsync(guild, channel, announceNames)
@@ -233,14 +245,35 @@ Class BackgroundWorker
 #End Region
 
 #Region "Activity reporting"
-    Private _activityCount As Integer = 0
-    Private Async Function ReportServerCount() As Task
-        ' Once roughly every 6 hours, with an initial ~2 minute delay. Be mindful of the interval value.
-        _activityCount += 1
-        If _activityCount Mod 400 <> 2 Then Return
+    ''' <summary>
+    ''' Increasing value for regulating how often certain tasks are done.
+    ''' For anything relying on this value, also be mindful of the interval value.
+    ''' </summary>
+    Private _reportTick As Integer = 0
+
+    ''' <summary>
+    ''' Handles various periodic reporting tasks.
+    ''' </summary>
+    Private Async Function ReportAsync() As Task
+        ReportHeartbeat(_reportTick)
+        Await ReportGuildCount(_reportTick)
+
+        _reportTick += 1
+    End Function
+
+    Private Sub ReportHeartbeat(tick As Integer)
+        ' Roughly every 15 minutes (interval: 45)
+        If tick Mod 20 = 0 Then
+            Log("Background task", $"Still alive! Tick: {_reportTick}.")
+        End If
+    End Sub
+
+    Private Async Function ReportGuildCount(tick As Integer) As Task
+        ' Roughly every 5 hours (interval: 45)
+        If tick Mod 400 <> 2 Then Return
 
         Dim count = _bot.DiscordClient.Guilds.Count
-        Log("Activity Report", $"Currently in {count} guild(s).")
+        Log("Report", $"Currently in {count} guild(s).")
 
         Dim dtok = _bot._cfg.DBotsToken
         If dtok IsNot Nothing Then
@@ -253,9 +286,9 @@ Class BackgroundWorker
                 client.Headers(HttpRequestHeader.ContentType) = "application/json"
                 Try
                     Await client.UploadStringTaskAsync(uri, data)
-                    Log("Activity Report", "Count sent to Discord Bots.")
+                    Log("Server Count", "Count sent to Discord Bots.")
                 Catch ex As WebException
-                    Log("Activity Report", "Encountered error on sending to Discord Bots: " + ex.Message)
+                    Log("Server Count", "Encountered error on sending to Discord Bots: " + ex.Message)
                 End Try
             End Using
         End If
