@@ -277,11 +277,11 @@ Class BackgroundWorker
 
         Dim dtok = _bot._cfg.DBotsToken
         If dtok IsNot Nothing Then
-            Const dUrl As String = "https://bots.discord.pw/api/bots/{0}/stats"
+            Const dUrl As String = "https://discord.bots.gg/api/v1/bots/{0}/stats"
 
             Using client As New WebClient()
                 Dim uri = New Uri(String.Format(dUrl, CType(_bot.DiscordClient.CurrentUser.Id, String)))
-                Dim data = "{ ""server_count"": " + CType(count, String) + " }"
+                Dim data = "{ ""guildCount"": " + CType(count, String) + " }"
                 client.Headers(HttpRequestHeader.Authorization) = dtok
                 client.Headers(HttpRequestHeader.ContentType) = "application/json"
                 Try
