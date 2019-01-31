@@ -220,7 +220,9 @@ Class BackgroundWorker
             ' Build name list
             Dim namedisplay As New StringBuilder()
             Dim first = True
-            For Each item In names
+            Dim sortedNames = names.ToArray()
+            Array.Sort(sortedNames)
+            For Each item In sortedNames
                 If Not first Then
                     namedisplay.Append(", ")
                 End If
@@ -233,7 +235,7 @@ Class BackgroundWorker
                 End If
                 namedisplay.Append("**" + name + "**")
             Next
-            result = $"Please wish our esteemed members a happy birthday!{vbLf}In no particular order: {namedisplay.ToString()}"
+            result = $"Please wish our esteemed members a happy birthday: {namedisplay.ToString()}."
         End If
 
         Try
