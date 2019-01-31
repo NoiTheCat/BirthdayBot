@@ -90,11 +90,10 @@ Friend Class HelpInfoCommands
     End Function
 
     Private Async Function CmdHelpTzdata(param As String(), reqChannel As SocketTextChannel, reqUser As SocketGuildUser) As Task
-        Const tzhelp = "To ensure that events are recognized at your local time, you may specify the local time " +
-            "zone for events and birthdays. Time zone parameters take values from the IANA Time Zone Database, " +
-            "also known as the Olson Database." + vbLf + vbLf +
-            "A list of values can be found at the following link: https://en.wikipedia.org/wiki/List_of_tz_database_time_zones" +
-            "Most zone names within this list are supported."
+        Const tzhelp = "To have events recognized in your local time, you may specify a time zone. Time zone names " +
+            "from the IANA Time Zone Database (a.k.a. Olson Database) are recognized by this bot." + vbLf + vbLf +
+            "These values can be found at the following link, under the 'TZ database name' column: " +
+            "https://en.wikipedia.org/wiki/List_of_tz_database_time_zones"
         Dim embed As New EmbedBuilder
         embed.AddField(New EmbedFieldBuilder() With {
             .Name = "Regarding time zone parameters",
