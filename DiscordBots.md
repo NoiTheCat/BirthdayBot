@@ -7,6 +7,6 @@ This bot will automatically set a role to users during their birthdays. If desir
 * Create a dedicated birthday role to be used only by the bot. Ensure the new role is under the bot's role.
   * **Do not use an existing role!** This bot assumes exclusive control over it. Any users without birthdays will have the role automatically removed.
 * Instruct the bot to use the role: `bb.config role (role name)`
-* Optional: Set a birthday announcement channel: `bb.config channel (channel)
+* Optional: Set a birthday announcement channel: `bb.config channel (channel)`
 * Optional: Set a server default time zone: `bb.config zone (time zone)`
-  * See the command `bb.help-tzdata` for more information on specifying a time zone.
+  * Use the command `bb.help-tzdata` for information on how to specify time zones.
