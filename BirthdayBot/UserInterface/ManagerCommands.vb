@@ -1,4 +1,5 @@
-﻿Imports Discord.WebSocket
+﻿Imports System.Text.RegularExpressions
+Imports Discord.WebSocket
 
 Friend Class ManagerCommands
     Inherits CommandsCommon
@@ -58,6 +59,8 @@ Friend Class ManagerCommands
     End Function
 
 #Region "Configuration sub-commands"
+    Private Shared ReadOnly RoleMention As New Regex("<@?&(?<snowflake>\d+)>", RegexOptions.Compiled)
+
     ' Birthday role set
     Private Async Function ScmdRole(param As String(), reqChannel As SocketTextChannel) As Task
         If param.Length <> 2 Then
@@ -70,8 +73,9 @@ Friend Class ManagerCommands
         Dim role As SocketRole = Nothing
 
         ' Resembles a role mention? Strip it to the pure number
-        If input.StartsWith("<&") And input.EndsWith(">") Then
-            input = input.Substring(2, input.Length - 3)
+        Dim rmatch = RoleMention.Match(input)
+        If rmatch.Success Then
+            input = rmatch.Groups("snowflake").Value
         End If
 
         ' Attempt to get role by ID

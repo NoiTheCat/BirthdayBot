@@ -131,6 +131,7 @@ Class BirthdayBot
                             ' Don't let this prevent the bot from continuing command execution.
                         End Try
                     End If
+                    Log("Command", $"{channel.Guild.Name}/{author.Username}#{author.Discriminator}: {msg.Content}")
                     Await command(csplit, channel, author)
                 Catch ex As Exception
                     If TypeOf ex Is HttpException Then Return
