@@ -18,11 +18,12 @@ Friend Class GuildSettings
 
     Private _roleWarning As Boolean
     Private _roleLastWarning As New DateTimeOffset(DateTime.MinValue, TimeSpan.Zero)
-    Private Shared ReadOnly RoleWarningInterval As New TimeSpan(0, 10, 0)
+    Private Shared ReadOnly RoleWarningInterval As New TimeSpan(1, 0, 0)
 
     ''' <summary>
     ''' Flag for notifying servers that the bot is unable to manipulate its role.
-    ''' Can be set at any time. Reading this will only return True once every 10 minutes, if at all.
+    ''' Can be set at any time. Reading this will only return True if it's been set as such,
+    ''' and it is only returned after a set time has passed in order to not constantly show the message.
     ''' </summary>
     Public Property RoleWarning As Boolean
         Get

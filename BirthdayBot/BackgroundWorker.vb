@@ -121,12 +121,19 @@ Class BackgroundWorker
         Dim announceNames As IEnumerable(Of SocketGuildUser)
         Try
             announceNames = Await BirthdayApplyAsync(guild, role, birthdays)
-        Catch ex As Exception
             SyncLock _bot.KnownGuilds
-                ' Failed to apply role. Reset the warning.
-                _bot.KnownGuilds(guild.Id).RoleWarning = True
+                _bot.KnownGuilds(guild.Id).RoleWarning = False
             End SyncLock
-            Return 0
+        Catch ex As Discord.Net.HttpException
+            If ex.HttpCode = HttpStatusCode.Forbidden Then
+                SyncLock _bot.KnownGuilds
+                    ' Failed to apply role. Set the warning.
+                    _bot.KnownGuilds(guild.Id).RoleWarning = True
+                End SyncLock
+                Return 0
+            End If
+
+            Throw
         End Try
         If announceNames.Count <> 0 Then
             ' Send out announcement message
