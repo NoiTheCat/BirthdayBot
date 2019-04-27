@@ -24,7 +24,7 @@ Friend Class HelpInfoCommands
         End Get
     End Property
 
-    Private Function CreateHelpEmbed() As (EmbedBuilder, EmbedBuilder)
+    Private Function CreateHelpEmbed() As (Embed, Embed)
         Dim cpfx = $"●`{CommandPrefix}"
         ' Normal section
         Dim cmdField As New EmbedFieldBuilder With {
@@ -69,7 +69,7 @@ Friend Class HelpInfoCommands
         helpManager.AddField(cmdField)
         helpManager.AddField(managerField)
 
-        Return (helpNoManager, helpManager)
+        Return (helpNoManager.Build(), helpManager.Build())
     End Function
 
     Private Async Function CmdHelp(param As String(), reqChannel As SocketTextChannel, reqUser As SocketGuildUser) As Task
@@ -99,7 +99,7 @@ Friend Class HelpInfoCommands
             .Name = "Regarding time zone parameters",
             .Value = tzhelp
         })
-        Await reqChannel.SendMessageAsync("", embed:=embed)
+        Await reqChannel.SendMessageAsync("", embed:=embed.Build())
     End Function
 
     Private Async Function CmdInfo(param As String(), reqChannel As SocketTextChannel, reqUser As SocketGuildUser) As Task
@@ -115,6 +115,6 @@ Friend Class HelpInfoCommands
         })
         ' TODO: Add more fun stats.
         ' Ideas: number of servers, number of total people currently having a birthday, uptime
-        Await reqChannel.SendMessageAsync("", embed:=embed)
+        Await reqChannel.SendMessageAsync("", embed:=embed.Build())
     End Function
 End Class
