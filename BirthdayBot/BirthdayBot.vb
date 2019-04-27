@@ -14,8 +14,9 @@ Class BirthdayBot
     Private ReadOnly _cmdsMods As ManagerCommands
 
     Private WithEvents _client As DiscordSocketClient
-    Friend _cfg As Configuration
     Private ReadOnly _worker As BackgroundWorker
+
+    Friend ReadOnly Property Config As Configuration
 
     Friend ReadOnly Property DiscordClient As DiscordSocketClient
         Get
@@ -27,11 +28,11 @@ Class BirthdayBot
     Friend ReadOnly Property KnownGuilds As Dictionary(Of ULong, GuildSettings)
 
     Public Sub New(conf As Configuration, dc As DiscordSocketClient)
-        _cfg = conf
+        Config = conf
         _client = dc
         KnownGuilds = New Dictionary(Of ULong, GuildSettings)
 
-        _worker = New BackgroundWorker(Me, conf.DatabaseSettings)
+        _worker = New BackgroundWorker(Me)
 
         ' Command dispatch set-up
         _dispatchCommands = New Dictionary(Of String, CommandHandler)(StringComparer.InvariantCultureIgnoreCase)
@@ -50,7 +51,7 @@ Class BirthdayBot
     End Sub
 
     Public Async Function Start() As Task
-        Await _client.LoginAsync(TokenType.Bot, _cfg.BotToken)
+        Await _client.LoginAsync(TokenType.Bot, Config.BotToken)
         Await _client.StartAsync()
         _worker.Start()
 
@@ -69,7 +70,7 @@ Class BirthdayBot
     Private Function LoadGuild(g As SocketGuild) As Task Handles _client.JoinedGuild, _client.GuildAvailable
         SyncLock KnownGuilds
             If Not KnownGuilds.ContainsKey(g.Id) Then
-                Dim gi = GuildSettings.LoadSettingsAsync(_cfg.DatabaseSettings, g.Id).GetAwaiter().GetResult()
+                Dim gi = GuildSettings.LoadSettingsAsync(Config.DatabaseSettings, g.Id).GetAwaiter().GetResult()
                 KnownGuilds.Add(g.Id, gi)
             End If
         End SyncLock

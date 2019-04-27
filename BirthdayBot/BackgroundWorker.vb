@@ -9,15 +9,13 @@ Imports NodaTime
 ''' </summary>
 Class BackgroundWorker
     Private ReadOnly _bot As BirthdayBot
-    Private ReadOnly _db As Database
     Private ReadOnly Property WorkerCancel As New CancellationTokenSource
     Private _workerTask As Task
     Const Interval = 45 ' How often the worker wakes up, in seconds. Adjust as needed.
-    Private _clock As IClock
+    Private ReadOnly _clock As IClock
 
-    Sub New(instance As BirthdayBot, dbsettings As Database)
+    Sub New(instance As BirthdayBot)
         _bot = instance
-        _db = dbsettings
         _clock = SystemClock.Instance ' can replace with FakeClock here when testing
     End Sub
 
@@ -37,15 +35,15 @@ Class BackgroundWorker
     Private Async Function WorkerLoop() As Task
         While Not WorkerCancel.IsCancellationRequested
             Try
+                ' Delay a bit before we start (or continue) work.
+                Await Task.Delay(Interval * 1000, WorkerCancel.Token)
+
                 ' Start background tasks.
                 Dim bgTasks As New List(Of Task) From {
                     ReportAsync(),
                     BirthdayAsync()
                 }
                 Await Task.WhenAll(bgTasks)
-
-                ' All done. Wait until we have to work again.
-                Await Task.Delay(Interval * 1000, WorkerCancel.Token)
             Catch ex As TaskCanceledException
                 Return
             Catch ex As Exception
@@ -284,7 +282,7 @@ Class BackgroundWorker
         Dim count = _bot.DiscordClient.Guilds.Count
         Log("Report", $"Currently in {count} guild(s).")
 
-        Dim dtok = _bot._cfg.DBotsToken
+        Dim dtok = _bot.Config.DBotsToken
         If dtok IsNot Nothing Then
             Const dUrl As String = "https://discord.bots.gg/api/v1/bots/{0}/stats"
 
