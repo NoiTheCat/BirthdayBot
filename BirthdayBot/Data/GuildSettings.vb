@@ -10,10 +10,10 @@ Imports NpgsqlTypes
 Friend Class GuildSettings
     Public ReadOnly Property GuildId As ULong
     Private ReadOnly _db As Database
-    Private _role As ULong?
-    Private _channel As ULong?
+    Private _bdayRole As ULong?
+    Private _announceCh As ULong?
     Private _tz As String
-    Private _modded As Boolean
+    Private _moderated As Boolean
     Private _userCache As Dictionary(Of ULong, GuildUserSettings)
 
     Private _roleWarning As Boolean
@@ -61,7 +61,7 @@ Friend Class GuildSettings
     ''' </summary>
     Public ReadOnly Property RoleId As ULong?
         Get
-            Return _role
+            Return _bdayRole
         End Get
     End Property
 
@@ -70,7 +70,7 @@ Friend Class GuildSettings
     ''' </summary>
     Public ReadOnly Property AnnounceChannelId As ULong?
         Get
-            Return _channel
+            Return _announceCh
         End Get
     End Property
 
@@ -89,7 +89,7 @@ Friend Class GuildSettings
     ''' </summary>
     Public ReadOnly Property IsModerated As Boolean
         Get
-            Return _modded
+            Return _moderated
         End Get
     End Property
 
@@ -99,14 +99,14 @@ Friend Class GuildSettings
         GuildId = CULng(reader.GetInt64(0))
         ' Weird: if using a ternary operator with a ULong?, Nothing resolves to 0 despite Option Strict On.
         If Not reader.IsDBNull(1) Then
-            _role = CULng(reader.GetInt64(1))
+            _bdayRole = CULng(reader.GetInt64(1))
             RoleWarning = False
         Else
             RoleWarning = True
         End If
-        If Not reader.IsDBNull(2) Then _channel = CULng(reader.GetInt64(2))
+        If Not reader.IsDBNull(2) Then _announceCh = CULng(reader.GetInt64(2))
         _tz = If(reader.IsDBNull(3), Nothing, reader.GetString(3))
-        _modded = reader.GetBoolean(4)
+        _moderated = reader.GetBoolean(4)
 
         ' Get user information loaded up.
         Dim userresult = GuildUserSettings.GetGuildUsersAsync(dbconfig, GuildId)
@@ -121,7 +121,6 @@ Friend Class GuildSettings
     ''' a new instance is created which is capable of adding the user to the database.
     ''' </summary>
     ''' <param name="userId"></param>
-    ''' <returns></returns>
     Public Function GetUser(userId As ULong) As GuildUserSettings
         If _userCache.ContainsKey(userId) Then
             Return _userCache(userId)
@@ -171,7 +170,7 @@ Friend Class GuildSettings
     End Function
 
     ''' <summary>
-    ''' Blocks the specified user from issuing commands.
+    ''' Adds the specified user to the block list, preventing them from issuing commands.
     ''' </summary>
     Public Async Function BlockUserAsync(userId As ULong) As Task
         Using db = Await _db.OpenConnectionAsync()
@@ -204,13 +203,14 @@ Friend Class GuildSettings
     End Function
 
     Public Async Function UpdateRoleAsync(roleId As ULong) As Task
-        _role = roleId
-        RoleWarning = False
+        _bdayRole = roleId
+        _roleWarning = False
+        _roleLastWarning = New DateTimeOffset
         Await UpdateDatabaseAsync()
     End Function
 
     Public Async Function UpdateAnnounceChannelAsync(channelId As ULong?) As Task
-        _channel = channelId
+        _announceCh = channelId
         Await UpdateDatabaseAsync()
     End Function
 
@@ -220,7 +220,7 @@ Friend Class GuildSettings
     End Function
 
     Public Async Function UpdateModeratedModeAsync(isModerated As Boolean) As Task
-        _modded = isModerated
+        _moderated = isModerated
         Await UpdateDatabaseAsync()
     End Function
 
@@ -302,8 +302,8 @@ Friend Class GuildSettings
                     End If
                 End With
                 With c.Parameters.Add("@ChannelId", NpgsqlDbType.Bigint)
-                    If _channel.HasValue Then
-                        .Value = _channel.Value
+                    If _announceCh.HasValue Then
+                        .Value = _announceCh.Value
                     Else
                         .Value = DBNull.Value
                     End If
@@ -315,7 +315,7 @@ Friend Class GuildSettings
                         .Value = DBNull.Value
                     End If
                 End With
-                c.Parameters.Add("@Moderated", NpgsqlDbType.Boolean).Value = _modded
+                c.Parameters.Add("@Moderated", NpgsqlDbType.Boolean).Value = _moderated
                 c.Prepare()
                 Await c.ExecuteNonQueryAsync()
             End Using

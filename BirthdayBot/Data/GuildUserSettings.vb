@@ -2,6 +2,10 @@
 Imports Npgsql
 Imports NpgsqlTypes
 
+''' <summary>
+''' Representation of a user's birthday settings within a guild.
+''' Instances are held and managed by <see cref="GuildSettings"/>.
+''' </summary>
 Class GuildUserSettings
     Private _month As Integer
     Private _day As Integer
@@ -38,7 +42,7 @@ Class GuildUserSettings
 
     ''' <summary>
     ''' Creates a data-less instance without any useful information.
-    ''' Calling <see cref="UpdateAsync(Integer, Integer, String)"/> will cause an actual database update.
+    ''' Calling <see cref="UpdateAsync(Integer, Integer, String)"/> will create a real database entry.
     ''' </summary>
     Public Sub New(guildId As ULong, userId As ULong)
         Me.GuildId = guildId
