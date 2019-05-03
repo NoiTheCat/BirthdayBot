@@ -109,6 +109,7 @@ Class BackgroundWorker
                 gs.RoleWarning = True
                 Return 0
             End If
+            gs.RoleWarning = False
         End SyncLock
 
         ' Determine who's currently having a birthday
@@ -119,9 +120,6 @@ Class BackgroundWorker
         Dim announceNames As IEnumerable(Of SocketGuildUser)
         Try
             announceNames = Await BirthdayApplyAsync(guild, role, birthdays)
-            SyncLock _bot.KnownGuilds
-                _bot.KnownGuilds(guild.Id).RoleWarning = False
-            End SyncLock
         Catch ex As Discord.Net.HttpException
             If ex.HttpCode = HttpStatusCode.Forbidden Then
                 SyncLock _bot.KnownGuilds
