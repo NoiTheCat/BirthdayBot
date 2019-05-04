@@ -110,12 +110,11 @@ Class BirthdayBot
 
                 ' Ban and role warning check
                 Dim roleWarning As Boolean
-                Dim isManager = author.GuildPermissions.ManageGuild
                 SyncLock KnownGuilds
                     Dim gi = KnownGuilds(channel.Guild.Id)
 
                     ' Skip ban check if user is a manager
-                    If Not isManager Then
+                    If Not gi.IsUserModerator(author) Then
                         If gi.IsUserBlockedAsync(author.Id).GetAwaiter().GetResult() Then
                             Return
                         End If

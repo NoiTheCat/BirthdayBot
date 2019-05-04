@@ -4,8 +4,8 @@
     <OutputType>Exe</OutputType>
     <RootNamespace>BirthdayBot</RootNamespace>
     <TargetFramework>netcoreapp2.0</TargetFramework>
-    <Version>0.5.3</Version>
-    <AssemblyVersion>0.5.3.0</AssemblyVersion>
+    <Version>0.6.0</Version>
+    <AssemblyVersion>0.6.0.0</AssemblyVersion>
     <Authors>Noikoio</Authors>
     <Company />
     <Description>Discord bot for birthday reminders.</Description>

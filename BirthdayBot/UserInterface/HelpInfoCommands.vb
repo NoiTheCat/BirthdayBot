@@ -43,13 +43,15 @@ Friend Class HelpInfoCommands
 
         ' Manager section
         Dim mpfx = cpfx + "config "
-        Dim managerField As New EmbedFieldBuilder With {
-            .Name = "Commands for server managers",
+        Dim moderatorField As New EmbedFieldBuilder With {
+            .Name = "Commands for server managers and bot moderators",
             .Value =
                 $"{mpfx}role (role name or ID)`" + vbLf +
                 " » Configures the role to apply to users having birthdays." + vbLf +
                 $"{mpfx}channel (channel name or ID)`" + vbLf +
                 " » Configures the channel to use for announcements. Leave blank to disable." + vbLf +
+                $"{mpfx}modrole (role name or ID)`" + vbLf +
+                " » Sets the designated role for bot moderators. Moderators can access `bb.config` and `bb.override`." + vbLf +
                 $"{mpfx}zone (time zone name)`" + vbLf +
                 " » Sets the default time zone for all dates that don't have their own zone set." + vbLf +
                 $" »» See `{CommandPrefix}help-tzdata`. Leave blank to set to UTC." + vbLf +
@@ -65,28 +67,21 @@ Friend Class HelpInfoCommands
         Dim helpNoManager As New EmbedBuilder
         helpNoManager.AddField(cmdField)
 
-        Dim helpManager As New EmbedBuilder
-        helpManager.AddField(cmdField)
-        helpManager.AddField(managerField)
+        Dim helpModerator As New EmbedBuilder
+        helpModerator.AddField(cmdField)
+        helpModerator.AddField(moderatorField)
 
-        Return (helpNoManager.Build(), helpManager.Build())
+        Return (helpNoManager.Build(), helpModerator.Build())
     End Function
 
     Private Async Function CmdHelp(param As String(), reqChannel As SocketTextChannel, reqUser As SocketGuildUser) As Task
-        ' Determine if an additional message about an invalid role should be added.
-        Dim useFunctionMessage = False
-        Dim gs As GuildSettings
+        ' Determine if the user asking is a moderator
+        Dim showManagerCommands As Boolean
         SyncLock Instance.KnownGuilds
-            gs = Instance.KnownGuilds(reqChannel.Guild.Id)
+            showManagerCommands = Instance.KnownGuilds(reqChannel.Guild.Id).IsUserModerator(reqUser)
         End SyncLock
-        If Not gs.RoleId.HasValue Then
-            useFunctionMessage = True
-        End If
 
-        ' Determine if the user asking is a manager
-        Dim showManagerCommands = reqUser.GuildPermissions.ManageGuild
-
-        Await reqChannel.SendMessageAsync("", embed:=If(showManagerCommands, _helpEmbedManager, _helpEmbed))
+        Await reqChannel.SendMessageAsync(embed:=If(showManagerCommands, _helpEmbedManager, _helpEmbed))
     End Function
 
     Private Async Function CmdHelpTzdata(param As String(), reqChannel As SocketTextChannel, reqUser As SocketGuildUser) As Task

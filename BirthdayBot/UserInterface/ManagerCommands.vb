@@ -22,6 +22,7 @@ Friend Class ManagerCommands
         _subcommands = New Dictionary(Of String, ConfigSubcommand)(StringComparer.InvariantCultureIgnoreCase) From {
             {"role", AddressOf ScmdRole},
             {"channel", AddressOf ScmdChannel},
+            {"modrole", AddressOf ScmdModRole},
             {"zone", AddressOf ScmdZone},
             {"block", AddressOf ScmdBlock},
             {"unblock", AddressOf ScmdBlock},
@@ -36,14 +37,25 @@ Friend Class ManagerCommands
     End Sub
 
     Private Async Function CmdConfigDispatch(param As String(), reqChannel As SocketTextChannel, reqUser As SocketGuildUser) As Task
-        ' Managers only past this point.
-        If Not reqUser.GuildPermissions.ManageGuild Then
-            Await reqChannel.SendMessageAsync(":x: This command may only be used by those with the `Manage Server` permission.")
+        ' Ignore those without the proper permissions.
+        ' Requires either the manage guild permission or to be in the moderators role
+        Dim allowed As Boolean
+        SyncLock Instance.KnownGuilds
+            allowed = Instance.KnownGuilds(reqUser.Guild.Id).IsUserModerator(reqUser)
+        End SyncLock
+        If Not allowed Then
+            Await reqChannel.SendMessageAsync(":x: This command may only be used by bot moderators.")
             Return
         End If
 
         If param.Length <> 3 Then
             Await reqChannel.SendMessageAsync(GenericError)
+            Return
+        End If
+
+        ' Special case: Restrict 'modrole' to only guild managers
+        If param(1).Equals("modrole", StringComparison.OrdinalIgnoreCase) And Not reqUser.GuildPermissions.ManageGuild Then
+            Await reqChannel.SendMessageAsync(":x: This command may only be used by those with the `Manage Server` permission.")
             Return
         End If
 
@@ -59,47 +71,17 @@ Friend Class ManagerCommands
     End Function
 
 #Region "Configuration sub-commands"
-    Private Shared ReadOnly RoleMention As New Regex("<@?&(?<snowflake>\d+)>", RegexOptions.Compiled)
-
     ' Birthday role set
     Private Async Function ScmdRole(param As String(), reqChannel As SocketTextChannel) As Task
         If param.Length <> 2 Then
             Await reqChannel.SendMessageAsync(":x: A role name, role mention, or ID value must be specified.")
             Return
         End If
-
         Dim guild = reqChannel.Guild
-        Dim input = param(1)
-        Dim role As SocketRole = Nothing
+        Dim role = FindUserInputRole(param(1), guild)
 
-        ' Resembles a role mention? Strip it to the pure number
-        Dim rmatch = RoleMention.Match(input)
-        If rmatch.Success Then
-            input = rmatch.Groups("snowflake").Value
-        End If
-
-        ' Attempt to get role by ID
-        Dim rid As ULong
-        If ULong.TryParse(input, rid) Then
-            role = guild.GetRole(rid)
-        Else
-            ' Reset the search value on the off chance there's a role name actually starting with "<&" and ending with ">"
-            input = param(1)
-        End If
-
-        ' If not already found, attempt to search role by string name
         If role Is Nothing Then
-            For Each search In guild.Roles
-                If String.Equals(search.Name, input, StringComparison.InvariantCultureIgnoreCase) Then
-                    role = search
-                    Exit For
-                End If
-            Next
-        End If
-
-        ' Final result
-        If role Is Nothing Then
-            Await reqChannel.SendMessageAsync(":x: Unable to determine the given role.")
+            Await reqChannel.SendMessageAsync(RoleInputError)
         Else
             SyncLock Instance.KnownGuilds
                 Instance.KnownGuilds(guild.Id).UpdateRoleAsync(role.Id).Wait()
@@ -149,6 +131,25 @@ Friend Class ManagerCommands
 
             ' Report the success
             Await reqChannel.SendMessageAsync($":white_check_mark: The announcement channel is now set to <#{chId}>.")
+        End If
+    End Function
+
+    ' Moderator role set
+    Private Async Function ScmdModRole(param As String(), reqChannel As SocketTextChannel) As Task
+        If param.Length <> 2 Then
+            Await reqChannel.SendMessageAsync(":x: A role name, role mention, or ID value must be specified.")
+            Return
+        End If
+        Dim guild = reqChannel.Guild
+        Dim role = FindUserInputRole(param(1), guild)
+
+        If role Is Nothing Then
+            Await reqChannel.SendMessageAsync(RoleInputError)
+        Else
+            SyncLock Instance.KnownGuilds
+                Instance.KnownGuilds(guild.Id).UpdateModeratorRoleAsync(role.Id).Wait()
+            End SyncLock
+            Await reqChannel.SendMessageAsync($":white_check_mark: The moderator role is now **{role.Name}**.")
         End If
     End Function
 
@@ -263,10 +264,10 @@ Friend Class ManagerCommands
 
     ' Execute command as another user
     Private Async Function CmdOverride(param As String(), reqChannel As SocketTextChannel, reqUser As SocketGuildUser) As Task
-        ' Managers only. Silently drop if the check fails.
-        If Not reqUser.GuildPermissions.ManageGuild Then
-            Return
-        End If
+        ' Moderators only. As with config, silently drop if this check fails.
+        SyncLock Instance.KnownGuilds
+            If Not Instance.KnownGuilds(reqUser.Guild.Id).IsUserModerator(reqUser) Then Return
+        End SyncLock
 
         If param.Length <> 3 Then
             Await reqChannel.SendMessageAsync(GenericError)
@@ -302,4 +303,36 @@ Friend Class ManagerCommands
         Await reqChannel.SendMessageAsync($"Executing `{cmdsearch.ToLower()}` on behalf of {If(overuser.Nickname, overuser.Username)}:")
         Await action.Invoke(overparam, reqChannel, overuser)
     End Function
+
+#Region "Common/helper methods"
+    Private Const RoleInputError = ":x: Unable to determine the given role."
+    Private Shared ReadOnly RoleMention As New Regex("<@?&(?<snowflake>\d+)>", RegexOptions.Compiled)
+
+    Private Function FindUserInputRole(inputStr As String, guild As SocketGuild) As SocketRole
+        ' Resembles a role mention? Strip it to the pure number
+        Dim input = inputStr
+        Dim rmatch = RoleMention.Match(input)
+        If rmatch.Success Then
+            input = rmatch.Groups("snowflake").Value
+        End If
+
+        ' Attempt to get role by ID, or Nothing
+        Dim rid As ULong
+        If ULong.TryParse(input, rid) Then
+            Return guild.GetRole(rid)
+        Else
+            ' Reset the search value on the off chance there's a role name that actually resembles a role ping.
+            input = inputStr
+        End If
+
+        ' If not already found, attempt to search role by string name
+        For Each search In guild.Roles
+            If String.Equals(search.Name, input, StringComparison.InvariantCultureIgnoreCase) Then
+                Return search
+            End If
+        Next
+
+        Return Nothing
+    End Function
+#End Region
 End Class

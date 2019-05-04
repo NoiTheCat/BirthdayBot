@@ -1,4 +1,5 @@
 ﻿Imports System.Data.Common
+Imports Discord.WebSocket
 Imports Npgsql
 Imports NpgsqlTypes
 
@@ -12,6 +13,7 @@ Friend Class GuildSettings
     Private ReadOnly _db As Database
     Private _bdayRole As ULong?
     Private _announceCh As ULong?
+    Private _modRole As ULong?
     Private _tz As String
     Private _moderated As Boolean
     Private _userCache As Dictionary(Of ULong, GuildUserSettings)
@@ -84,12 +86,20 @@ Friend Class GuildSettings
     End Property
 
     ''' <summary>
-    ''' Gets or sets if the server is in moderated mode.
-    ''' Updating this value updates the database.
+    ''' Gets whether the guild is in moderated mode.
     ''' </summary>
     Public ReadOnly Property IsModerated As Boolean
         Get
             Return _moderated
+        End Get
+    End Property
+
+    ''' <summary>
+    ''' Gets the designated moderator role ID.
+    ''' </summary>
+    Public ReadOnly Property ModeratorRole As ULong?
+        Get
+            Return _modRole
         End Get
     End Property
 
@@ -107,6 +117,7 @@ Friend Class GuildSettings
         If Not reader.IsDBNull(2) Then _announceCh = CULng(reader.GetInt64(2))
         _tz = If(reader.IsDBNull(3), Nothing, reader.GetString(3))
         _moderated = reader.GetBoolean(4)
+        If Not reader.IsDBNull(5) Then _modRole = CULng(reader.GetInt64(5))
 
         ' Get user information loaded up.
         Dim userresult = GuildUserSettings.GetGuildUsersAsync(dbconfig, GuildId)
@@ -170,6 +181,19 @@ Friend Class GuildSettings
     End Function
 
     ''' <summary>
+    ''' Checks if the given user is a moderator either by having the Manage Server permission or
+    ''' being in the designated modeartor role.
+    ''' </summary>
+    Public Function IsUserModerator(user As SocketGuildUser) As Boolean
+        If user.GuildPermissions.ManageGuild Then Return True
+        If ModeratorRole.HasValue Then
+            If user.Roles.Where(Function(r) r.Id = ModeratorRole.Value).Count > 0 Then Return True
+        End If
+
+        IsUserModerator = False
+    End Function
+
+    ''' <summary>
     ''' Adds the specified user to the block list, preventing them from issuing commands.
     ''' </summary>
     Public Async Function BlockUserAsync(userId As ULong) As Task
@@ -224,6 +248,11 @@ Friend Class GuildSettings
         Await UpdateDatabaseAsync()
     End Function
 
+    Public Async Function UpdateModeratorRoleAsync(roleId As ULong?) As Task
+        _modRole = roleId
+        Await UpdateDatabaseAsync()
+    End Function
+
 #Region "Database"
     Public Const BackingTable = "settings"
     Public Const BackingTableBans = "banned_users"
@@ -235,7 +264,8 @@ Friend Class GuildSettings
                 "role_id bigint null, " +
                 "channel_announce_id bigint null, " +
                 "time_zone text null, " +
-                "moderated boolean not null default FALSE" +
+                "moderated boolean not null default FALSE, " +
+                "moderator_role bigint null" +
                 ")"
             c.ExecuteNonQuery()
         End Using
@@ -257,7 +287,7 @@ Friend Class GuildSettings
         Using db = Await dbsettings.OpenConnectionAsync()
             Using c = db.CreateCommand()
                 ' Take note of ordinals for use in the constructor
-                c.CommandText = "select guild_id, role_id, channel_announce_id, time_zone, moderated " +
+                c.CommandText = "select guild_id, role_id, channel_announce_id, time_zone, moderated, moderator_role " +
                     $"from {BackingTable} where guild_id = @Gid"
                 c.Parameters.Add("@Gid", NpgsqlDbType.Bigint).Value = guild
                 c.Prepare()
@@ -291,7 +321,8 @@ Friend Class GuildSettings
                     "role_id = @RoleId, " +
                     "channel_announce_id = @ChannelId, " +
                     "time_zone = @TimeZone, " +
-                    "moderated = @Moderated " +
+                    "moderated = @Moderated, " +
+                    "moderator_role = @ModRole " +
                     "where guild_id = @Gid"
                 c.Parameters.Add("@Gid", NpgsqlDbType.Bigint).Value = GuildId
                 With c.Parameters.Add("@RoleId", NpgsqlDbType.Bigint)
@@ -316,6 +347,13 @@ Friend Class GuildSettings
                     End If
                 End With
                 c.Parameters.Add("@Moderated", NpgsqlDbType.Boolean).Value = _moderated
+                With c.Parameters.Add("@ModRole", NpgsqlDbType.Bigint)
+                    If ModeratorRole.HasValue Then
+                        .Value = ModeratorRole.Value
+                    Else
+                        .Value = DBNull.Value
+                    End If
+                End With
                 c.Prepare()
                 Await c.ExecuteNonQueryAsync()
             End Using
