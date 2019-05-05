@@ -201,6 +201,14 @@ Class BackgroundWorker
         Return newBirthdays
     End Function
 
+    Private Function BirthdayAnnounceFormatName(member As SocketGuildUser) As String
+        ' TODO add option for using pings instead, add handling for it here
+        If member.Nickname IsNot Nothing Then
+            Return $"**{member.Nickname}** ({member.Username}#{member.Discriminator})"
+        End If
+        Return $"**{member.Username}**#{member.Discriminator}"
+    End Function
+
     ''' <summary>
     ''' Makes (or attempts to make) an announcement in the specified channel that includes all users
     ''' who have just had their birthday role added.
@@ -208,37 +216,32 @@ Class BackgroundWorker
     Private Async Function BirthdayAnnounceAsync(g As SocketGuild, c As SocketTextChannel, names As IEnumerable(Of SocketGuildUser)) As Task
         If c Is Nothing Then Return
 
+        ' TODO streamline this whole thing once a customizable message is implemented.
+        ' Plan: "{custommessage}\n{namedisplay}"
         Dim result As String
 
         If names.Count = 1 Then
             ' Single birthday. No need for tricks.
-            Dim name As String
-            If names(0).Nickname IsNot Nothing Then
-                name = names(0).Nickname
-            Else
-                name = names(0).Username
-            End If
+            Dim name = BirthdayAnnounceFormatName(names(0))
             result = $"Please wish a happy birthday to our esteemed member, **{name}**."
         Else
-            ' Build name list
+            ' Build sorted name list
+            Dim namestrings As New List(Of String)
+            For Each item In names
+                namestrings.Add(BirthdayAnnounceFormatName(item))
+            Next
+            namestrings.Sort(StringComparer.OrdinalIgnoreCase)
+
             Dim namedisplay As New StringBuilder()
             Dim first = True
-            Dim sortedNames = names.ToArray()
-            Array.Sort(sortedNames)
-            For Each item In sortedNames
+            For Each item In namestrings
                 If Not first Then
                     namedisplay.Append(", ")
                 End If
                 first = False
-                Dim name As String
-                If item.Nickname IsNot Nothing Then
-                    name = item.Nickname
-                Else
-                    name = item.Username
-                End If
-                namedisplay.Append("**" + name + "**")
+                namedisplay.Append(item)
             Next
-            result = $"Please wish our esteemed members a happy birthday: {namedisplay.ToString()}."
+            result = $"Please wish a happy birthday to our esteemed members: {namedisplay.ToString()}."
         End If
 
         Try
