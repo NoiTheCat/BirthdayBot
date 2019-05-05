@@ -6,7 +6,12 @@ Imports NodaTime
 ''' Common base class for common constants and variables.
 ''' </summary>
 Friend MustInherit Class CommandsCommon
+#If DEBUG Then
+    Public Const CommandPrefix = "bt."
+#End If
+#If Not DEBUG Then
     Public Const CommandPrefix = "bb."
+#End If
     Public Const GenericError = ":x: Invalid usage. Consult the help command."
     Public Const BadUserError = ":x: Unable to find user. Specify their `@` mention or their ID."
     Public Const ExpectedNoParametersError = ":x: This command does not take parameters. Did you mean to use another?"
