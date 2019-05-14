@@ -47,21 +47,22 @@ Friend Class HelpInfoCommands
             .Name = "Commands for server managers and bot moderators",
             .Value =
                 $"{mpfx}role (role name or ID)`" + vbLf +
-                " » Configures the role to apply to users having birthdays." + vbLf +
+                " » Sets the role to apply to users having birthdays. **Required for bot function.**" + vbLf +
                 $"{mpfx}channel (channel name or ID)`" + vbLf +
-                " » Configures the channel to use for announcements. Leave blank to disable." + vbLf +
+                " » Sets the channel to use for announcements. Leave blank to disable." + vbLf +
+                $"{mpfx}message (message)`" + vbLf +
+                " » Sets a custom announcement message. The names of those celebrating birthdays are appended to it." + vbLf +
                 $"{mpfx}modrole (role name or ID)`" + vbLf +
-                " » Sets the designated role for bot moderators. Moderators can access `bb.config` and `bb.override`." + vbLf +
+                " » Sets the designated role for bot moderators, granting them access to `bb.config` and `bb.override`." + vbLf +
                 $"{mpfx}zone (time zone name)`" + vbLf +
-                " » Sets the default time zone for all dates that don't have their own zone set." + vbLf +
-                $" »» See `{CommandPrefix}help-tzdata`. Leave blank to set to UTC." + vbLf +
+                " » Sets the default time zone for users without their own zone." + vbLf +
+                $" »» See `{CommandPrefix}help-tzdata`. Leave blank to set to default." + vbLf +
                 $"{mpfx}block/unblock (user mention or ID)`" + vbLf +
                 " » Prevents or allows usage of bot commands to the given user." + vbLf +
                 $"{mpfx}moderated on/off`" + vbLf +
-                " » Prevents or allows usage of bot commands to all users excluding managers." + vbLf +
-                $"{cpfx}override (user mention or ID) (command)`" + vbLf +
-                " » Performs a command on behalf of the given user." + vbLf +
-                " »» Command may be either `set`, `zone`, or `remove` plus appropriate parameters."
+                " » Prevents or allows usage of bot commands to everyone excluding moderators." + vbLf +
+                $"{cpfx}override (user mention or ID) (command w/ parameters)`" + vbLf +
+                " » Performs certain commands on behalf of another given user."
         }
 
         Dim helpNoManager As New EmbedBuilder

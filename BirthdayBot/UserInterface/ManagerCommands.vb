@@ -23,6 +23,7 @@ Friend Class ManagerCommands
             {"role", AddressOf ScmdRole},
             {"channel", AddressOf ScmdChannel},
             {"modrole", AddressOf ScmdModRole},
+            {"message", AddressOf ScmdAnnounceMsg},
             {"zone", AddressOf ScmdZone},
             {"block", AddressOf ScmdBlock},
             {"unblock", AddressOf ScmdBlock},
@@ -259,6 +260,19 @@ Friend Class ManagerCommands
         Else
             Await reqChannel.SendMessageAsync($":white_check_mark: Moderated mode has been turned {parameter}.")
         End If
+    End Function
+
+    ' Sets/unsets custom announcement message.
+    Private Async Function ScmdAnnounceMsg(param As String(), reqChannel As SocketTextChannel) As Task
+        If param.Length <> 2 Then
+            Await reqChannel.SendMessageAsync(GenericError)
+            Return
+        End If
+
+        SyncLock Instance.KnownGuilds
+            Instance.KnownGuilds(reqChannel.Guild.Id).UpdateAnnounceMessageAsync(param(1)).Wait()
+        End SyncLock
+        Await reqChannel.SendMessageAsync(":white_check_mark: The birthday announcement message has been updated.")
     End Function
 #End Region
 

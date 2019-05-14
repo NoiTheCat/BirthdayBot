@@ -97,11 +97,13 @@ Class BackgroundWorker
         Dim users As IEnumerable(Of GuildUserSettings)
         Dim role As SocketRole = Nothing
         Dim channel As SocketTextChannel = Nothing
+        Dim announceMsg As String
         SyncLock _bot.KnownGuilds
             If Not _bot.KnownGuilds.ContainsKey(guild.Id) Then Return 0
             Dim gs = _bot.KnownGuilds(guild.Id)
             tz = gs.TimeZone
             users = gs.Users
+            announceMsg = gs.AnnounceMessage
 
             If gs.AnnounceChannelId.HasValue Then channel = guild.GetTextChannel(gs.AnnounceChannelId.Value)
             If gs.RoleId.HasValue Then role = guild.GetRole(gs.RoleId.Value)
@@ -133,7 +135,7 @@ Class BackgroundWorker
         End Try
         If announceNames.Count <> 0 Then
             ' Send out announcement message
-            Await BirthdayAnnounceAsync(guild, channel, announceNames)
+            Await BirthdayAnnounceAsync(announceMsg, channel, announceNames)
         End If
 
         Return announceNames.Count
@@ -225,36 +227,39 @@ Class BackgroundWorker
     ''' Makes (or attempts to make) an announcement in the specified channel that includes all users
     ''' who have just had their birthday role added.
     ''' </summary>
-    Private Async Function BirthdayAnnounceAsync(g As SocketGuild, c As SocketTextChannel, names As IEnumerable(Of SocketGuildUser)) As Task
+    Private Async Function BirthdayAnnounceAsync(ByVal announceMsg As String,
+                                                 c As SocketTextChannel,
+                                                 names As IEnumerable(Of SocketGuildUser)) As Task
+
+        Const DefaultAnnounce = "Please wish a happy birthday to our esteemed member(s):"
         If c Is Nothing Then Return
 
         ' TODO streamline this whole thing once a customizable message is implemented.
         ' Plan: "{custommessage}\n{namedisplay}"
         Dim result As String
 
-        If names.Count = 1 Then
-            ' Single birthday. No need for tricks.
-            Dim name = BirthdayAnnounceFormatName(names(0))
-            result = $"Please wish a happy birthday to our esteemed member, **{name}**."
-        Else
-            ' Build sorted name list
-            Dim namestrings As New List(Of String)
-            For Each item In names
-                namestrings.Add(BirthdayAnnounceFormatName(item))
-            Next
-            namestrings.Sort(StringComparer.OrdinalIgnoreCase)
-
-            Dim namedisplay As New StringBuilder()
-            Dim first = True
-            For Each item In namestrings
-                If Not first Then
-                    namedisplay.Append(", ")
-                End If
-                first = False
-                namedisplay.Append(item)
-            Next
-            result = $"Please wish a happy birthday to our esteemed members: {namedisplay.ToString()}."
+        If announceMsg Is Nothing Then
+            announceMsg = DefaultAnnounce
         End If
+        announceMsg = announceMsg.TrimEnd()
+
+        ' Build sorted name list
+        Dim namestrings As New List(Of String)
+        For Each item In names
+            namestrings.Add(BirthdayAnnounceFormatName(item))
+        Next
+        namestrings.Sort(StringComparer.OrdinalIgnoreCase)
+
+        Dim namedisplay As New StringBuilder()
+        Dim first = True
+        For Each item In namestrings
+            If Not first Then
+                namedisplay.Append(", ")
+            End If
+            first = False
+            namedisplay.Append(item)
+        Next
+        result = announceMsg + " " + namedisplay.ToString()
 
         Try
             Await c.SendMessageAsync(result)
