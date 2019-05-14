@@ -203,10 +203,22 @@ Class BackgroundWorker
 
     Private Function BirthdayAnnounceFormatName(member As SocketGuildUser) As String
         ' TODO add option for using pings instead, add handling for it here
+        Dim escapeFormattingCharacters = Function(input As String) As String
+                                             Dim result As New StringBuilder
+                                             For Each c As Char In input
+                                                 If c = "\" Or c = "_" Or c = "~" Or c = "*" Then
+                                                     result.Append("\")
+                                                 End If
+                                                 result.Append(c)
+                                             Next
+                                             Return result.ToString()
+                                         End Function
+
+        Dim username = escapeFormattingCharacters(member.Username)
         If member.Nickname IsNot Nothing Then
-            Return $"**{member.Nickname}** ({member.Username}#{member.Discriminator})"
+            Return $"**{escapeFormattingCharacters(member.Nickname)}** ({username}#{member.Discriminator})"
         End If
-        Return $"**{member.Username}**#{member.Discriminator}"
+        Return $"**{username}**#{member.Discriminator}"
     End Function
 
     ''' <summary>
