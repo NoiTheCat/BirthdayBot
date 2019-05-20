@@ -63,10 +63,10 @@ Friend Class HelpInfoCommands
                 $"{mpfx}message (message)`" + vbLf +
                 " » Sets a custom announcement message. Use `%n` to specify where the name(s) should be displayed." + vbLf +
                 $"{mpfx}messagepl (message)`" + vbLf +
-                " » ""Message Plural"". Sets the message used when two or more people are on the birthday list." + vbLf +
-                " » `%n` may be used here as well. It is highly recommended to specify a singular and a plural message." + vbLf +
+                " » ""Message Plural"". Sets the message to be used when two or more people are on the birthday list. " +
+                " `%n` can also be used here. If using `message`, it is highly recommended to also use `messagepl`." + vbLf +
                 $"{mpfx}zone (time zone name)`" + vbLf +
-                " » Sets the default server time zone. See `{CommandPrefix}help-tzdata`."
+                $" » Sets the default server time zone. See `{CommandPrefix}help-tzdata`."
         }
         Dim configField2 As New EmbedFieldBuilder With {
             .Name = "Access management",
