@@ -40,7 +40,7 @@ Class BirthdayBot
         For Each item In _cmdsUser.Commands
             _dispatchCommands.Add(item.Item1, item.Item2)
         Next
-        _cmdsHelp = New HelpInfoCommands(Me, conf)
+        _cmdsHelp = New HelpInfoCommands(Me, conf, DiscordClient)
         For Each item In _cmdsHelp.Commands
             _dispatchCommands.Add(item.Item1, item.Item2)
         Next

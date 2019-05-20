@@ -1,116 +1,141 @@
-﻿Imports Discord
+﻿Imports System.Text
+Imports Discord
 Imports Discord.WebSocket
 
 Friend Class HelpInfoCommands
     Inherits CommandsCommon
 
     Private ReadOnly _helpEmbed As Embed
-    Private ReadOnly _helpEmbedManager As Embed
+    Private ReadOnly _helpConfigEmbed As Embed
+    Private ReadOnly _discordClient As DiscordSocketClient
 
-    Sub New(inst As BirthdayBot, db As Configuration)
+    Sub New(inst As BirthdayBot, db As Configuration, client As DiscordSocketClient)
         MyBase.New(inst, db)
-        Dim embeds = CreateHelpEmbed()
+        _discordClient = client
+        Dim embeds = BuildHelpEmbeds()
         _helpEmbed = embeds.Item1
-        _helpEmbedManager = embeds.Item2
+        _helpConfigEmbed = embeds.Item2
     End Sub
 
     Public Overrides ReadOnly Property Commands As IEnumerable(Of (String, CommandHandler))
         Get
             Return New List(Of (String, CommandHandler)) From {
                 ("help", AddressOf CmdHelp),
+                ("help-config", AddressOf CmdHelpConfig),
                 ("help-tzdata", AddressOf CmdHelpTzdata),
                 ("info", AddressOf CmdInfo)
             }
         End Get
     End Property
 
-    Private Function CreateHelpEmbed() As (Embed, Embed)
+    Private Function BuildHelpEmbeds() As (Embed, Embed)
         Dim cpfx = $"●`{CommandPrefix}"
         ' Normal section
         Dim cmdField As New EmbedFieldBuilder With {
             .Name = "Commands",
             .Value =
                 $"{cpfx}help`, `{CommandPrefix}info`, `{CommandPrefix}help-tzdata`" + vbLf +
-                $" » Various help and informational messages." + vbLf +
+                $" » Help and informational messages." + vbLf +
                 $"{cpfx}set (date) [zone]`" + vbLf +
                 $" » Registers your birth date. Time zone is optional." + vbLf +
                 $" »» Examples: `{CommandPrefix}set jan-31`, `{CommandPrefix}set 15-aug America/Los_Angeles`." + vbLf +
                 $"{cpfx}zone (zone)`" + vbLf +
                 $" » Sets your local time zone. See `{CommandPrefix}help-tzdata`." + vbLf +
                 $"{cpfx}remove`" + vbLf +
-                $" » Removes your birthday information from this bot."
+                $" » Removes your birthday information from this bot." + vbLf +
+                $"{cpfx}config`" + vbLf +
+                $" » Edit bot configuration. Moderators only. See `{CommandPrefix}help-config`." + vbLf +
+                $"{cpfx}override (user ping or ID) (command w/ parameters)`" + vbLf +
+                " » Perform certain commands on behalf of another user. Moderators only."
         }
+        Dim helpRegular As New EmbedBuilder
+        helpRegular.AddField(cmdField)
 
         ' Manager section
         Dim mpfx = cpfx + "config "
-        Dim moderatorField As New EmbedFieldBuilder With {
-            .Name = "Commands for server managers and bot moderators",
+        Dim configField1 As New EmbedFieldBuilder With {
+            .Name = "Basic settings",
             .Value =
                 $"{mpfx}role (role name or ID)`" + vbLf +
-                " » Sets the role to apply to users having birthdays. **Required for bot function.**" + vbLf +
+                " » Sets the role to apply to users having birthdays." + vbLf +
                 $"{mpfx}channel (channel name or ID)`" + vbLf +
-                " » Sets the channel to use for announcements. Leave blank to disable." + vbLf +
+                " » Sets the announcement channel. Leave blank to disable." + vbLf +
                 $"{mpfx}message (message)`" + vbLf +
-                " » Sets a custom announcement message. The names of those celebrating birthdays are appended to it." + vbLf +
-                $"{mpfx}modrole (role name or ID)`" + vbLf +
-                " » Sets the designated role for bot moderators, granting them access to `bb.config` and `bb.override`." + vbLf +
+                " » Sets a custom announcement message. Use `%n` to specify where the name(s) should be displayed." + vbLf +
+                $"{mpfx}messagepl (message)`" + vbLf +
+                " » ""Message Plural"". Sets the message used when two or more people are on the birthday list." + vbLf +
+                " » `%n` may be used here as well. It is highly recommended to specify a singular and a plural message." + vbLf +
                 $"{mpfx}zone (time zone name)`" + vbLf +
-                " » Sets the default time zone for users without their own zone." + vbLf +
-                $" »» See `{CommandPrefix}help-tzdata`. Leave blank to set to default." + vbLf +
-                $"{mpfx}block/unblock (user mention or ID)`" + vbLf +
+                " » Sets the default server time zone. See `{CommandPrefix}help-tzdata`."
+        }
+        Dim configField2 As New EmbedFieldBuilder With {
+            .Name = "Access management",
+            .Value =
+                $"{mpfx}modrole (role name, role ping, or ID)`" + vbLf +
+                " » Establishes a role for bot moderators. Grants access to `bb.config` and `bb.override`." + vbLf +
+                $"{mpfx}block/unblock (user ping or ID)`" + vbLf +
                 " » Prevents or allows usage of bot commands to the given user." + vbLf +
                 $"{mpfx}moderated on/off`" + vbLf +
-                " » Prevents or allows usage of bot commands to everyone excluding moderators." + vbLf +
-                $"{cpfx}override (user mention or ID) (command w/ parameters)`" + vbLf +
-                " » Performs certain commands on behalf of another given user."
+                " » Prevents or allows using commands for all members excluding moderators."
         }
 
-        Dim helpNoManager As New EmbedBuilder
-        helpNoManager.AddField(cmdField)
+        Dim helpConfig As New EmbedBuilder
+        helpConfig.Author = New EmbedAuthorBuilder() With {.Name = $"{CommandPrefix}config subcommands"}
+        helpConfig.Description = "All the following subcommands are only usable by moderators and server managers."
+        helpConfig.AddField(configField1)
+        helpConfig.AddField(configField2)
 
-        Dim helpModerator As New EmbedBuilder
-        helpModerator.AddField(cmdField)
-        helpModerator.AddField(moderatorField)
-
-        Return (helpNoManager.Build(), helpModerator.Build())
+        Return (helpRegular.Build(), helpConfig.Build())
     End Function
 
     Private Async Function CmdHelp(param As String(), reqChannel As SocketTextChannel, reqUser As SocketGuildUser) As Task
-        ' Determine if the user asking is a moderator
-        Dim showManagerCommands As Boolean
-        SyncLock Instance.KnownGuilds
-            showManagerCommands = Instance.KnownGuilds(reqChannel.Guild.Id).IsUserModerator(reqUser)
-        End SyncLock
+        Await reqChannel.SendMessageAsync(embed:=_helpEmbed)
+    End Function
 
-        Await reqChannel.SendMessageAsync(embed:=If(showManagerCommands, _helpEmbedManager, _helpEmbed))
+    Private Async Function CmdHelpConfig(param As String(), reqChannel As SocketTextChannel, reqUser As SocketGuildUser) As Task
+        Await reqChannel.SendMessageAsync(embed:=_helpConfigEmbed)
     End Function
 
     Private Async Function CmdHelpTzdata(param As String(), reqChannel As SocketTextChannel, reqUser As SocketGuildUser) As Task
-        Const tzhelp = "To have events recognized in your local time, you may specify a time zone. Time zone names " +
-            "from the IANA Time Zone Database (a.k.a. Olson Database) are recognized by this bot." + vbLf + vbLf +
-            "These values can be found at the following link, under the 'TZ database name' column: " +
+        Const tzhelp = "You may specify a time zone in order to have your birthday recognized with respect to your local time. " +
+            "This bot only accepts zone names from the IANA Time Zone Database (a.k.a. Olson Database)." + vbLf + vbLf +
+            "These names can be found at the following link, under the 'TZ database name' column: " +
             "https://en.wikipedia.org/wiki/List_of_tz_database_time_zones"
         Dim embed As New EmbedBuilder
         embed.AddField(New EmbedFieldBuilder() With {
-            .Name = "Regarding time zone parameters",
+            .Name = "Time Zone Support",
             .Value = tzhelp
         })
-        Await reqChannel.SendMessageAsync("", embed:=embed.Build())
+        Await reqChannel.SendMessageAsync(embed:=embed.Build())
     End Function
 
     Private Async Function CmdInfo(param As String(), reqChannel As SocketTextChannel, reqUser As SocketGuildUser) As Task
+        ' Bot status field
+        Dim strStatus As New StringBuilder
+        Dim asmnm = Reflection.Assembly.GetExecutingAssembly.GetName()
+        strStatus.AppendLine("Birthday Bot version " + asmnm.Version.ToString(3))
+        strStatus.AppendLine("Server count: " + _discordClient.Guilds.Count.ToString())
+        strStatus.AppendLine("Uptime: " + (DateTimeOffset.UtcNow - Program.BotStartTime).ToString("d' days, 'hh':'mm':'ss"))
+        strStatus.Append("More info will be shown here soon.")
+
+        ' TODO fun stats
+        ' current birthdays, total names registered, unique time zones
+
         Dim embed As New EmbedBuilder With {
-            .Description = "Thanks for using Birthday Bot!" + vbLf +
-            "Feel free to send feedback and/or suggestions by contacting the author." +
-            vbLf + vbLf + "This bot is a work in progress. A additional features are planned to be added at a later date."
+            .Author = New EmbedAuthorBuilder() With {
+                .Name = "Thank you for using Birthday Bot!",
+                .IconUrl = _discordClient.CurrentUser.GetAvatarUrl()
+            },
+            .Description = "Suggestions and feedback are always welcome. Please refer to the listing on Discord Bots " +
+            "(discord.bots.gg) for information on reaching my personal server. I may not be available often, but I am happy to " +
+            "respond to feedback in due time." + vbLf +
+            "This bot remains very much in its early stages. Essential and quality-of-life features will be slowly added over time."
         }
-        Dim verstr = Reflection.Assembly.GetExecutingAssembly().GetName().Version.ToString(2)
+        Dim verstr = Reflection.Assembly.GetExecutingAssembly().GetName().Version.ToString(3)
         embed.AddField(New EmbedFieldBuilder With {
-            .Name = "Birthday Bot",
-            .Value = $"v{verstr} - https://github.com/Noikoio/BirthdayBot"
+            .Name = "Statistics",
+            .Value = strStatus.ToString()
         })
-        ' TODO: Add more fun stats.
-        ' Ideas: number of servers, number of total people currently having a birthday, uptime
-        Await reqChannel.SendMessageAsync("", embed:=embed.Build())
+        Await reqChannel.SendMessageAsync(embed:=embed.Build())
     End Function
 End Class

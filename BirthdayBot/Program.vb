@@ -3,8 +3,19 @@ Imports Discord.WebSocket
 
 Module Program
     Private _bot As BirthdayBot
+    Private _uptime As DateTimeOffset
+
+    Public Property BotStartTime As DateTimeOffset
+        Get
+            Return _uptime
+        End Get
+        Private Set(value As DateTimeOffset)
+            _uptime = value
+        End Set
+    End Property
 
     Sub Main(args As String())
+        BotStartTime = DateTimeOffset.UtcNow
         Dim cfg As New Configuration()
 
         Dim dc As New DiscordSocketConfig()
