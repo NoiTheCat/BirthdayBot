@@ -17,6 +17,7 @@ Friend Class GuildSettings
     Private _tz As String
     Private _moderated As Boolean
     Private _announceMsg As String
+    Private _announceMsgPl As String
     Private _userCache As Dictionary(Of ULong, GuildUserSettings)
 
     Private _roleWarning As Boolean
@@ -107,9 +108,9 @@ Friend Class GuildSettings
     ''' <summary>
     ''' Gets the guild-specific birthday announcement message.
     ''' </summary>
-    Public ReadOnly Property AnnounceMessage As String
+    Public ReadOnly Property AnnounceMessages As (String, String)
         Get
-            Return _announceMsg
+            Return (_announceMsg, _announceMsgPl)
         End Get
     End Property
 
@@ -129,6 +130,7 @@ Friend Class GuildSettings
         _moderated = reader.GetBoolean(4)
         If Not reader.IsDBNull(5) Then _modRole = CULng(reader.GetInt64(5))
         _announceMsg = If(reader.IsDBNull(6), Nothing, reader.GetString(6))
+        _announceMsgPl = If(reader.IsDBNull(7), Nothing, reader.GetString(7))
 
         ' Get user information loaded up.
         Dim userresult = GuildUserSettings.GetGuildUsersAsync(dbconfig, GuildId)
@@ -269,6 +271,11 @@ Friend Class GuildSettings
         Await UpdateDatabaseAsync()
     End Function
 
+    Public Async Function UpdateAnnounceMessagePlAsync(messagePl As String) As Task
+        _announceMsgPl = messagePl
+        Await UpdateDatabaseAsync()
+    End Function
+
 #Region "Database"
     Public Const BackingTable = "settings"
     Public Const BackingTableBans = "banned_users"
@@ -282,7 +289,8 @@ Friend Class GuildSettings
                 "time_zone text null, " +
                 "moderated boolean not null default FALSE, " +
                 "moderator_role bigint null, " +
-                "announce_message text null" +
+                "announce_message text null, " +
+                "announce_message_pl text null" +
                 ")"
             c.ExecuteNonQuery()
         End Using
@@ -304,7 +312,7 @@ Friend Class GuildSettings
         Using db = Await dbsettings.OpenConnectionAsync()
             Using c = db.CreateCommand()
                 ' Take note of ordinals for use in the constructor
-                c.CommandText = "select guild_id, role_id, channel_announce_id, time_zone, moderated, moderator_role, announce_message " +
+                c.CommandText = "select guild_id, role_id, channel_announce_id, time_zone, moderated, moderator_role, announce_message, announce_message_pl " +
                     $"from {BackingTable} where guild_id = @Gid"
                 c.Parameters.Add("@Gid", NpgsqlDbType.Bigint).Value = guild
                 c.Prepare()
@@ -340,7 +348,8 @@ Friend Class GuildSettings
                     "time_zone = @TimeZone, " +
                     "moderated = @Moderated, " +
                     "moderator_role = @ModRole, " +
-                    "announce_message = @AnnounceMsg " +
+                    "announce_message = @AnnounceMsg, " +
+                    "announce_message_pl = @AnnounceMsgPl " +
                     "where guild_id = @Gid"
                 c.Parameters.Add("@Gid", NpgsqlDbType.Bigint).Value = GuildId
                 With c.Parameters.Add("@RoleId", NpgsqlDbType.Bigint)
@@ -373,8 +382,15 @@ Friend Class GuildSettings
                     End If
                 End With
                 With c.Parameters.Add("@AnnounceMsg", NpgsqlDbType.Text)
-                    If AnnounceMessage IsNot Nothing Then
-                        .Value = AnnounceMessage
+                    If _announceMsg IsNot Nothing Then
+                        .Value = _announceMsg
+                    Else
+                        .Value = DBNull.Value
+                    End If
+                End With
+                With c.Parameters.Add("@AnnounceMsgPl", NpgsqlDbType.Text)
+                    If _announceMsgPl IsNot Nothing Then
+                        .Value = _announceMsgPl
                     Else
                         .Value = DBNull.Value
                     End If

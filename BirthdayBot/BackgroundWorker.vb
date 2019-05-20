@@ -97,13 +97,13 @@ Class BackgroundWorker
         Dim users As IEnumerable(Of GuildUserSettings)
         Dim role As SocketRole = Nothing
         Dim channel As SocketTextChannel = Nothing
-        Dim announceMsg As String
+        Dim announce As (String, String)
         SyncLock _bot.KnownGuilds
             If Not _bot.KnownGuilds.ContainsKey(guild.Id) Then Return 0
             Dim gs = _bot.KnownGuilds(guild.Id)
             tz = gs.TimeZone
             users = gs.Users
-            announceMsg = gs.AnnounceMessage
+            announce = gs.AnnounceMessages
 
             If gs.AnnounceChannelId.HasValue Then channel = guild.GetTextChannel(gs.AnnounceChannelId.Value)
             If gs.RoleId.HasValue Then role = guild.GetRole(gs.RoleId.Value)
@@ -135,7 +135,7 @@ Class BackgroundWorker
         End Try
         If announceNames.Count <> 0 Then
             ' Send out announcement message
-            Await BirthdayAnnounceAsync(announceMsg, channel, announceNames)
+            Await BirthdayAnnounceAsync(announce, channel, announceNames)
         End If
 
         Return announceNames.Count
@@ -208,7 +208,7 @@ Class BackgroundWorker
         Dim escapeFormattingCharacters = Function(input As String) As String
                                              Dim result As New StringBuilder
                                              For Each c As Char In input
-                                                 If c = "\" Or c = "_" Or c = "~" Or c = "*" Then
+                                                 If c = "\"c Or c = "_"c Or c = "~"c Or c = "*"c Then
                                                      result.Append("\")
                                                  End If
                                                  result.Append(c)
@@ -227,21 +227,22 @@ Class BackgroundWorker
     ''' Makes (or attempts to make) an announcement in the specified channel that includes all users
     ''' who have just had their birthday role added.
     ''' </summary>
-    Private Async Function BirthdayAnnounceAsync(ByVal announceMsg As String,
+    Private Async Function BirthdayAnnounceAsync(announce As (String, String),
                                                  c As SocketTextChannel,
                                                  names As IEnumerable(Of SocketGuildUser)) As Task
+        Const DefaultAnnounce = "Please wish a happy birthday to %n!"
+        Const DefaultAnnouncePl = "Please wish a happy birthday to our esteemed members: %n"
 
-        Const DefaultAnnounce = "Please wish a happy birthday to our esteemed member(s):"
         If c Is Nothing Then Return
 
-        ' TODO streamline this whole thing once a customizable message is implemented.
-        ' Plan: "{custommessage}\n{namedisplay}"
-        Dim result As String
-
-        If announceMsg Is Nothing Then
-            announceMsg = DefaultAnnounce
+        Dim announceMsg As String
+        If names.Count = 1 Then
+            announceMsg = If(announce.Item1, DefaultAnnounce)
+        Else
+            announceMsg = If(announce.Item2, DefaultAnnouncePl)
         End If
         announceMsg = announceMsg.TrimEnd()
+        If Not announceMsg.Contains("%n") Then announceMsg += " %n"
 
         ' Build sorted name list
         Dim namestrings As New List(Of String)
@@ -259,10 +260,9 @@ Class BackgroundWorker
             first = False
             namedisplay.Append(item)
         Next
-        result = announceMsg + " " + namedisplay.ToString()
 
         Try
-            Await c.SendMessageAsync(result)
+            Await c.SendMessageAsync(announceMsg.Replace("%n", namedisplay.ToString()))
         Catch ex As Discord.Net.HttpException
             ' Ignore
         End Try

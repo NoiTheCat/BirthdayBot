@@ -24,6 +24,7 @@ Friend Class ManagerCommands
             {"channel", AddressOf ScmdChannel},
             {"modrole", AddressOf ScmdModRole},
             {"message", AddressOf ScmdAnnounceMsg},
+            {"messagepl", AddressOf ScmdAnnounceMsg},
             {"zone", AddressOf ScmdZone},
             {"block", AddressOf ScmdBlock},
             {"unblock", AddressOf ScmdBlock},
@@ -269,10 +270,17 @@ Friend Class ManagerCommands
             Return
         End If
 
+        Dim plural = param(0).ToLower().EndsWith("pl")
+
         SyncLock Instance.KnownGuilds
-            Instance.KnownGuilds(reqChannel.Guild.Id).UpdateAnnounceMessageAsync(param(1)).Wait()
+            If plural Then
+                Instance.KnownGuilds(reqChannel.Guild.Id).UpdateAnnounceMessagePlAsync(param(1)).Wait()
+            Else
+                Instance.KnownGuilds(reqChannel.Guild.Id).UpdateAnnounceMessageAsync(param(1)).Wait()
+            End If
         End SyncLock
-        Await reqChannel.SendMessageAsync(":white_check_mark: The birthday announcement message has been updated.")
+        Dim report = $":white_check_mark: The {If(plural, "plural", "singular")} birthday announcement message has been updated."
+        Await reqChannel.SendMessageAsync(report)
     End Function
 #End Region
 
