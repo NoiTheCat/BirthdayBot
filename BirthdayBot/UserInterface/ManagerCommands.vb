@@ -80,6 +80,8 @@ Friend Class ManagerCommands
 
         If role Is Nothing Then
             Await reqChannel.SendMessageAsync(RoleInputError)
+        ElseIf role.Id = reqChannel.Guild.EveryoneRole.Id Then
+            Await reqChannel.SendMessageAsync(":x: You cannot set that as the birthday role.")
         Else
             SyncLock Instance.KnownGuilds
                 Instance.KnownGuilds(guild.Id).UpdateRoleAsync(role.Id).Wait()
