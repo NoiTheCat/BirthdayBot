@@ -50,11 +50,6 @@ Friend Class ManagerCommands
             Return
         End If
 
-        If param.Length <> 3 Then
-            Await reqChannel.SendMessageAsync(GenericError)
-            Return
-        End If
-
         ' Special case: Restrict 'modrole' to only guild managers
         If param(1).Equals("modrole", StringComparison.OrdinalIgnoreCase) And Not reqUser.GuildPermissions.ManageGuild Then
             Await reqChannel.SendMessageAsync(":x: This command may only be used by those with the `Manage Server` permission.")
