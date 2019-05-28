@@ -23,6 +23,7 @@ Friend Class HelpInfoCommands
                 ("help", AddressOf CmdHelp),
                 ("help-config", AddressOf CmdHelpConfig),
                 ("help-tzdata", AddressOf CmdHelpTzdata),
+                ("help-message", AddressOf CmdHelpMessage),
                 ("info", AddressOf CmdInfo)
             }
         End Get
@@ -42,14 +43,19 @@ Friend Class HelpInfoCommands
                 $"{cpfx}zone (zone)`" + vbLf +
                 $" » Sets your local time zone. See `{CommandPrefix}help-tzdata`." + vbLf +
                 $"{cpfx}remove`" + vbLf +
-                $" » Removes your birthday information from this bot." + vbLf +
+                $" » Removes your birthday information from this bot."
+        }
+        Dim cmdModField As New EmbedFieldBuilder With {
+            .Name = "Moderator-only commands",
+            .Value =
                 $"{cpfx}config`" + vbLf +
-                $" » Edit bot configuration. Moderators only. See `{CommandPrefix}help-config`." + vbLf +
+                $" » Edit bot configuration. See `{CommandPrefix}help-config`." + vbLf +
                 $"{cpfx}override (user ping or ID) (command w/ parameters)`" + vbLf +
-                " » Perform certain commands on behalf of another user. Moderators only."
+                " » Perform certain commands on behalf of another user."
         }
         Dim helpRegular As New EmbedBuilder
         helpRegular.AddField(cmdField)
+        helpRegular.AddField(cmdModField)
 
         ' Manager section
         Dim mpfx = cpfx + "config "
@@ -60,11 +66,8 @@ Friend Class HelpInfoCommands
                 " » Sets the role to apply to users having birthdays." + vbLf +
                 $"{mpfx}channel (channel name or ID)`" + vbLf +
                 " » Sets the announcement channel. Leave blank to disable." + vbLf +
-                $"{mpfx}message (message)`" + vbLf +
-                " » Sets a custom announcement message. Use `%n` to specify where the name(s) should be displayed." + vbLf +
-                $"{mpfx}messagepl (message)`" + vbLf +
-                " » ""Message Plural"". Sets the message to be used when two or more people are on the birthday list. " +
-                " `%n` can also be used here. If using `message`, it is highly recommended to also use `messagepl`." + vbLf +
+                $"{mpfx}message (message)`, `{CommandPrefix}config messagepl (message)`" + vbLf +
+                $" » Sets a custom announcement message. See `{CommandPrefix}help-message`." + vbLf +
                 $"{mpfx}zone (time zone name)`" + vbLf +
                 $" » Sets the default server time zone. See `{CommandPrefix}help-tzdata`."
         }
@@ -105,6 +108,29 @@ Friend Class HelpInfoCommands
         embed.AddField(New EmbedFieldBuilder() With {
             .Name = "Time Zone Support",
             .Value = tzhelp
+        })
+        Await reqChannel.SendMessageAsync(embed:=embed.Build())
+    End Function
+
+    Private Async Function CmdHelpMessage(param As String(), reqChannel As SocketTextChannel, reqUser As SocketGuildUser) As Task
+        Const msghelp = "The `message` and `messagepl` subcommands allow for editing the message sent into the announcement " +
+            "channel (defined with `{0}config channel`). This feature is separated across two commands:" + vbLf +
+            "●`{0}config message`" + vbLf + "●`{0}config messagepl`" + vbLf +
+            "The first command sets the message to be displayed when *one* user is having a birthday. The second command sets the " +
+            "message for when *two or more* users are having birthdays ('pl' means plural). If only one of the two custom messages " +
+            "are defined, it will be used for both cases." + vbLf + vbLf +
+            "To further allow customization, you may place the token `%n` in your message to specify where the name(s) should appear." +
+            vbLf + "Leave the parameter blank to clear or reset the message to its default value."
+        Const msghelp2 = "As examples, these are the default announcement messages used by this bot:" + vbLf +
+            "`message`: {0}" + vbLf + "`messagepl`: {1}"
+        Dim embed As New EmbedBuilder
+        embed.AddField(New EmbedFieldBuilder() With {
+            .Name = "Custom announcement message",
+            .Value = String.Format(msghelp, CommandPrefix)
+        })
+        embed.AddField(New EmbedFieldBuilder() With {
+            .Name = "Examples",
+            .Value = String.Format(msghelp2, BackgroundWorker.DefaultAnnounce, BackgroundWorker.DefaultAnnouncePl)
         })
         Await reqChannel.SendMessageAsync(embed:=embed.Build())
     End Function

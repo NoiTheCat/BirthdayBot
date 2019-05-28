@@ -223,6 +223,9 @@ Class BackgroundWorker
         Return $"**{username}**#{member.Discriminator}"
     End Function
 
+    Public Const DefaultAnnounce = "Please wish a happy birthday to %n!"
+    Public Const DefaultAnnouncePl = "Please wish a happy birthday to our esteemed members: %n"
+
     ''' <summary>
     ''' Makes (or attempts to make) an announcement in the specified channel that includes all users
     ''' who have just had their birthday role added.
@@ -230,16 +233,13 @@ Class BackgroundWorker
     Private Async Function BirthdayAnnounceAsync(announce As (String, String),
                                                  c As SocketTextChannel,
                                                  names As IEnumerable(Of SocketGuildUser)) As Task
-        Const DefaultAnnounce = "Please wish a happy birthday to %n!"
-        Const DefaultAnnouncePl = "Please wish a happy birthday to our esteemed members: %n"
-
         If c Is Nothing Then Return
 
         Dim announceMsg As String
         If names.Count = 1 Then
-            announceMsg = If(announce.Item1, DefaultAnnounce)
+            announceMsg = If(announce.Item1, If(announce.Item2, DefaultAnnounce))
         Else
-            announceMsg = If(announce.Item2, DefaultAnnouncePl)
+            announceMsg = If(announce.Item2, If(announce.Item1, DefaultAnnouncePl))
         End If
         announceMsg = announceMsg.TrimEnd()
         If Not announceMsg.Contains("%n") Then announceMsg += " %n"
@@ -265,6 +265,7 @@ Class BackgroundWorker
             Await c.SendMessageAsync(announceMsg.Replace("%n", namedisplay.ToString()))
         Catch ex As Discord.Net.HttpException
             ' Ignore
+            ' TODO keep tabs on this somehow for troubleshooting purposes
         End Try
     End Function
 #End Region

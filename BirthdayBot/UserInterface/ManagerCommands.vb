@@ -260,22 +260,23 @@ Friend Class ManagerCommands
 
     ' Sets/unsets custom announcement message.
     Private Async Function ScmdAnnounceMsg(param As String(), reqChannel As SocketTextChannel) As Task
-        If param.Length <> 2 Then
-            Await reqChannel.SendMessageAsync(GenericError)
-            Return
-        End If
-
         Dim plural = param(0).ToLower().EndsWith("pl")
 
+        Dim newmsg As String
+        Dim clear As Boolean
+        If param.Length = 2 Then
+            newmsg = param(1)
+            clear = False
+        Else
+            newmsg = Nothing
+            clear = True
+        End If
+
         SyncLock Instance.KnownGuilds
-            If plural Then
-                Instance.KnownGuilds(reqChannel.Guild.Id).UpdateAnnounceMessagePlAsync(param(1)).Wait()
-            Else
-                Instance.KnownGuilds(reqChannel.Guild.Id).UpdateAnnounceMessageAsync(param(1)).Wait()
-            End If
+            Instance.KnownGuilds(reqChannel.Guild.Id).UpdateAnnounceMessageAsync(newmsg, plural).Wait()
         End SyncLock
-        Dim report = $":white_check_mark: The {If(plural, "plural", "singular")} birthday announcement message has been updated."
-        Await reqChannel.SendMessageAsync(report)
+        Const report = ":white_check_mark: The {0} birthday announcement message has been {1}."
+        Await reqChannel.SendMessageAsync(String.Format(report, If(plural, "plural", "singular"), If(clear, "reset", "updated")))
     End Function
 #End Region
 

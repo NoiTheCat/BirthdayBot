@@ -266,13 +266,13 @@ Friend Class GuildSettings
         Await UpdateDatabaseAsync()
     End Function
 
-    Public Async Function UpdateAnnounceMessageAsync(message As String) As Task
-        _announceMsg = message
-        Await UpdateDatabaseAsync()
-    End Function
+    Public Async Function UpdateAnnounceMessageAsync(message As String, plural As Boolean) As Task
+        If plural Then
+            _announceMsgPl = message
+        Else
+            _announceMsg = message
+        End If
 
-    Public Async Function UpdateAnnounceMessagePlAsync(messagePl As String) As Task
-        _announceMsgPl = messagePl
         Await UpdateDatabaseAsync()
     End Function
 
