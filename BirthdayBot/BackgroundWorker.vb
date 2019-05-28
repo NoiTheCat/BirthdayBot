@@ -98,12 +98,14 @@ Class BackgroundWorker
         Dim role As SocketRole = Nothing
         Dim channel As SocketTextChannel = Nothing
         Dim announce As (String, String)
+        Dim announceping As Boolean
         SyncLock _bot.KnownGuilds
             If Not _bot.KnownGuilds.ContainsKey(guild.Id) Then Return 0
             Dim gs = _bot.KnownGuilds(guild.Id)
             tz = gs.TimeZone
             users = gs.Users
             announce = gs.AnnounceMessages
+            announceping = gs.AnnouncePing
 
             If gs.AnnounceChannelId.HasValue Then channel = guild.GetTextChannel(gs.AnnounceChannelId.Value)
             If gs.RoleId.HasValue Then role = guild.GetRole(gs.RoleId.Value)
@@ -135,7 +137,7 @@ Class BackgroundWorker
         End Try
         If announceNames.Count <> 0 Then
             ' Send out announcement message
-            Await BirthdayAnnounceAsync(announce, channel, announceNames)
+            Await BirthdayAnnounceAsync(announce, announceping, channel, announceNames)
         End If
 
         Return announceNames.Count
@@ -203,8 +205,9 @@ Class BackgroundWorker
         Return newBirthdays
     End Function
 
-    Private Function BirthdayAnnounceFormatName(member As SocketGuildUser) As String
-        ' TODO add option for using pings instead, add handling for it here
+    Private Function BirthdayAnnounceFormatName(member As SocketGuildUser, ping As Boolean) As String
+        If ping Then Return member.Mention
+
         Dim escapeFormattingCharacters = Function(input As String) As String
                                              Dim result As New StringBuilder
                                              For Each c As Char In input
@@ -231,6 +234,7 @@ Class BackgroundWorker
     ''' who have just had their birthday role added.
     ''' </summary>
     Private Async Function BirthdayAnnounceAsync(announce As (String, String),
+                                                 announcePing As Boolean,
                                                  c As SocketTextChannel,
                                                  names As IEnumerable(Of SocketGuildUser)) As Task
         If c Is Nothing Then Return
@@ -247,7 +251,7 @@ Class BackgroundWorker
         ' Build sorted name list
         Dim namestrings As New List(Of String)
         For Each item In names
-            namestrings.Add(BirthdayAnnounceFormatName(item))
+            namestrings.Add(BirthdayAnnounceFormatName(item, announcePing))
         Next
         namestrings.Sort(StringComparer.OrdinalIgnoreCase)
 

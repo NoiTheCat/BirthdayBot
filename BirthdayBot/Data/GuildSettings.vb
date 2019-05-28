@@ -18,6 +18,7 @@ Friend Class GuildSettings
     Private _moderated As Boolean
     Private _announceMsg As String
     Private _announceMsgPl As String
+    Private _announcePing As Boolean
     Private _userCache As Dictionary(Of ULong, GuildUserSettings)
 
     Private _roleWarning As Boolean
@@ -114,6 +115,16 @@ Friend Class GuildSettings
         End Get
     End Property
 
+    ''' <summary>
+    ''' Gets whether to ping users in the announcement message instead of displaying their names.
+    ''' </summary>
+    ''' <returns></returns>
+    Public ReadOnly Property AnnouncePing As Boolean
+        Get
+            Return _announcePing
+        End Get
+    End Property
+
     ' Called by LoadSettingsAsync. Double-check ordinals when changes are made.
     Private Sub New(reader As DbDataReader, dbconfig As Database)
         _db = dbconfig
@@ -131,6 +142,7 @@ Friend Class GuildSettings
         If Not reader.IsDBNull(5) Then _modRole = CULng(reader.GetInt64(5))
         _announceMsg = If(reader.IsDBNull(6), Nothing, reader.GetString(6))
         _announceMsgPl = If(reader.IsDBNull(7), Nothing, reader.GetString(7))
+        _announcePing = reader.GetBoolean(8)
 
         ' Get user information loaded up.
         Dim userresult = GuildUserSettings.GetGuildUsersAsync(dbconfig, GuildId)
@@ -276,6 +288,11 @@ Friend Class GuildSettings
         Await UpdateDatabaseAsync()
     End Function
 
+    Public Async Function UpdateAnnouncePingAsync(value As Boolean) As Task
+        _announcePing = value
+        Await UpdateDatabaseAsync()
+    End Function
+
 #Region "Database"
     Public Const BackingTable = "settings"
     Public Const BackingTableBans = "banned_users"
@@ -290,7 +307,8 @@ Friend Class GuildSettings
                 "moderated boolean not null default FALSE, " +
                 "moderator_role bigint null, " +
                 "announce_message text null, " +
-                "announce_message_pl text null" +
+                "announce_message_pl text null, " +
+                "announce_ping boolean not null default FALSE" +
                 ")"
             c.ExecuteNonQuery()
         End Using
@@ -312,7 +330,7 @@ Friend Class GuildSettings
         Using db = Await dbsettings.OpenConnectionAsync()
             Using c = db.CreateCommand()
                 ' Take note of ordinals for use in the constructor
-                c.CommandText = "select guild_id, role_id, channel_announce_id, time_zone, moderated, moderator_role, announce_message, announce_message_pl " +
+                c.CommandText = "select guild_id, role_id, channel_announce_id, time_zone, moderated, moderator_role, announce_message, announce_message_pl, announce_ping " +
                     $"from {BackingTable} where guild_id = @Gid"
                 c.Parameters.Add("@Gid", NpgsqlDbType.Bigint).Value = guild
                 c.Prepare()
@@ -349,7 +367,8 @@ Friend Class GuildSettings
                     "moderated = @Moderated, " +
                     "moderator_role = @ModRole, " +
                     "announce_message = @AnnounceMsg, " +
-                    "announce_message_pl = @AnnounceMsgPl " +
+                    "announce_message_pl = @AnnounceMsgPl, " +
+                    "announce_ping = @AnnouncePing " +
                     "where guild_id = @Gid"
                 c.Parameters.Add("@Gid", NpgsqlDbType.Bigint).Value = GuildId
                 With c.Parameters.Add("@RoleId", NpgsqlDbType.Bigint)
@@ -395,6 +414,7 @@ Friend Class GuildSettings
                         .Value = DBNull.Value
                     End If
                 End With
+                c.Parameters.Add("@AnnouncePing", NpgsqlDbType.Boolean).Value = _announcePing
                 c.Prepare()
                 Await c.ExecuteNonQueryAsync()
             End Using

@@ -25,6 +25,7 @@ Friend Class ManagerCommands
             {"modrole", AddressOf ScmdModRole},
             {"message", AddressOf ScmdAnnounceMsg},
             {"messagepl", AddressOf ScmdAnnounceMsg},
+            {"ping", AddressOf ScmdPing},
             {"zone", AddressOf ScmdZone},
             {"block", AddressOf ScmdBlock},
             {"unblock", AddressOf ScmdBlock},
@@ -85,6 +86,33 @@ Friend Class ManagerCommands
             End SyncLock
             Await reqChannel.SendMessageAsync($":white_check_mark: The birthday role has been set as **{role.Name}**.")
         End If
+    End Function
+
+    Private Async Function ScmdPing(param As String(), reqChannel As SocketTextChannel) As Task
+        Const inputErr = ":x: You must specify either `off` or `on` in this setting."
+        If param.Length <> 2 Then
+            Await reqChannel.SendMessageAsync(inputErr)
+            Return
+        End If
+
+        Dim input = param(1).ToLower()
+        Dim setting As Boolean
+        Dim result As String
+        If input = "off" Then
+            setting = False
+            result = ":white_check_mark: Announcement pings are now **off**."
+        ElseIf input = "on" Then
+            setting = True
+            result = ":white_check_mark: Announcement pings are now **on**."
+        Else
+            Await reqChannel.SendMessageAsync(inputErr)
+            Return
+        End If
+
+        SyncLock Instance.KnownGuilds
+            Instance.KnownGuilds(reqChannel.Guild.Id).UpdateAnnouncePingAsync(setting).Wait()
+        End SyncLock
+        Await reqChannel.SendMessageAsync(result)
     End Function
 
     ' Announcement channel set

@@ -68,6 +68,8 @@ Friend Class HelpInfoCommands
                 " » Sets the announcement channel. Leave blank to disable." + vbLf +
                 $"{mpfx}message (message)`, `{CommandPrefix}config messagepl (message)`" + vbLf +
                 $" » Sets a custom announcement message. See `{CommandPrefix}help-message`." + vbLf +
+                $"{mpfx}ping (off|on)`" + vbLf +
+                $" » Sets whether to ping the respective users in the announcement message." + vbLf +
                 $"{mpfx}zone (time zone name)`" + vbLf +
                 $" » Sets the default server time zone. See `{CommandPrefix}help-tzdata`."
         }
