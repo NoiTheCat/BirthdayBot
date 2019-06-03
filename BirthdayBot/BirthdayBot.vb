@@ -10,6 +10,7 @@ Class BirthdayBot
 
     Private ReadOnly _dispatchCommands As Dictionary(Of String, CommandHandler)
     Private ReadOnly _cmdsUser As UserCommands
+    Private ReadOnly _cmdsListing As ListingCommands
     Private ReadOnly _cmdsHelp As HelpInfoCommands
     Private ReadOnly _cmdsMods As ManagerCommands
 
@@ -38,6 +39,10 @@ Class BirthdayBot
         _dispatchCommands = New Dictionary(Of String, CommandHandler)(StringComparer.InvariantCultureIgnoreCase)
         _cmdsUser = New UserCommands(Me, conf)
         For Each item In _cmdsUser.Commands
+            _dispatchCommands.Add(item.Item1, item.Item2)
+        Next
+        _cmdsListing = New ListingCommands(Me, conf)
+        For Each item In _cmdsListing.Commands
             _dispatchCommands.Add(item.Item1, item.Item2)
         Next
         _cmdsHelp = New HelpInfoCommands(Me, conf, DiscordClient)

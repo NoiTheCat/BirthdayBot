@@ -37,6 +37,8 @@ Friend Class HelpInfoCommands
             .Value =
                 $"{cpfx}help`, `{CommandPrefix}info`, `{CommandPrefix}help-tzdata`" + vbLf +
                 $" » Help and informational messages." + vbLf +
+                $"{cpfx}recent` and `{CommandPrefix}upcoming`" + vbLf +
+                $" » Lists recent and upcoming birthdays." + vbLf +
                 $"{cpfx}set (date) [zone]`" + vbLf +
                 $" » Registers your birth date. Time zone is optional." + vbLf +
                 $" »» Examples: `{CommandPrefix}set jan-31`, `{CommandPrefix}set 15-aug America/Los_Angeles`." + vbLf +
@@ -50,6 +52,8 @@ Friend Class HelpInfoCommands
             .Value =
                 $"{cpfx}config`" + vbLf +
                 $" » Edit bot configuration. See `{CommandPrefix}help-config`." + vbLf +
+                $"{cpfx}list`" + vbLf +
+                $" » Exports all known birthdays to file." + vbLf +
                 $"{cpfx}override (user ping or ID) (command w/ parameters)`" + vbLf +
                 " » Perform certain commands on behalf of another user."
         }
