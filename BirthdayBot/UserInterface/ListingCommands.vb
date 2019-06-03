@@ -172,59 +172,6 @@ Class ListingCommands
         DateIndex += day
     End Function
 
-    ''' <summary>
-    ''' Translate from date index value to readable date.
-    ''' </summary>
-    Private Function FromDateIndex(ByVal index As Integer) As String
-        ' oh no...
-        FromDateIndex = "Jan"
-        If index > 31 Then
-            index -= 31
-            FromDateIndex = "Feb"
-        End If
-        If index > 29 Then
-            index -= 29
-            FromDateIndex = "Mar"
-        End If
-        If index > 31 Then
-            index -= 31
-            FromDateIndex = "Apr"
-        End If
-        If index > 30 Then
-            index -= 30
-            FromDateIndex = "May"
-        End If
-        If index > 31 Then
-            index -= 31
-            FromDateIndex = "Jun"
-        End If
-        If index > 30 Then
-            index -= 30
-            FromDateIndex = "Jul"
-        End If
-        If index > 31 Then
-            index -= 31
-            FromDateIndex = "Aug"
-        End If
-        If index > 31 Then
-            index -= 31
-            FromDateIndex = "Sep"
-        End If
-        If index > 30 Then
-            index -= 30
-            FromDateIndex = "Oct"
-        End If
-        If index > 31 Then
-            index -= 31
-            FromDateIndex = "Nov"
-        End If
-        If index > 30 Then
-            index -= 30
-            FromDateIndex = "Dec"
-        End If
-        FromDateIndex += " " + index.ToString("00")
-    End Function
-
     Private Structure ListItem
         Public Property DateIndex As Integer
         Public Property BirthMonth As Integer
