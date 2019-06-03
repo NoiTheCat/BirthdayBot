@@ -205,27 +205,6 @@ Class BackgroundWorker
         Return newBirthdays
     End Function
 
-    Private Function BirthdayAnnounceFormatName(member As SocketGuildUser, ping As Boolean) As String
-        If ping Then Return member.Mention
-
-        Dim escapeFormattingCharacters = Function(input As String) As String
-                                             Dim result As New StringBuilder
-                                             For Each c As Char In input
-                                                 If c = "\"c Or c = "_"c Or c = "~"c Or c = "*"c Then
-                                                     result.Append("\")
-                                                 End If
-                                                 result.Append(c)
-                                             Next
-                                             Return result.ToString()
-                                         End Function
-
-        Dim username = escapeFormattingCharacters(member.Username)
-        If member.Nickname IsNot Nothing Then
-            Return $"**{escapeFormattingCharacters(member.Nickname)}** ({username}#{member.Discriminator})"
-        End If
-        Return $"**{username}**#{member.Discriminator}"
-    End Function
-
     Public Const DefaultAnnounce = "Please wish a happy birthday to %n!"
     Public Const DefaultAnnouncePl = "Please wish a happy birthday to our esteemed members: %n"
 
@@ -251,7 +230,7 @@ Class BackgroundWorker
         ' Build sorted name list
         Dim namestrings As New List(Of String)
         For Each item In names
-            namestrings.Add(BirthdayAnnounceFormatName(item, announcePing))
+            namestrings.Add(FormatName(item, announcePing))
         Next
         namestrings.Sort(StringComparer.OrdinalIgnoreCase)
 
