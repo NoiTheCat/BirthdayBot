@@ -120,27 +120,54 @@ Class BackgroundWorker
         Dim birthdays = BirthdayCalculate(users, tz)
         ' Note: Don't quit here if zero people are having birthdays. Roles may still need to be removed by BirthdayApply.
 
-        ' Set birthday role, get list of users now having birthdays
+        ' Set birthday roles, get list of users that had the role added
+        ' But first check if we are able to do so. Letting all requests fail instead will lead to rate limiting.
         Dim announceNames As IEnumerable(Of SocketGuildUser)
-        Try
-            announceNames = Await BirthdayApplyAsync(guild, role, birthdays)
-        Catch ex As Discord.Net.HttpException
-            If ex.HttpCode = HttpStatusCode.Forbidden Then
-                SyncLock _bot.KnownGuilds
-                    ' Failed to apply role. Set the warning.
-                    _bot.KnownGuilds(guild.Id).RoleWarning = True
-                End SyncLock
-                Return 0
-            End If
+        If BirthdayHasGoodRolePermissions(guild, role) Then
+            Try
+                announceNames = Await BirthdayApplyAsync(guild, role, birthdays)
+            Catch ex As Discord.Net.HttpException
+                If ex.HttpCode = HttpStatusCode.Forbidden Then
+                    announceNames = Nothing
+                Else
+                    Throw
+                End If
+            End Try
+        Else
+            announceNames = Nothing
+        End If
 
-            Throw
-        End Try
+        If announceNames Is Nothing Then
+            SyncLock _bot.KnownGuilds
+                ' Nothing on announceNAmes signals failure to apply roles. Set the warning message.
+                _bot.KnownGuilds(guild.Id).RoleWarning = True
+            End SyncLock
+            Return 0
+        End If
+
         If announceNames.Count <> 0 Then
             ' Send out announcement message
             Await BirthdayAnnounceAsync(announce, announceping, channel, announceNames)
         End If
-
         Return announceNames.Count
+    End Function
+
+    ''' <summary>
+    ''' Checks if the bot may be allowed to alter roles.
+    ''' </summary>
+    Private Function BirthdayHasGoodRolePermissions(guild As SocketGuild, role As SocketRole) As Boolean
+        If Not guild.CurrentUser.GuildPermissions.ManageRoles Then
+            ' Bot user cannot manage roles
+            Return False
+        End If
+
+        ' Check potential role order conflict
+        If role.Position >= guild.CurrentUser.Hierarchy Then
+            ' Target role is at or above bot's highest role.
+            Return False
+        End If
+
+        Return True
     End Function
 
     ''' <summary>
@@ -187,21 +214,37 @@ Class BackgroundWorker
     ''' Sets the birthday role to all applicable users. Unsets it from all others who may have it.
     ''' </summary>
     ''' <returns>A list of users who had the birthday role applied. Use for the announcement message.</returns>
-    Private Async Function BirthdayApplyAsync(g As SocketGuild, r As SocketRole, names As HashSet(Of ULong)) As Task(Of IEnumerable(Of SocketGuildUser))
-        If Not g.HasAllMembers Then Await g.DownloadUsersAsync()
-        Dim newBirthdays As New List(Of SocketGuildUser)
-        For Each user In g.Users
-            If names.Contains(user.Id) Then
-                ' User's in the list. Should have the role. Add and make note of if user does not.
-                If Not user.Roles.Contains(r) Then
-                    Await user.AddRoleAsync(r)
-                    newBirthdays.Add(user)
-                End If
+    Private Async Function BirthdayApplyAsync(g As SocketGuild,
+                                              r As SocketRole,
+                                              names As HashSet(Of ULong)) As Task(Of IEnumerable(Of SocketGuildUser))
+        ' Check members currently with the role. Figure out which users to remove it from.
+        Dim roleRemoves As New List(Of SocketGuildUser)
+        Dim roleKeeps As New HashSet(Of ULong)
+        Dim q = 0
+        For Each member In r.Members
+            If Not names.Contains(member.Id) Then
+                roleRemoves.Add(member)
             Else
-                ' User's not in the list. Should remove the role.
-                If user.Roles.Contains(r) Then Await user.RemoveRoleAsync(r)
+                roleKeeps.Add(member.Id)
             End If
+            q += 1
         Next
+
+        ' TODO Can we remove during the iteration instead of after? investigate later...
+        For Each user In roleRemoves
+            Await user.RemoveRoleAsync(r)
+        Next
+
+        ' Apply role to members not already having it. Prepare announcement list.
+        Dim newBirthdays As New List(Of SocketGuildUser)
+        For Each target In names
+            Dim member = g.GetUser(target)
+            If member Is Nothing Then Continue For
+            If roleKeeps.Contains(member.Id) Then Continue For ' already has role - do nothing
+            Await member.AddRoleAsync(r)
+            newBirthdays.Add(member)
+        Next
+
         Return newBirthdays
     End Function
 
