@@ -160,8 +160,7 @@ Friend Class HelpInfoCommands
             },
             .Description = "Suggestions and feedback are always welcome. Please refer to the listing on Discord Bots " +
             "(discord.bots.gg) for information on reaching my personal server. I may not be available often, but I am happy to " +
-            "respond to feedback in due time." + vbLf +
-            "This bot remains very much in its early stages. Essential and quality-of-life features will be slowly added over time."
+            "respond to feedback in due time."
         }
         Dim verstr = Reflection.Assembly.GetExecutingAssembly().GetName().Version.ToString(3)
         embed.AddField(New EmbedFieldBuilder With {
