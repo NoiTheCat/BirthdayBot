@@ -1,77 +1,40 @@
 ﻿Imports System.Net
 Imports System.Text
-Imports System.Threading
 Imports Discord.WebSocket
 Imports NodaTime
 
 ''' <summary>
-''' BirthdayBot's periodic task. Frequently wakes up to take various actions.
+''' Periodically scans all known guilds and adjusts birthday role membership as necessary.
+''' Also handles birthday announcements.
 ''' </summary>
-Class BackgroundWorker
-    Private ReadOnly _bot As BirthdayBot
-    Private ReadOnly Property WorkerCancel As New CancellationTokenSource
-    Private _workerTask As Task
-    Const Interval = 45 ' How often the worker wakes up, in seconds. Adjust as needed.
-    Private ReadOnly _clock As IClock
+Class BirthdayRoleUpdate
+    Inherits BackgroundService
+    Private ReadOnly Property Clock As IClock
 
-    Sub New(instance As BirthdayBot)
-        _bot = instance
-        _clock = SystemClock.Instance ' can replace with FakeClock here when testing
+    Public Sub New(instance As BirthdayBot)
+        MyBase.New(instance)
+        Clock = SystemClock.Instance ' can be replaced with FakeClock during testing
     End Sub
 
-    Public Sub Start()
-        _workerTask = Task.Factory.StartNew(AddressOf WorkerLoop, WorkerCancel.Token,
-                                            TaskCreationOptions.LongRunning, TaskScheduler.Default)
-    End Sub
-
-    Public Async Function Cancel() As Task
-        WorkerCancel.Cancel()
-        Await _workerTask
-    End Function
-
     ''' <summary>
-    ''' Background task. Kicks off many other tasks.
+    ''' Initial processing: Sets up a task per guild and waits on all.
     ''' </summary>
-    Private Async Function WorkerLoop() As Task
-        While Not WorkerCancel.IsCancellationRequested
-            Try
-                ' Delay a bit before we start (or continue) work.
-                Await Task.Delay(Interval * 1000, WorkerCancel.Token)
-
-                ' Start background tasks.
-                Dim bgTasks As New List(Of Task) From {
-                    ReportAsync(),
-                    BirthdayAsync()
-                }
-                Await Task.WhenAll(bgTasks)
-            Catch ex As TaskCanceledException
-                Return
-            Catch ex As Exception
-                Log("Background task", "Unhandled exception in background task thread:")
-                Log("Background task", ex.ToString())
-            End Try
-        End While
-    End Function
-
-#Region "Birthday handling"
-    ''' <summary>
-    ''' Birthday tasks processing. Sets up a task per guild and waits on them.
-    ''' </summary>
-    Private Async Function BirthdayAsync() As Task
+    Public Overrides Async Function OnTick(tick As Integer) As Task
         Dim tasks As New List(Of Task(Of Integer))
-        For Each guild In _bot.DiscordClient.Guilds
-            Dim t = BirthdayGuildProcessAsync(guild)
+        For Each guild In BotInstance.DiscordClient.Guilds
+            Dim t = ProcessGuildAsync(guild)
             tasks.Add(t)
         Next
+
         Try
             Await Task.WhenAll(tasks)
         Catch ex As Exception
             Dim exs = From task In tasks
                       Where task.Exception IsNot Nothing
                       Select task.Exception
-            Log("Error", "Encountered one or more unhandled exceptions during birthday processing.")
+            Log($"Encountered {exs.Count} errors during bulk guild processing.")
             For Each iex In exs
-                Log("Error", iex.ToString())
+                Log(iex.ToString())
             Next
         End Try
 
@@ -84,14 +47,10 @@ Class BackgroundWorker
                 guilds += 1
             End If
         Next
-        If announces > 0 Then Log("Birthday task", $"Announcing {announces} birthday(s) in {guilds} guild(s).")
+        If announces > 0 Then Log($"Announcing {announces} birthday(s) in {guilds} guild(s).")
     End Function
 
-    ''' <summary>
-    ''' Birthday processing for an individual guild.
-    ''' </summary>
-    ''' <returns>Number of birthdays announced.</returns>
-    Private Async Function BirthdayGuildProcessAsync(guild As SocketGuild) As Task(Of Integer)
+    Async Function ProcessGuildAsync(guild As SocketGuild) As Task(Of Integer)
         ' Gather required information
         Dim tz As String
         Dim users As IEnumerable(Of GuildUserSettings)
@@ -99,9 +58,9 @@ Class BackgroundWorker
         Dim channel As SocketTextChannel = Nothing
         Dim announce As (String, String)
         Dim announceping As Boolean
-        SyncLock _bot.KnownGuilds
-            If Not _bot.KnownGuilds.ContainsKey(guild.Id) Then Return 0
-            Dim gs = _bot.KnownGuilds(guild.Id)
+        SyncLock BotInstance.KnownGuilds
+            If Not BotInstance.KnownGuilds.ContainsKey(guild.Id) Then Return 0
+            Dim gs = BotInstance.KnownGuilds(guild.Id)
             tz = gs.TimeZone
             users = gs.Users
             announce = gs.AnnounceMessages
@@ -117,15 +76,15 @@ Class BackgroundWorker
         End SyncLock
 
         ' Determine who's currently having a birthday
-        Dim birthdays = BirthdayCalculate(users, tz)
+        Dim birthdays = GetGuildCurrentBirthdays(users, tz)
         ' Note: Don't quit here if zero people are having birthdays. Roles may still need to be removed by BirthdayApply.
 
         ' Set birthday roles, get list of users that had the role added
         ' But first check if we are able to do so. Letting all requests fail instead will lead to rate limiting.
         Dim announceNames As IEnumerable(Of SocketGuildUser)
-        If BirthdayHasGoodRolePermissions(guild, role) Then
+        If HasCorrectRolePermissions(guild, role) Then
             Try
-                announceNames = Await BirthdayApplyAsync(guild, role, birthdays)
+                announceNames = Await UpdateGuildBirthdayRoles(guild, role, birthdays)
             Catch ex As Discord.Net.HttpException
                 If ex.HttpCode = HttpStatusCode.Forbidden Then
                     announceNames = Nothing
@@ -138,16 +97,16 @@ Class BackgroundWorker
         End If
 
         If announceNames Is Nothing Then
-            SyncLock _bot.KnownGuilds
+            SyncLock BotInstance.KnownGuilds
                 ' Nothing on announceNAmes signals failure to apply roles. Set the warning message.
-                _bot.KnownGuilds(guild.Id).RoleWarning = True
+                BotInstance.KnownGuilds(guild.Id).RoleWarning = True
             End SyncLock
             Return 0
         End If
 
         If announceNames.Count <> 0 Then
             ' Send out announcement message
-            Await BirthdayAnnounceAsync(announce, announceping, channel, announceNames)
+            Await AnnounceBirthdaysAsync(announce, announceping, channel, announceNames)
         End If
         Return announceNames.Count
     End Function
@@ -155,7 +114,7 @@ Class BackgroundWorker
     ''' <summary>
     ''' Checks if the bot may be allowed to alter roles.
     ''' </summary>
-    Private Function BirthdayHasGoodRolePermissions(guild As SocketGuild, role As SocketRole) As Boolean
+    Private Function HasCorrectRolePermissions(guild As SocketGuild, role As SocketRole) As Boolean
         If Not guild.CurrentUser.GuildPermissions.ManageRoles Then
             ' Bot user cannot manage roles
             Return False
@@ -174,7 +133,8 @@ Class BackgroundWorker
     ''' Gets all known users from the given guild and returns a list including only those who are
     ''' currently experiencing a birthday in the respective time zone.
     ''' </summary>
-    Private Function BirthdayCalculate(guildUsers As IEnumerable(Of GuildUserSettings), defaultTzStr As String) As HashSet(Of ULong)
+    Private Function GetGuildCurrentBirthdays(guildUsers As IEnumerable(Of GuildUserSettings),
+                                              defaultTzStr As String) As HashSet(Of ULong)
         Dim birthdayUsers As New HashSet(Of ULong)
 
         Dim defaultTz As DateTimeZone = Nothing
@@ -196,7 +156,7 @@ Class BackgroundWorker
             Dim targetMonth = item.BirthMonth
             Dim targetDay = item.BirthDay
 
-            Dim checkNow = _clock.GetCurrentInstant().InZone(tz)
+            Dim checkNow = Clock.GetCurrentInstant().InZone(tz)
             ' Special case: If birthday is February 29 and it's not a leap year, recognize it on March 1st
             If targetMonth = 2 And targetDay = 29 And Not Date.IsLeapYear(checkNow.Year) Then
                 targetMonth = 3
@@ -214,7 +174,7 @@ Class BackgroundWorker
     ''' Sets the birthday role to all applicable users. Unsets it from all others who may have it.
     ''' </summary>
     ''' <returns>A list of users who had the birthday role applied. Use for the announcement message.</returns>
-    Private Async Function BirthdayApplyAsync(g As SocketGuild,
+    Private Async Function UpdateGuildBirthdayRoles(g As SocketGuild,
                                               r As SocketRole,
                                               names As HashSet(Of ULong)) As Task(Of IEnumerable(Of SocketGuildUser))
         ' Check members currently with the role. Figure out which users to remove it from.
@@ -255,7 +215,7 @@ Class BackgroundWorker
     ''' Makes (or attempts to make) an announcement in the specified channel that includes all users
     ''' who have just had their birthday role added.
     ''' </summary>
-    Private Async Function BirthdayAnnounceAsync(announce As (String, String),
+    Private Async Function AnnounceBirthdaysAsync(announce As (String, String),
                                                  announcePing As Boolean,
                                                  c As SocketTextChannel,
                                                  names As IEnumerable(Of SocketGuildUser)) As Task
@@ -294,56 +254,4 @@ Class BackgroundWorker
             ' TODO keep tabs on this somehow for troubleshooting purposes
         End Try
     End Function
-#End Region
-
-#Region "Activity reporting"
-    ''' <summary>
-    ''' Increasing value for regulating how often certain tasks are done.
-    ''' For anything relying on this value, also be mindful of the interval value.
-    ''' </summary>
-    Private _reportTick As Integer = 0
-
-    ''' <summary>
-    ''' Handles various periodic reporting tasks.
-    ''' </summary>
-    Private Async Function ReportAsync() As Task
-        ReportHeartbeat(_reportTick)
-        Await ReportGuildCount(_reportTick)
-
-        _reportTick += 1
-    End Function
-
-    Private Sub ReportHeartbeat(tick As Integer)
-        ' Roughly every 15 minutes (interval: 45)
-        If tick Mod 20 = 0 Then
-            Log("Background task", $"Still alive! Tick: {_reportTick}.")
-        End If
-    End Sub
-
-    Private Async Function ReportGuildCount(tick As Integer) As Task
-        ' Roughly every 5 hours (interval: 45)
-        If tick Mod 400 <> 2 Then Return
-
-        Dim count = _bot.DiscordClient.Guilds.Count
-        Log("Report", $"Currently in {count} guild(s).")
-
-        Dim dtok = _bot.Config.DBotsToken
-        If dtok IsNot Nothing Then
-            Const dUrl As String = "https://discord.bots.gg/api/v1/bots/{0}/stats"
-
-            Using client As New WebClient()
-                Dim uri = New Uri(String.Format(dUrl, CType(_bot.DiscordClient.CurrentUser.Id, String)))
-                Dim data = "{ ""guildCount"": " + CType(count, String) + " }"
-                client.Headers(HttpRequestHeader.Authorization) = dtok
-                client.Headers(HttpRequestHeader.ContentType) = "application/json"
-                Try
-                    Await client.UploadStringTaskAsync(uri, data)
-                    Log("Server Count", "Count sent to Discord Bots.")
-                Catch ex As WebException
-                    Log("Server Count", "Encountered error on sending to Discord Bots: " + ex.Message)
-                End Try
-            End Using
-        End If
-    End Function
-#End Region
 End Class

@@ -15,7 +15,7 @@ Class BirthdayBot
     Private ReadOnly _cmdsMods As ManagerCommands
 
     Private WithEvents _client As DiscordSocketClient
-    Private ReadOnly _worker As BackgroundWorker
+    Private ReadOnly _worker As BackgroundServiceRunner
 
     Friend ReadOnly Property Config As Configuration
 
@@ -33,7 +33,7 @@ Class BirthdayBot
         _client = dc
         KnownGuilds = New Dictionary(Of ULong, GuildSettings)
 
-        _worker = New BackgroundWorker(Me)
+        _worker = New BackgroundServiceRunner(Me)
 
         ' Command dispatch set-up
         _dispatchCommands = New Dictionary(Of String, CommandHandler)(StringComparer.InvariantCultureIgnoreCase)

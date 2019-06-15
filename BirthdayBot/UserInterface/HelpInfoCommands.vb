@@ -136,7 +136,7 @@ Friend Class HelpInfoCommands
         })
         embed.AddField(New EmbedFieldBuilder() With {
             .Name = "Examples",
-            .Value = String.Format(msghelp2, BackgroundWorker.DefaultAnnounce, BackgroundWorker.DefaultAnnouncePl)
+            .Value = String.Format(msghelp2, BirthdayRoleUpdate.DefaultAnnounce, BirthdayRoleUpdate.DefaultAnnouncePl)
         })
         Await reqChannel.SendMessageAsync(embed:=embed.Build())
     End Function
@@ -145,10 +145,9 @@ Friend Class HelpInfoCommands
         ' Bot status field
         Dim strStatus As New StringBuilder
         Dim asmnm = Reflection.Assembly.GetExecutingAssembly.GetName()
-        strStatus.AppendLine("Birthday Bot version " + asmnm.Version.ToString(3))
+        strStatus.AppendLine("Birthday Bot v" + asmnm.Version.ToString(3))
         strStatus.AppendLine("Server count: " + _discordClient.Guilds.Count.ToString())
-        strStatus.AppendLine("Uptime: " + (DateTimeOffset.UtcNow - Program.BotStartTime).ToString("d' days, 'hh':'mm':'ss"))
-        strStatus.Append("More info will be shown here soon.")
+        strStatus.AppendLine("Uptime: " + BotUptime())
 
         ' TODO fun stats
         ' current birthdays, total names registered, unique time zones

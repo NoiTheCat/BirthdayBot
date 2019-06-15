@@ -14,7 +14,9 @@ Module Program
         End Set
     End Property
 
-    Sub Main(args As String())
+    Sub Main()
+        Log("Birthday Bot", $"Version {System.Reflection.Assembly.GetExecutingAssembly().GetName.Version.ToString(3)} is starting.")
+
         BotStartTime = DateTimeOffset.UtcNow
         Dim cfg As New Configuration()
 
