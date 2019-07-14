@@ -28,31 +28,37 @@ Class ListingCommands
         SyncLock Instance.KnownGuilds
             reqMod = Instance.KnownGuilds(reqChannel.Guild.Id).IsUserModerator(reqUser)
         End SyncLock
-
         If Not reqMod Then
             Await reqChannel.SendMessageAsync(":x: Only bot moderators may use this command.")
             Return
         End If
 
-        Dim bdlist = Await BuildList(reqChannel.Guild, False)
+        Dim useCsv = False
+        ' Check for CSV option
+        If param.Length = 2 Then
+            If (param(1).ToLower() = "csv") Then
+                useCsv = True
+            Else
+                Await reqChannel.SendMessageAsync(":x: That is not available as an export format.")
+                Return
+            End If
+        ElseIf param.Length > 2 Then
+            Await reqChannel.SendMessageAsync(GenericError)
+            Return
+        End If
 
-        Dim filepath = Path.GetTempPath() + "birthdaybot-" + reqChannel.Guild.Id.ToString() + ".txt"
-        Using f = File.CreateText(filepath)
-            f.WriteLine("Birthdays in " + reqChannel.Guild.Name)
-            f.WriteLine()
-            For Each item In bdlist
-                Dim user = reqChannel.Guild.GetUser(item.UserId)
-                If user Is Nothing Then Continue For ' User disappeared in the instant between getting list and processing
-                f.Write($"● {MonthNames(item.BirthMonth)}-{item.BirthDay.ToString("00")}: ")
-                f.Write(item.UserId)
-                f.Write(" " + user.Username + "#" + user.Discriminator)
-                If user.Nickname IsNot Nothing Then
-                    f.Write(" - Nickname: " + user.Nickname)
-                End If
-                f.WriteLine()
-            Next
-            Await f.FlushAsync()
-        End Using
+        Dim bdlist = Await LoadList(reqChannel.Guild, False)
+
+        Dim filepath = Path.GetTempPath() + "birthdaybot-" + reqChannel.Guild.Id.ToString()
+        Dim fileoutput As String
+        If useCsv Then
+            fileoutput = ListExportCsv(reqChannel, bdlist)
+            filepath += ".csv"
+        Else
+            fileoutput = ListExportNormal(reqChannel, bdlist)
+            filepath += ".txt"
+        End If
+        Await File.WriteAllTextAsync(filepath, fileoutput, Encoding.UTF8)
 
         Try
             Await reqChannel.SendFileAsync(filepath, $"Exported {bdlist.Count} birthdays to file.")
@@ -73,7 +79,7 @@ Class ListingCommands
         Dim search = DateIndex(now.Month, now.Day) - 4 ' begin search 4 days prior to current date UTC
         If search <= 0 Then search = 366 - Math.Abs(search)
 
-        Dim query = Await BuildList(reqChannel.Guild, True)
+        Dim query = Await LoadList(reqChannel.Guild, True)
         If query.Count = 0 Then
             Await reqChannel.SendMessageAsync("There are currently no recent or upcoming birthdays.")
             Return
@@ -119,7 +125,7 @@ Class ListingCommands
     ''' Fetches all guild birthdays and places them into an easily usable structure.
     ''' Users currently not in the guild are not included in the result.
     ''' </summary>
-    Private Async Function BuildList(guild As SocketGuild, escapeFormat As Boolean) As Task(Of List(Of ListItem))
+    Private Async Function LoadList(guild As SocketGuild, escapeFormat As Boolean) As Task(Of List(Of ListItem))
         Dim ping As Boolean
         SyncLock Instance.KnownGuilds
             ping = Instance.KnownGuilds(guild.Id).AnnouncePing
@@ -153,6 +159,66 @@ Class ListingCommands
                 End Using
             End Using
         End Using
+    End Function
+
+    Private Function ListExportNormal(channel As SocketGuildChannel, list As IEnumerable(Of ListItem)) As String
+        'Output: "● Mon-dd: (user ID) Username [ - Nickname: (nickname)]"
+        Dim result As New StringBuilder()
+        With result
+            .AppendLine("Birthdays in " + channel.Guild.Name)
+            .AppendLine()
+            For Each item In list
+                Dim user = channel.Guild.GetUser(item.UserId)
+                If user Is Nothing Then Continue For ' User disappeared in the instant between getting list and processing
+                .Append($"● {MonthNames(item.BirthMonth)}-{item.BirthDay.ToString("00")}: ")
+                .Append(item.UserId)
+                .Append(" " + user.Username + "#" + user.Discriminator)
+                If user.Nickname IsNot Nothing Then
+                    .Append(" - Nickname: " + user.Nickname)
+                End If
+                .AppendLine()
+            Next
+        End With
+        Return result.ToString()
+    End Function
+
+    Private Function ListExportCsv(channel As SocketGuildChannel, list As IEnumerable(Of ListItem)) As String
+        ' Output: User ID, Username, Nickname, Month-Day, Month, Day
+        Dim result As New StringBuilder()
+        With result
+            ' Conforming to RFC 4180
+            ' With header.
+            result.Append("UserID,Username,Nickname,MonthDayDisp,Month,Day")
+            result.Append(vbCrLf) ' crlf is specified by the standard
+            For Each item In list
+                Dim user = channel.Guild.GetUser(item.UserId)
+                If user Is Nothing Then Continue For ' User disappeared in the instant between getting list and processing
+                .Append(item.UserId)
+                .Append(",")
+                .Append(CsvEscape(user.Username + "#" + user.Discriminator))
+                .Append(",")
+                If user.Nickname IsNot Nothing Then .Append(user.Nickname)
+                .Append(",")
+                .Append($"{MonthNames(item.BirthMonth)}-{item.BirthDay.ToString("00")}")
+                .Append(",")
+                .Append(item.BirthMonth)
+                .Append(",")
+                .Append(item.BirthDay)
+                .Append(vbCrLf)
+            Next
+        End With
+        Return result.ToString()
+    End Function
+
+    Private Function CsvEscape(input As String) As String
+        Dim result As New StringBuilder
+        result.Append("""")
+        For Each ch In input
+            If ch = """"c Then result.Append(""""c)
+            result.Append(ch)
+        Next
+        result.Append("""")
+        Return result.ToString()
     End Function
 
     Private Function DateIndex(month As Integer, day As Integer) As Integer

@@ -53,7 +53,7 @@ Friend Class HelpInfoCommands
                 $"{cpfx}config`" + vbLf +
                 $" » Edit bot configuration. See `{CommandPrefix}help-config`." + vbLf +
                 $"{cpfx}list`" + vbLf +
-                $" » Exports all known birthdays to file." + vbLf +
+                $" » Exports all birthdays to file. Accepts `csv` as a parameter." + vbLf +
                 $"{cpfx}override (user ping or ID) (command w/ parameters)`" + vbLf +
                 " » Perform certain commands on behalf of another user."
         }
