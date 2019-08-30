@@ -212,8 +212,8 @@ Friend Class GuildStateInformation
             Using c = db.CreateCommand()
                 c.CommandText = $"select * from {BackingTableBans} " +
                     "where guild_id = @Gid and user_id = @Uid"
-                c.Parameters.Add("@Gid", NpgsqlDbType.Bigint).Value = GuildId
-                c.Parameters.Add("@Uid", NpgsqlDbType.Bigint).Value = userId
+                c.Parameters.Add("@Gid", NpgsqlDbType.Bigint).Value = CLng(GuildId)
+                c.Parameters.Add("@Uid", NpgsqlDbType.Bigint).Value = CLng(userId)
                 c.Prepare()
                 Using r = Await c.ExecuteReaderAsync()
                     If Await r.ReadAsync() Then Return True
@@ -245,8 +245,8 @@ Friend Class GuildStateInformation
                 c.CommandText = $"insert into {BackingTableBans} (guild_id, user_id) " +
                     "values (@Gid, @Uid) " +
                     "on conflict (guild_id, user_id) do nothing"
-                c.Parameters.Add("@Gid", NpgsqlDbType.Bigint).Value = GuildId
-                c.Parameters.Add("@Uid", NpgsqlDbType.Bigint).Value = userId
+                c.Parameters.Add("@Gid", NpgsqlDbType.Bigint).Value = CLng(GuildId)
+                c.Parameters.Add("@Uid", NpgsqlDbType.Bigint).Value = CLng(userId)
                 c.Prepare()
                 Await c.ExecuteNonQueryAsync()
             End Using
@@ -261,8 +261,8 @@ Friend Class GuildStateInformation
             Using c = db.CreateCommand()
                 c.CommandText = $"delete from {BackingTableBans} where " +
                     "guild_id = @Gid and user_id = @Uid"
-                c.Parameters.Add("@Gid", NpgsqlDbType.Bigint).Value = GuildId
-                c.Parameters.Add("@Uid", NpgsqlDbType.Bigint).Value = userId
+                c.Parameters.Add("@Gid", NpgsqlDbType.Bigint).Value = CLng(GuildId)
+                c.Parameters.Add("@Uid", NpgsqlDbType.Bigint).Value = CLng(userId)
                 c.Prepare()
                 Await c.ExecuteNonQueryAsync()
             End Using
@@ -349,7 +349,7 @@ Friend Class GuildStateInformation
                 ' Take note of ordinals for use in the constructor
                 c.CommandText = "select guild_id, role_id, channel_announce_id, time_zone, moderated, moderator_role, announce_message, announce_message_pl, announce_ping " +
                     $"from {BackingTable} where guild_id = @Gid"
-                c.Parameters.Add("@Gid", NpgsqlDbType.Bigint).Value = guild
+                c.Parameters.Add("@Gid", NpgsqlDbType.Bigint).Value = CLng(guild)
                 c.Prepare()
                 Using r = Await c.ExecuteReaderAsync()
                     If Await r.ReadAsync() Then
@@ -361,7 +361,7 @@ Friend Class GuildStateInformation
             ' If we got here, no row exists. Create it.
             Using c = db.CreateCommand()
                 c.CommandText = $"insert into {BackingTable} (guild_id) values (@Gid)"
-                c.Parameters.Add("@Gid", NpgsqlDbType.Bigint).Value = guild
+                c.Parameters.Add("@Gid", NpgsqlDbType.Bigint).Value = CLng(guild)
                 c.Prepare()
                 Await c.ExecuteNonQueryAsync()
             End Using
@@ -387,17 +387,17 @@ Friend Class GuildStateInformation
                     "announce_message_pl = @AnnounceMsgPl, " +
                     "announce_ping = @AnnouncePing " +
                     "where guild_id = @Gid"
-                c.Parameters.Add("@Gid", NpgsqlDbType.Bigint).Value = GuildId
+                c.Parameters.Add("@Gid", NpgsqlDbType.Bigint).Value = CLng(GuildId)
                 With c.Parameters.Add("@RoleId", NpgsqlDbType.Bigint)
                     If RoleId.HasValue Then
-                        .Value = RoleId.Value
+                        .Value = CLng(RoleId.Value)
                     Else
                         .Value = DBNull.Value
                     End If
                 End With
                 With c.Parameters.Add("@ChannelId", NpgsqlDbType.Bigint)
                     If _announceCh.HasValue Then
-                        .Value = _announceCh.Value
+                        .Value = CLng(_announceCh.Value)
                     Else
                         .Value = DBNull.Value
                     End If
@@ -412,7 +412,7 @@ Friend Class GuildStateInformation
                 c.Parameters.Add("@Moderated", NpgsqlDbType.Boolean).Value = _moderated
                 With c.Parameters.Add("@ModRole", NpgsqlDbType.Bigint)
                     If ModeratorRole.HasValue Then
-                        .Value = ModeratorRole.Value
+                        .Value = CLng(ModeratorRole.Value)
                     Else
                         .Value = DBNull.Value
                     End If

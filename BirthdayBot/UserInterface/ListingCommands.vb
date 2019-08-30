@@ -135,7 +135,7 @@ Class ListingCommands
             Using c = db.CreateCommand()
                 c.CommandText = "select user_id, birth_month, birth_day from " + GuildUserSettings.BackingTable +
                     " where guild_id = @Gid order by birth_month, birth_day"
-                c.Parameters.Add("@Gid", NpgsqlTypes.NpgsqlDbType.Bigint).Value = guild.Id
+                c.Parameters.Add("@Gid", NpgsqlTypes.NpgsqlDbType.Bigint).Value = CLng(guild.Id)
                 c.Prepare()
                 Using r = Await c.ExecuteReaderAsync()
                     Dim result As New List(Of ListItem)

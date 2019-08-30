@@ -53,6 +53,11 @@ Module Program
         If arg.Severity <= LogSeverity.Info Then
             Log("Discord.Net", $"{arg.Severity}: {arg.Message}")
         End If
+
+        If arg.Exception IsNot Nothing Then
+            Log("Discord.Net", arg.Exception.ToString())
+        End If
+
         Return Task.CompletedTask
     End Function
 

@@ -73,8 +73,8 @@ Class GuildUserSettings
                     c.CommandText = $"insert into {BackingTable} " +
                         "(guild_id, user_id, birth_month, birth_day, time_zone) values " +
                         "(@Gid, @Uid, @Month, @Day, @Tz)"
-                    c.Parameters.Add("@Gid", NpgsqlDbType.Bigint).Value = GuildId
-                    c.Parameters.Add("@Uid", NpgsqlDbType.Bigint).Value = UserId
+                    c.Parameters.Add("@Gid", NpgsqlDbType.Bigint).Value = CLng(GuildId)
+                    c.Parameters.Add("@Uid", NpgsqlDbType.Bigint).Value = CLng(UserId)
                     c.Parameters.Add("@Month", NpgsqlDbType.Numeric).Value = month
                     c.Parameters.Add("@Day", NpgsqlDbType.Numeric).Value = day
                     With c.Parameters.Add("@Tz", NpgsqlDbType.Text)
@@ -112,8 +112,8 @@ Class GuildUserSettings
         Using c = dbconn.CreateCommand()
             c.CommandText = $"delete from {BackingTable}" +
                     " where guild_id = @Gid and user_id = @Uid"
-            c.Parameters.Add("@Gid", NpgsqlDbType.Bigint).Value = GuildId
-            c.Parameters.Add("@Uid", NpgsqlDbType.Bigint).Value = UserId
+            c.Parameters.Add("@Gid", NpgsqlDbType.Bigint).Value = CLng(GuildId)
+            c.Parameters.Add("@Uid", NpgsqlDbType.Bigint).Value = CLng(UserId)
             c.Prepare()
             Await c.ExecuteNonQueryAsync()
         End Using
@@ -145,7 +145,7 @@ Class GuildUserSettings
                 ' Take note of ordinals for use in the constructor
                 c.CommandText = "select guild_id, user_id, birth_month, birth_day, time_zone " +
                     $"from {BackingTable} where guild_id = @Gid"
-                c.Parameters.Add("@Gid", NpgsqlDbType.Bigint).Value = guildId
+                c.Parameters.Add("@Gid", NpgsqlDbType.Bigint).Value = CLng(guildId)
                 c.Prepare()
                 Using r = c.ExecuteReader()
                     Dim result As New List(Of GuildUserSettings)
