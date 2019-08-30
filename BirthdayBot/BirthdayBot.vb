@@ -26,12 +26,12 @@ Class BirthdayBot
     End Property
 
     ''' <summary>SyncLock when using. The lock object is itself.</summary>
-    Friend ReadOnly Property KnownGuilds As Dictionary(Of ULong, GuildSettings)
+    Friend ReadOnly Property KnownGuilds As Dictionary(Of ULong, GuildStateInformation)
 
     Public Sub New(conf As Configuration, dc As DiscordSocketClient)
         Config = conf
         _client = dc
-        KnownGuilds = New Dictionary(Of ULong, GuildSettings)
+        KnownGuilds = New Dictionary(Of ULong, GuildStateInformation)
 
         _worker = New BackgroundServiceRunner(Me)
 
@@ -75,7 +75,7 @@ Class BirthdayBot
     Private Function LoadGuild(g As SocketGuild) As Task Handles _client.JoinedGuild, _client.GuildAvailable
         SyncLock KnownGuilds
             If Not KnownGuilds.ContainsKey(g.Id) Then
-                Dim gi = GuildSettings.LoadSettingsAsync(Config.DatabaseSettings, g.Id).GetAwaiter().GetResult()
+                Dim gi = GuildStateInformation.LoadSettingsAsync(Config.DatabaseSettings, g.Id).GetAwaiter().GetResult()
                 KnownGuilds.Add(g.Id, gi)
             End If
         End SyncLock
@@ -114,7 +114,7 @@ Class BirthdayBot
                 End If
 
                 ' Ban and role warning check
-                Dim roleWarning As Boolean
+                Dim roleWarningText As String
                 SyncLock KnownGuilds
                     Dim gi = KnownGuilds(channel.Guild.Id)
 
@@ -125,13 +125,13 @@ Class BirthdayBot
                         End If
                     End If
 
-                    roleWarning = gi.RoleWarning
+                    roleWarningText = gi.IssueRoleWarning
                 End SyncLock
 
                 Try
-                    If roleWarning Then
+                    If roleWarningText IsNot Nothing Then
                         Try
-                            Await channel.SendMessageAsync(RoleWarningMsg)
+                            Await channel.SendMessageAsync(roleWarningText)
                         Catch ex As HttpException
                             ' Don't let this prevent the bot from continuing command execution.
                         End Try

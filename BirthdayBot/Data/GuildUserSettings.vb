@@ -4,7 +4,7 @@ Imports NpgsqlTypes
 
 ''' <summary>
 ''' Representation of a user's birthday settings within a guild.
-''' Instances are held and managed by <see cref="GuildSettings"/>.
+''' Instances are held and managed by <see cref="GuildStateInformation"/>.
 ''' </summary>
 Class GuildUserSettings
     Private _month As Integer
@@ -125,7 +125,7 @@ Class GuildUserSettings
     Friend Shared Sub SetUpDatabaseTable(db As NpgsqlConnection)
         Using c = db.CreateCommand()
             c.CommandText = $"create table if not exists {BackingTable} (" +
-                $"guild_id bigint not null references {GuildSettings.BackingTable}, " +
+                $"guild_id bigint not null references {GuildStateInformation.BackingTable}, " +
                 "user_id bigint not null, " +
                 "birth_month integer not null, " +
                 "birth_day integer not null, " +

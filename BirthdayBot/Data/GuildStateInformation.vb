@@ -4,11 +4,10 @@ Imports Npgsql
 Imports NpgsqlTypes
 
 ''' <summary>
-''' Collection of GuildUserSettings instances. Holds cached information on guild users and overall
-''' guild options, and provides some database abstractions regarding them all.
-''' Object instances are loaded when entering a guild and discarded when the bot leaves the guild.
+''' Holds various pieces of state information for a guild the bot is operating in.
+''' Includes, among other things, a copy of the guild's settings and a list of all known users with birthdays.
 ''' </summary>
-Friend Class GuildSettings
+Friend Class GuildStateInformation
     Public ReadOnly Property GuildId As ULong
     Private ReadOnly _db As Database
     Private _bdayRole As ULong?
@@ -19,33 +18,55 @@ Friend Class GuildSettings
     Private _announceMsg As String
     Private _announceMsgPl As String
     Private _announcePing As Boolean
-    Private _userCache As Dictionary(Of ULong, GuildUserSettings)
+    Private ReadOnly _userCache As Dictionary(Of ULong, GuildUserSettings)
 
-    Private _roleWarning As Boolean
     Private _roleLastWarning As New DateTimeOffset(DateTime.MinValue, TimeSpan.Zero)
     Private Shared ReadOnly RoleWarningInterval As New TimeSpan(1, 0, 0)
 
     ''' <summary>
-    ''' Flag for notifying servers that the bot is unable to manipulate its role.
-    ''' Can be set at any time. Reading this will only return True if it's been set as such,
-    ''' and it is only returned after a set time has passed in order to not constantly show the message.
+    ''' Message for notifying servers that the bot is unable to manipulate its designated role for various reasons.
+    ''' The returned value is dependent on certain warning flags accessible in this class. To avoid bombarding users
+    ''' with the same message, this property only returns a non-Nothing value at most once per hour.
+    ''' Otherwise, it shall always return Nothing if there is no warning to be issued.
     ''' </summary>
-    Public Property RoleWarning As Boolean
+    Public ReadOnly Property IssueRoleWarning As String
         Get
-            If _roleWarning = True Then
-                ' Only report a warning every so often.
-                If DateTimeOffset.UtcNow - _roleLastWarning > RoleWarningInterval Then
-                    _roleLastWarning = DateTimeOffset.UtcNow
-                    Return True
-                Else
-                    Return False
-                End If
+            If DateTimeOffset.UtcNow - _roleLastWarning > RoleWarningInterval Then
+                _roleLastWarning = DateTimeOffset.UtcNow
+            Else
+                Return Nothing
             End If
-            Return False
+
+            If RoleWarningUnset Or RoleWarningNonexist Then
+                Return "Warning: A birthday role must be configured before this bot can function properly. " +
+                    "Update the designated role with `bb.config role (role name/ID)`."
+            End If
+            If RoleWarningPermission Then
+                Return "Warning: This bot is unable to set the birthday role onto users. " +
+                    "Make sure that this bot has the Manage Roles permission and is not placed below the birthday role."
+            End If
+
+            Return Nothing
         End Get
-        Set(value As Boolean)
-            _roleWarning = value
-        End Set
+    End Property
+
+    ''' <summary>
+    ''' Role warning message: The birthday role cannot be accessed.
+    ''' </summary>
+    Friend Property RoleWarningPermission As Boolean = False
+
+    ''' <summary>
+    ''' Role warning message: The birthday role no longer exists.
+    ''' </summary>
+    Friend Property RoleWarningNonexist As Boolean = False
+
+    ''' <summary>
+    ''' Role warning message: The birthday role is not set.
+    ''' </summary>
+    Friend ReadOnly Property RoleWarningUnset As Boolean
+        Get
+            Return _bdayRole Is Nothing
+        End Get
     End Property
 
     ''' <summary>
@@ -132,9 +153,6 @@ Friend Class GuildSettings
         ' Weird: if using a ternary operator with a ULong?, Nothing resolves to 0 despite Option Strict On.
         If Not reader.IsDBNull(1) Then
             _bdayRole = CULng(reader.GetInt64(1))
-            RoleWarning = False
-        Else
-            RoleWarning = True
         End If
         If Not reader.IsDBNull(2) Then _announceCh = CULng(reader.GetInt64(2))
         _tz = If(reader.IsDBNull(3), Nothing, reader.GetString(3))
@@ -253,7 +271,6 @@ Friend Class GuildSettings
 
     Public Async Function UpdateRoleAsync(roleId As ULong) As Task
         _bdayRole = roleId
-        _roleWarning = False
         _roleLastWarning = New DateTimeOffset
         Await UpdateDatabaseAsync()
     End Function
@@ -326,7 +343,7 @@ Friend Class GuildSettings
     ''' Retrieves an object instance representative of guild settings for the specified guild.
     ''' If settings for the given guild do not yet exist, a new value is created.
     ''' </summary>
-    Friend Shared Async Function LoadSettingsAsync(dbsettings As Database, guild As ULong) As Task(Of GuildSettings)
+    Friend Shared Async Function LoadSettingsAsync(dbsettings As Database, guild As ULong) As Task(Of GuildStateInformation)
         Using db = Await dbsettings.OpenConnectionAsync()
             Using c = db.CreateCommand()
                 ' Take note of ordinals for use in the constructor
@@ -336,7 +353,7 @@ Friend Class GuildSettings
                 c.Prepare()
                 Using r = Await c.ExecuteReaderAsync()
                     If Await r.ReadAsync() Then
-                        Return New GuildSettings(r, dbsettings)
+                        Return New GuildStateInformation(r, dbsettings)
                     End If
                 End Using
             End Using

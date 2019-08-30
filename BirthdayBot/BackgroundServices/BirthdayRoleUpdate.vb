@@ -69,10 +69,11 @@ Class BirthdayRoleUpdate
             If gs.AnnounceChannelId.HasValue Then channel = guild.GetTextChannel(gs.AnnounceChannelId.Value)
             If gs.RoleId.HasValue Then role = guild.GetRole(gs.RoleId.Value)
             If role Is Nothing Then
-                gs.RoleWarning = True
+                gs.RoleWarningNonexist = True
                 Return 0
+            Else
+                gs.RoleWarningNonexist = False
             End If
-            gs.RoleWarning = False
         End SyncLock
 
         ' Determine who's currently having a birthday
@@ -81,28 +82,29 @@ Class BirthdayRoleUpdate
 
         ' Set birthday roles, get list of users that had the role added
         ' But first check if we are able to do so. Letting all requests fail instead will lead to rate limiting.
-        Dim announceNames As IEnumerable(Of SocketGuildUser)
-        If HasCorrectRolePermissions(guild, role) Then
+        Dim correctRolePermissions = HasCorrectRolePermissions(guild, role)
+        Dim gotForbidden = False
+
+        Dim announceNames As IEnumerable(Of SocketGuildUser) = Nothing
+        If correctRolePermissions Then
             Try
                 announceNames = Await UpdateGuildBirthdayRoles(guild, role, birthdays)
             Catch ex As Discord.Net.HttpException
                 If ex.HttpCode = HttpStatusCode.Forbidden Then
-                    announceNames = Nothing
+                    gotForbidden = True
                 Else
                     Throw
                 End If
             End Try
-        Else
-            announceNames = Nothing
         End If
 
-        If announceNames Is Nothing Then
-            SyncLock BotInstance.KnownGuilds
-                ' Nothing on announceNAmes signals failure to apply roles. Set the warning message.
-                BotInstance.KnownGuilds(guild.Id).RoleWarning = True
-            End SyncLock
-            Return 0
-        End If
+        ' Update warning flag
+        Dim updateError = Not correctRolePermissions Or gotForbidden
+        SyncLock BotInstance.KnownGuilds
+            BotInstance.KnownGuilds(guild.Id).RoleWarningPermission = updateError
+        End SyncLock
+        ' Quit now if the warning flag was set. Announcement data is not available.
+        If updateError Then Return 0
 
         If announceNames.Count <> 0 Then
             ' Send out announcement message

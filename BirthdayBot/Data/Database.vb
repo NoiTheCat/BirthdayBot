@@ -26,7 +26,7 @@ Class Database
 
     Private Sub SetupTables()
         Using db = OpenConnectionAsync().GetAwaiter().GetResult()
-            GuildSettings.SetUpDatabaseTable(db) ' Note: Call this first. (Foreign reference constraints.)
+            GuildStateInformation.SetUpDatabaseTable(db) ' Note: Call this first. (Foreign reference constraints.)
             GuildUserSettings.SetUpDatabaseTable(db)
         End Using
     End Sub
