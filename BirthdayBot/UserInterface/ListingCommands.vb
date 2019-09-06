@@ -76,12 +76,9 @@ Class ListingCommands
         If search <= 0 Then search = 366 - Math.Abs(search)
 
         Dim query = Await LoadList(reqChannel.Guild, True)
-        If query.Count = 0 Then
-            Await reqChannel.SendMessageAsync("There are currently no recent or upcoming birthdays.")
-            Return
-        End If
 
         Dim output As New StringBuilder()
+        Dim resultCount = 0
         output.AppendLine("Recent and upcoming birthdays:")
         For count = 1 To 11 ' cover 11 days total (3 prior, current day, 7 upcoming
             Dim results = From item In query
@@ -93,6 +90,7 @@ Class ListingCommands
             If search > 366 Then search = 1 ' wrap to beginning of year
 
             If results.Count = 0 Then Continue For ' back out early
+            resultCount += results.Count
 
             ' Build sorted name list
             Dim names As New List(Of String)
@@ -114,7 +112,11 @@ Class ListingCommands
             Next
         Next
 
-        Await reqChannel.SendMessageAsync(output.ToString())
+        If resultCount = 0 Then
+            Await reqChannel.SendMessageAsync("There are no recent or upcoming birthdays (within the last 3 days and/or next 7 days).")
+        Else
+            Await reqChannel.SendMessageAsync(output.ToString())
+        End If
     End Function
 
     ''' <summary>
