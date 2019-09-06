@@ -42,11 +42,7 @@ Friend Class ManagerCommands
     Private Async Function CmdConfigDispatch(param As String(), reqChannel As SocketTextChannel, reqUser As SocketGuildUser) As Task
         ' Ignore those without the proper permissions.
         ' Requires either the manage guild permission or to be in the moderators role
-        Dim allowed As Boolean
-        SyncLock Instance.KnownGuilds
-            allowed = Instance.KnownGuilds(reqUser.Guild.Id).IsUserModerator(reqUser)
-        End SyncLock
-        If Not allowed Then
+        If Not Instance.GuildCache(reqUser.Guild.Id).IsUserModerator(reqUser) Then
             Await reqChannel.SendMessageAsync(":x: This command may only be used by bot moderators.")
             Return
         End If
@@ -88,9 +84,7 @@ Friend Class ManagerCommands
         ElseIf role.Id = reqChannel.Guild.EveryoneRole.Id Then
             Await reqChannel.SendMessageAsync(":x: You cannot set that as the birthday role.")
         Else
-            SyncLock Instance.KnownGuilds
-                Instance.KnownGuilds(guild.Id).UpdateRoleAsync(role.Id).Wait()
-            End SyncLock
+            Instance.GuildCache(guild.Id).UpdateRole(role.Id)
             Await reqChannel.SendMessageAsync($":white_check_mark: The birthday role has been set as **{role.Name}**.")
         End If
     End Function
@@ -116,9 +110,7 @@ Friend Class ManagerCommands
             Return
         End If
 
-        SyncLock Instance.KnownGuilds
-            Instance.KnownGuilds(reqChannel.Guild.Id).UpdateAnnouncePingAsync(setting).Wait()
-        End SyncLock
+        Instance.GuildCache(reqChannel.Guild.Id).UpdateAnnouncePing(setting)
         Await reqChannel.SendMessageAsync(result)
     End Function
 
@@ -126,18 +118,15 @@ Friend Class ManagerCommands
     Private Async Function ScmdChannel(param As String(), reqChannel As SocketTextChannel) As Task
         If param.Length = 1 Then
             ' No extra parameter. Unset announcement channel.
-            SyncLock Instance.KnownGuilds
-                Dim gi = Instance.KnownGuilds(reqChannel.Guild.Id)
+            Dim gi = Instance.GuildCache(reqChannel.Guild.Id)
 
-                ' Extra detail: Show a unique message if a channel hadn't been set prior.
-                If Not gi.AnnounceChannelId.HasValue Then
-                    reqChannel.SendMessageAsync(":x: There is no announcement channel set. Nothing to unset.").Wait()
-                    Return
-                End If
+            ' Extra detail: Show a unique message if a channel hadn't been set prior.
+            If Not gi.AnnounceChannelId.HasValue Then
+                reqChannel.SendMessageAsync(":x: There is no announcement channel set. Nothing to unset.").Wait()
+                Return
+            End If
 
-                gi.UpdateAnnounceChannelAsync(Nothing).Wait()
-            End SyncLock
-
+            gi.UpdateAnnounceChannel(Nothing)
             Await reqChannel.SendMessageAsync(":white_check_mark: The announcement channel has been unset.")
         Else
             ' Parameter check: This needs a channel mention to function.
@@ -156,10 +145,8 @@ Friend Class ManagerCommands
             End If
 
             ' Update the value
-            SyncLock Instance.KnownGuilds
-                Dim gi = Instance.KnownGuilds(reqChannel.Guild.Id)
-                gi.UpdateAnnounceChannelAsync(chId).Wait()
-            End SyncLock
+            Dim gi = Instance.GuildCache(reqChannel.Guild.Id)
+            gi.UpdateAnnounceChannel(chId)
 
             ' Report the success
             Await reqChannel.SendMessageAsync($":white_check_mark: The announcement channel is now set to <#{chId}>.")
@@ -178,9 +165,7 @@ Friend Class ManagerCommands
         If role Is Nothing Then
             Await reqChannel.SendMessageAsync(RoleInputError)
         Else
-            SyncLock Instance.KnownGuilds
-                Instance.KnownGuilds(guild.Id).UpdateModeratorRoleAsync(role.Id).Wait()
-            End SyncLock
+            Instance.GuildCache(guild.Id).UpdateModeratorRole(role.Id)
             Await reqChannel.SendMessageAsync($":white_check_mark: The moderator role is now **{role.Name}**.")
         End If
     End Function
@@ -189,17 +174,15 @@ Friend Class ManagerCommands
     Private Async Function ScmdZone(param As String(), reqChannel As SocketTextChannel) As Task
         If param.Length = 1 Then
             ' No extra parameter. Unset guild default time zone.
-            SyncLock Instance.KnownGuilds
-                Dim gi = Instance.KnownGuilds(reqChannel.Guild.Id)
+            Dim gi = Instance.GuildCache(reqChannel.Guild.Id)
 
-                ' Extra detail: Show a unique message if there is no set zone.
-                If Not gi.AnnounceChannelId.HasValue Then
-                    reqChannel.SendMessageAsync(":x: A default zone is not set. Nothing to unset.").Wait()
-                    Return
-                End If
+            ' Extra detail: Show a unique message if there is no set zone.
+            If Not gi.AnnounceChannelId.HasValue Then
+                reqChannel.SendMessageAsync(":x: A default zone is not set. Nothing to unset.").Wait()
+                Return
+            End If
 
-                gi.UpdateTimeZoneAsync(Nothing).Wait()
-            End SyncLock
+            gi.UpdateTimeZone(Nothing)
 
             Await reqChannel.SendMessageAsync(":white_check_mark: The default time zone preference has been removed.")
         Else
@@ -213,10 +196,7 @@ Friend Class ManagerCommands
             End Try
 
             ' Update value
-            SyncLock Instance.KnownGuilds
-                Dim gi = Instance.KnownGuilds(reqChannel.Guild.Id)
-                gi.UpdateTimeZoneAsync(zone).Wait()
-            End SyncLock
+            Instance.GuildCache(reqChannel.Guild.Id).UpdateTimeZone(zone)
 
             ' Report the success
             Await reqChannel.SendMessageAsync($":white_check_mark: The server's time zone has been set to **{zone}**.")
@@ -238,26 +218,23 @@ Friend Class ManagerCommands
             Return
         End If
 
-        SyncLock Instance.KnownGuilds
-            Dim gi = Instance.KnownGuilds(reqChannel.Guild.Id)
-            Dim isBanned = gi.IsUserBlockedAsync(inputId).GetAwaiter().GetResult()
-
-            If doBan Then
-                If Not isBanned Then
-                    gi.BlockUserAsync(inputId).Wait()
-                    reqChannel.SendMessageAsync(":white_check_mark: User has been blocked.").Wait()
-                Else
-                    reqChannel.SendMessageAsync(":white_check_mark: User is already blocked.").Wait()
-                End If
+        Dim gi = Instance.GuildCache(reqChannel.Guild.Id)
+        Dim isBanned = Await gi.IsUserBlockedAsync(inputId)
+        If doBan Then
+            If Not isBanned Then
+                Await gi.BlockUserAsync(inputId)
+                reqChannel.SendMessageAsync(":white_check_mark: User has been blocked.").Wait()
             Else
-                If isBanned Then
-                    gi.UnbanUserAsync(inputId).Wait()
-                    reqChannel.SendMessageAsync(":white_check_mark: User is now unblocked.").Wait()
-                Else
-                    reqChannel.SendMessageAsync(":white_check_mark: The specified user has not been blocked.").Wait()
-                End If
+                reqChannel.SendMessageAsync(":white_check_mark: User is already blocked.").Wait()
             End If
-        End SyncLock
+        Else
+            If isBanned Then
+                Await gi.UnbanUserAsync(inputId)
+                reqChannel.SendMessageAsync(":white_check_mark: User is now unblocked.").Wait()
+            Else
+                reqChannel.SendMessageAsync(":white_check_mark: The specified user has not been blocked.").Wait()
+            End If
+        End If
     End Function
 
     ' "moderated on/off" - Sets/unsets moderated mode.
@@ -278,13 +255,9 @@ Friend Class ManagerCommands
             Return
         End If
 
-        Dim currentSet As Boolean
-
-        SyncLock Instance.KnownGuilds
-            Dim gi = Instance.KnownGuilds(reqChannel.Guild.Id)
-            currentSet = gi.IsModerated
-            gi.UpdateModeratedModeAsync(modSet).Wait()
-        End SyncLock
+        Dim gi = Instance.GuildCache(reqChannel.Guild.Id)
+        Dim currentSet = gi.IsModerated
+        gi.UpdateModeratedMode(modSet)
 
         If currentSet = modSet Then
             Await reqChannel.SendMessageAsync($":white_check_mark: Moderated mode is already {parameter}.")
@@ -307,9 +280,7 @@ Friend Class ManagerCommands
             clear = True
         End If
 
-        SyncLock Instance.KnownGuilds
-            Instance.KnownGuilds(reqChannel.Guild.Id).UpdateAnnounceMessageAsync(newmsg, plural).Wait()
-        End SyncLock
+        Instance.GuildCache(reqChannel.Guild.Id).UpdateAnnounceMessage(newmsg, plural)
         Const report = ":white_check_mark: The {0} birthday announcement message has been {1}."
         Await reqChannel.SendMessageAsync(String.Format(report, If(plural, "plural", "singular"), If(clear, "reset", "updated")))
     End Function
@@ -318,9 +289,7 @@ Friend Class ManagerCommands
     ' Execute command as another user
     Private Async Function CmdOverride(param As String(), reqChannel As SocketTextChannel, reqUser As SocketGuildUser) As Task
         ' Moderators only. As with config, silently drop if this check fails.
-        SyncLock Instance.KnownGuilds
-            If Not Instance.KnownGuilds(reqUser.Guild.Id).IsUserModerator(reqUser) Then Return
-        End SyncLock
+        If Not Instance.GuildCache(reqUser.Guild.Id).IsUserModerator(reqUser) Then Return
 
         If param.Length <> 3 Then
             Await reqChannel.SendMessageAsync(GenericError)

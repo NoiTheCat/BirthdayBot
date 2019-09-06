@@ -31,22 +31,24 @@ Friend Class GuildStateInformation
     ''' </summary>
     Public ReadOnly Property IssueRoleWarning As String
         Get
-            If DateTimeOffset.UtcNow - _roleLastWarning > RoleWarningInterval Then
-                _roleLastWarning = DateTimeOffset.UtcNow
-            Else
+            SyncLock Me
+                If DateTimeOffset.UtcNow - _roleLastWarning > RoleWarningInterval Then
+                    _roleLastWarning = DateTimeOffset.UtcNow
+                Else
+                    Return Nothing
+                End If
+
+                If RoleWarningUnset Or RoleWarningNonexist Then
+                    Return "Warning: A birthday role must be configured before this bot can function properly. " +
+                        "Update the designated role with `bb.config role (role name/ID)`."
+                End If
+                If RoleWarningPermission Then
+                    Return "Warning: This bot is unable to set the birthday role onto users. " +
+                        "Make sure that this bot has the Manage Roles permission and is not placed below the birthday role."
+                End If
+
                 Return Nothing
-            End If
-
-            If RoleWarningUnset Or RoleWarningNonexist Then
-                Return "Warning: A birthday role must be configured before this bot can function properly. " +
-                    "Update the designated role with `bb.config role (role name/ID)`."
-            End If
-            If RoleWarningPermission Then
-                Return "Warning: This bot is unable to set the birthday role onto users. " +
-                    "Make sure that this bot has the Manage Roles permission and is not placed below the birthday role."
-            End If
-
-            Return Nothing
+            End SyncLock
         End Get
     End Property
 
@@ -65,7 +67,9 @@ Friend Class GuildStateInformation
     ''' </summary>
     Friend ReadOnly Property RoleWarningUnset As Boolean
         Get
-            Return _bdayRole Is Nothing
+            SyncLock Me
+                Return _bdayRole Is Nothing
+            End SyncLock
         End Get
     End Property
 
@@ -75,9 +79,11 @@ Friend Class GuildStateInformation
     Public ReadOnly Property Users As IEnumerable(Of GuildUserSettings)
         Get
             Dim items As New List(Of GuildUserSettings)
-            For Each item In _userCache.Values
-                items.Add(item)
-            Next
+            SyncLock Me
+                For Each item In _userCache.Values
+                    items.Add(item)
+                Next
+            End SyncLock
             Return items
         End Get
     End Property
@@ -87,7 +93,9 @@ Friend Class GuildStateInformation
     ''' </summary>
     Public ReadOnly Property RoleId As ULong?
         Get
-            Return _bdayRole
+            SyncLock Me
+                Return _bdayRole
+            End SyncLock
         End Get
     End Property
 
@@ -96,7 +104,9 @@ Friend Class GuildStateInformation
     ''' </summary>
     Public ReadOnly Property AnnounceChannelId As ULong?
         Get
-            Return _announceCh
+            SyncLock Me
+                Return _announceCh
+            End SyncLock
         End Get
     End Property
 
@@ -105,7 +115,9 @@ Friend Class GuildStateInformation
     ''' </summary>
     Public ReadOnly Property TimeZone As String
         Get
-            Return _tz
+            SyncLock Me
+                Return _tz
+            End SyncLock
         End Get
     End Property
 
@@ -114,7 +126,9 @@ Friend Class GuildStateInformation
     ''' </summary>
     Public ReadOnly Property IsModerated As Boolean
         Get
-            Return _moderated
+            SyncLock Me
+                Return _moderated
+            End SyncLock
         End Get
     End Property
 
@@ -123,7 +137,9 @@ Friend Class GuildStateInformation
     ''' </summary>
     Public ReadOnly Property ModeratorRole As ULong?
         Get
-            Return _modRole
+            SyncLock Me
+                Return _modRole
+            End SyncLock
         End Get
     End Property
 
@@ -132,17 +148,20 @@ Friend Class GuildStateInformation
     ''' </summary>
     Public ReadOnly Property AnnounceMessages As (String, String)
         Get
-            Return (_announceMsg, _announceMsgPl)
+            SyncLock Me
+                Return (_announceMsg, _announceMsgPl)
+            End SyncLock
         End Get
     End Property
 
     ''' <summary>
     ''' Gets whether to ping users in the announcement message instead of displaying their names.
     ''' </summary>
-    ''' <returns></returns>
     Public ReadOnly Property AnnouncePing As Boolean
         Get
-            Return _announcePing
+            SyncLock Me
+                Return _announcePing
+            End SyncLock
         End Get
     End Property
 
@@ -174,17 +193,22 @@ Friend Class GuildStateInformation
     ''' Gets user information from this guild. If the user doesn't exist in the backing database,
     ''' a new instance is created which is capable of adding the user to the database.
     ''' </summary>
-    ''' <param name="userId"></param>
+    ''' <remarks>
+    ''' For users with the Known property set to False, be sure to call
+    ''' <see cref="GuildUserSettings.DeleteAsync(Database)"/> if the resulting object is otherwise unused.
+    ''' </remarks>
     Public Function GetUser(userId As ULong) As GuildUserSettings
-        If _userCache.ContainsKey(userId) Then
-            Return _userCache(userId)
-        End If
+        SyncLock Me
+            If _userCache.ContainsKey(userId) Then
+                Return _userCache(userId)
+            End If
 
-        ' No result. Create a blank entry and add it to the list, in case it
-        ' gets referenced later regardless of if having been updated or not.
-        Dim blank As New GuildUserSettings(_GuildId, userId)
-        _userCache.Add(userId, blank)
-        Return blank
+            ' No result. Create a blank entry and add it to the list, in case it
+            ' gets updated and then referenced later.
+            Dim blank As New GuildUserSettings(_GuildId, userId)
+            _userCache.Add(userId, blank)
+            Return blank
+        End SyncLock
     End Function
 
     ''' <summary>
@@ -192,12 +216,13 @@ Friend Class GuildStateInformation
     ''' </summary>
     Public Async Function DeleteUserAsync(userId As ULong) As Task
         Dim user As GuildUserSettings = Nothing
-        If _userCache.TryGetValue(userId, user) Then
-            Await user.DeleteAsync(_db)
-        Else
-            Return
-        End If
-        _userCache.Remove(userId)
+        SyncLock Me
+            If Not _userCache.TryGetValue(userId, user) Then
+                Return
+            End If
+            _userCache.Remove(userId)
+        End SyncLock
+        Await user.DeleteAsync(_db)
     End Function
 
     ''' <summary>
@@ -208,6 +233,8 @@ Friend Class GuildStateInformation
     Public Async Function IsUserBlockedAsync(userId As ULong) As Task(Of Boolean)
         If IsModerated Then Return True
 
+        ' Block list is not cached, thus doing a database lookup
+        ' TODO cache block list?
         Using db = Await _db.OpenConnectionAsync()
             Using c = db.CreateCommand()
                 c.CommandText = $"select * from {BackingTableBans} " +
@@ -229,9 +256,11 @@ Friend Class GuildStateInformation
     ''' </summary>
     Public Function IsUserModerator(user As SocketGuildUser) As Boolean
         If user.GuildPermissions.ManageGuild Then Return True
-        If ModeratorRole.HasValue Then
-            If user.Roles.Where(Function(r) r.Id = ModeratorRole.Value).Count > 0 Then Return True
-        End If
+        SyncLock Me
+            If ModeratorRole.HasValue Then
+                If user.Roles.Where(Function(r) r.Id = ModeratorRole.Value).Count > 0 Then Return True
+            End If
+        End SyncLock
 
         IsUserModerator = False
     End Function
@@ -240,6 +269,7 @@ Friend Class GuildStateInformation
     ''' Adds the specified user to the block list, preventing them from issuing commands.
     ''' </summary>
     Public Async Function BlockUserAsync(userId As ULong) As Task
+        ' TODO cache block list?
         Using db = Await _db.OpenConnectionAsync()
             Using c = db.CreateCommand()
                 c.CommandText = $"insert into {BackingTableBans} (guild_id, user_id) " +
@@ -257,6 +287,7 @@ Friend Class GuildStateInformation
     ''' Removes the specified user from the block list.
     ''' </summary>
     Public Async Function UnbanUserAsync(userId As ULong) As Task
+        ' TODO cache block list?
         Using db = Await _db.OpenConnectionAsync()
             Using c = db.CreateCommand()
                 c.CommandText = $"delete from {BackingTableBans} where " +
@@ -269,46 +300,60 @@ Friend Class GuildStateInformation
         End Using
     End Function
 
-    Public Async Function UpdateRoleAsync(roleId As ULong) As Task
-        _bdayRole = roleId
-        _roleLastWarning = New DateTimeOffset
-        Await UpdateDatabaseAsync()
-    End Function
+    Public Sub UpdateRole(roleId As ULong)
+        SyncLock Me
+            _bdayRole = roleId
+            _roleLastWarning = New DateTimeOffset
+            UpdateDatabase()
+        End SyncLock
+    End Sub
 
-    Public Async Function UpdateAnnounceChannelAsync(channelId As ULong?) As Task
-        _announceCh = channelId
-        Await UpdateDatabaseAsync()
-    End Function
+    Public Sub UpdateAnnounceChannel(channelId As ULong?)
+        SyncLock Me
+            _announceCh = channelId
+            UpdateDatabase()
+        End SyncLock
+    End Sub
 
-    Public Async Function UpdateTimeZoneAsync(tzString As String) As Task
-        _tz = tzString
-        Await UpdateDatabaseAsync()
-    End Function
+    Public Sub UpdateTimeZone(tzString As String)
+        SyncLock Me
+            _tz = tzString
+            UpdateDatabase()
+        End SyncLock
+    End Sub
 
-    Public Async Function UpdateModeratedModeAsync(isModerated As Boolean) As Task
-        _moderated = isModerated
-        Await UpdateDatabaseAsync()
-    End Function
+    Public Sub UpdateModeratedMode(isModerated As Boolean)
+        SyncLock Me
+            _moderated = isModerated
+            UpdateDatabase()
+        End SyncLock
+    End Sub
 
-    Public Async Function UpdateModeratorRoleAsync(roleId As ULong?) As Task
-        _modRole = roleId
-        Await UpdateDatabaseAsync()
-    End Function
+    Public Sub UpdateModeratorRole(roleId As ULong?)
+        SyncLock Me
+            _modRole = roleId
+            UpdateDatabase()
+        End SyncLock
+    End Sub
 
-    Public Async Function UpdateAnnounceMessageAsync(message As String, plural As Boolean) As Task
-        If plural Then
-            _announceMsgPl = message
-        Else
-            _announceMsg = message
-        End If
+    Public Sub UpdateAnnounceMessage(message As String, plural As Boolean)
+        SyncLock Me
+            If plural Then
+                _announceMsgPl = message
+            Else
+                _announceMsg = message
+            End If
 
-        Await UpdateDatabaseAsync()
-    End Function
+            UpdateDatabase()
+        End SyncLock
+    End Sub
 
-    Public Async Function UpdateAnnouncePingAsync(value As Boolean) As Task
-        _announcePing = value
-        Await UpdateDatabaseAsync()
-    End Function
+    Public Sub UpdateAnnouncePing(value As Boolean)
+        SyncLock Me
+            _announcePing = value
+            UpdateDatabase()
+        End SyncLock
+    End Sub
 
 #Region "Database"
     Public Const BackingTable = "settings"
@@ -374,8 +419,8 @@ Friend Class GuildStateInformation
     ''' Updates the backing database with values from this instance
     ''' This is a non-asynchronous operation. That may be bad.
     ''' </summary>
-    Private Async Function UpdateDatabaseAsync() As Task
-        Using db = Await _db.OpenConnectionAsync()
+    Private Sub UpdateDatabase()
+        Using db = _db.OpenConnectionAsync().GetAwaiter().GetResult()
             Using c = db.CreateCommand()
                 c.CommandText = $"update {BackingTable} set " +
                     "role_id = @RoleId, " +
@@ -433,9 +478,9 @@ Friend Class GuildStateInformation
                 End With
                 c.Parameters.Add("@AnnouncePing", NpgsqlDbType.Boolean).Value = _announcePing
                 c.Prepare()
-                Await c.ExecuteNonQueryAsync()
+                c.ExecuteNonQuery()
             End Using
         End Using
-    End Function
+    End Sub
 #End Region
 End Class

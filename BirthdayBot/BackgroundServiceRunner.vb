@@ -40,7 +40,7 @@ Class BackgroundServiceRunner
                 ' Delay a bit before we start (or continue) work.
                 Await Task.Delay(Interval * 1000, WorkerCancel.Token)
 
-                ' Start background tasks.
+                ' Execute background tasks.
                 Dim tasks As New List(Of Task)
                 For Each service In Workers
                     tasks.Add(service.OnTick(_tickCount))

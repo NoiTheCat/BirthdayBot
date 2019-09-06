@@ -1,4 +1,5 @@
-﻿Imports BirthdayBot.CommandsCommon
+﻿Imports System.Collections.Concurrent
+Imports BirthdayBot.CommandsCommon
 Imports Discord
 Imports Discord.Net
 Imports Discord.WebSocket
@@ -25,13 +26,12 @@ Class BirthdayBot
         End Get
     End Property
 
-    ''' <summary>SyncLock when using. The lock object is itself.</summary>
-    Friend ReadOnly Property KnownGuilds As Dictionary(Of ULong, GuildStateInformation)
+    Friend ReadOnly Property GuildCache As ConcurrentDictionary(Of ULong, GuildStateInformation)
 
     Public Sub New(conf As Configuration, dc As DiscordSocketClient)
         Config = conf
         _client = dc
-        KnownGuilds = New Dictionary(Of ULong, GuildStateInformation)
+        GuildCache = New ConcurrentDictionary(Of ULong, GuildStateInformation)
 
         _worker = New BackgroundServiceRunner(Me)
 
@@ -72,20 +72,16 @@ Class BirthdayBot
         _client.Dispose()
     End Function
 
-    Private Function LoadGuild(g As SocketGuild) As Task Handles _client.JoinedGuild, _client.GuildAvailable
-        SyncLock KnownGuilds
-            If Not KnownGuilds.ContainsKey(g.Id) Then
-                Dim gi = GuildStateInformation.LoadSettingsAsync(Config.DatabaseSettings, g.Id).GetAwaiter().GetResult()
-                KnownGuilds.Add(g.Id, gi)
-            End If
-        End SyncLock
-        Return Task.CompletedTask
+    Private Async Function LoadGuild(g As SocketGuild) As Task Handles _client.JoinedGuild, _client.GuildAvailable
+        If Not GuildCache.ContainsKey(g.Id) Then
+            Dim gi = Await GuildStateInformation.LoadSettingsAsync(Config.DatabaseSettings, g.Id)
+            GuildCache.TryAdd(g.Id, gi)
+        End If
     End Function
 
     Private Function DiscardGuild(g As SocketGuild) As Task Handles _client.LeftGuild
-        SyncLock KnownGuilds
-            KnownGuilds.Remove(g.Id)
-        End SyncLock
+        Dim rm As GuildStateInformation = Nothing
+        GuildCache.TryRemove(g.Id, rm)
         Return Task.CompletedTask
     End Function
 
@@ -115,18 +111,14 @@ Class BirthdayBot
 
                 ' Ban and role warning check
                 Dim roleWarningText As String
-                SyncLock KnownGuilds
-                    Dim gi = KnownGuilds(channel.Guild.Id)
-
-                    ' Skip ban check if user is a manager
-                    If Not gi.IsUserModerator(author) Then
-                        If gi.IsUserBlockedAsync(author.Id).GetAwaiter().GetResult() Then
-                            Return
-                        End If
+                Dim gi = GuildCache(channel.Guild.Id)
+                ' Skip ban check if user is a manager
+                If Not gi.IsUserModerator(author) Then
+                    If gi.IsUserBlockedAsync(author.Id).GetAwaiter().GetResult() Then
+                        Return
                     End If
-
-                    roleWarningText = gi.IssueRoleWarning
-                End SyncLock
+                End If
+                roleWarningText = gi.IssueRoleWarning
 
                 Try
                     If roleWarningText IsNot Nothing Then

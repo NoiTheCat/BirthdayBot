@@ -58,23 +58,25 @@ Class BirthdayRoleUpdate
         Dim channel As SocketTextChannel = Nothing
         Dim announce As (String, String)
         Dim announceping As Boolean
-        SyncLock BotInstance.KnownGuilds
-            If Not BotInstance.KnownGuilds.ContainsKey(guild.Id) Then Return 0
-            Dim gs = BotInstance.KnownGuilds(guild.Id)
-            tz = gs.TimeZone
-            users = gs.Users
-            announce = gs.AnnounceMessages
-            announceping = gs.AnnouncePing
 
-            If gs.AnnounceChannelId.HasValue Then channel = guild.GetTextChannel(gs.AnnounceChannelId.Value)
-            If gs.RoleId.HasValue Then role = guild.GetRole(gs.RoleId.Value)
+        If Not BotInstance.GuildCache.ContainsKey(guild.Id) Then Return 0 ' guild not yet fully loaded; skip processing
+
+        Dim gs = BotInstance.GuildCache(guild.Id)
+        With gs
+            tz = .TimeZone
+            users = .Users
+            announce = .AnnounceMessages
+            announceping = .AnnouncePing
+
+            If .AnnounceChannelId.HasValue Then channel = guild.GetTextChannel(gs.AnnounceChannelId.Value)
+            If .RoleId.HasValue Then role = guild.GetRole(gs.RoleId.Value)
             If role Is Nothing Then
-                gs.RoleWarningNonexist = True
+                .RoleWarningNonexist = True
                 Return 0
             Else
-                gs.RoleWarningNonexist = False
+                .RoleWarningNonexist = False
             End If
-        End SyncLock
+        End With
 
         ' Determine who's currently having a birthday
         Dim birthdays = GetGuildCurrentBirthdays(users, tz)
@@ -100,9 +102,7 @@ Class BirthdayRoleUpdate
 
         ' Update warning flag
         Dim updateError = Not correctRolePermissions Or gotForbidden
-        SyncLock BotInstance.KnownGuilds
-            BotInstance.KnownGuilds(guild.Id).RoleWarningPermission = updateError
-        End SyncLock
+        BotInstance.GuildCache(guild.Id).RoleWarningPermission = updateError
         ' Quit now if the warning flag was set. Announcement data is not available.
         If updateError Then Return 0
 

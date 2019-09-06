@@ -24,11 +24,7 @@ Class ListingCommands
     ' Creates a file with all birthdays.
     Private Async Function CmdList(param As String(), reqChannel As SocketTextChannel, reqUser As SocketGuildUser) As Task
         ' For now, we're restricting this command to moderators only. This may turn into an option later.
-        Dim reqMod As Boolean
-        SyncLock Instance.KnownGuilds
-            reqMod = Instance.KnownGuilds(reqChannel.Guild.Id).IsUserModerator(reqUser)
-        End SyncLock
-        If Not reqMod Then
+        If Not Instance.GuildCache(reqChannel.Guild.Id).IsUserModerator(reqUser) Then
             Await reqChannel.SendMessageAsync(":x: Only bot moderators may use this command.")
             Return
         End If
@@ -126,10 +122,7 @@ Class ListingCommands
     ''' Users currently not in the guild are not included in the result.
     ''' </summary>
     Private Async Function LoadList(guild As SocketGuild, escapeFormat As Boolean) As Task(Of List(Of ListItem))
-        Dim ping As Boolean
-        SyncLock Instance.KnownGuilds
-            ping = Instance.KnownGuilds(guild.Id).AnnouncePing
-        End SyncLock
+        Dim ping = Instance.GuildCache(guild.Id).AnnouncePing
 
         Using db = Await BotConfig.DatabaseSettings.OpenConnectionAsync()
             Using c = db.CreateCommand()

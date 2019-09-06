@@ -11,8 +11,8 @@ Class GuildStatistics
     End Sub
 
     Public Overrides Async Function OnTick(tick As Integer) As Task
-        ' Activate roughly every 5 hours (interval: 45)
-        If tick Mod 400 <> 2 Then Return
+        ' Activate roughly every 2 hours (interval: 45)
+        If tick Mod 160 <> 2 Then Return
 
         Dim count = BotInstance.DiscordClient.Guilds.Count
         Log($"Currently in {count} guild(s).")

@@ -104,11 +104,9 @@ Class UserCommands
         ' Parsing successful. Update user information.
         Dim known As Boolean ' Extra detail: Bot's response changes if the user was previously unknown.
         Try
-            SyncLock Instance.KnownGuilds
-                Dim user = Instance.KnownGuilds(reqChannel.Guild.Id).GetUser(reqUser.Id)
-                known = user.IsKnown
-                user.UpdateAsync(bmonth, bday, btz, BotConfig.DatabaseSettings).Wait()
-            End SyncLock
+            Dim user = Instance.GuildCache(reqChannel.Guild.Id).GetUser(reqUser.Id)
+            known = user.IsKnown
+            Await user.UpdateAsync(bmonth, bday, btz, BotConfig.DatabaseSettings)
         Catch ex As Exception
             Log("Error", ex.ToString())
             reqChannel.SendMessageAsync(":x: An unknown error occurred. The bot owner has been notified.").Wait()
@@ -128,21 +126,20 @@ Class UserCommands
         End If
 
         Dim btz As String = Nothing
-        SyncLock Instance.KnownGuilds
-            Dim user = Instance.KnownGuilds(reqChannel.Guild.Id).GetUser(reqUser.Id)
-            If Not user.IsKnown Then
-                reqChannel.SendMessageAsync(":x: Can't set your time zone if your birth date isn't registered.").Wait()
-                Return
-            End If
+        Dim user = Instance.GuildCache(reqChannel.Guild.Id).GetUser(reqUser.Id)
+        If Not user.IsKnown Then
+            Await reqChannel.SendMessageAsync(":x: Can't set your time zone if your birth date isn't registered.")
+            Return
+        End If
 
-            Try
-                btz = ParseTimeZone(param(1))
-            Catch ex As Exception
-                reqChannel.SendMessageAsync(ex.Message).Wait()
-                Return
-            End Try
-            user.UpdateAsync(user.BirthMonth, user.BirthDay, btz, BotConfig.DatabaseSettings).Wait()
-        End SyncLock
+        Try
+            btz = ParseTimeZone(param(1))
+        Catch ex As Exception
+            reqChannel.SendMessageAsync(ex.Message).Wait()
+            Return
+        End Try
+        Await user.UpdateAsync(user.BirthMonth, user.BirthDay, btz, BotConfig.DatabaseSettings)
+
         Await reqChannel.SendMessageAsync($":white_check_mark: Your time zone has been updated to **{btz}**.")
     End Function
 
@@ -155,13 +152,10 @@ Class UserCommands
 
         ' Extra detail: Send a notification if the user isn't actually known by the bot.
         Dim known As Boolean
-        SyncLock Instance.KnownGuilds
-            Dim g = Instance.KnownGuilds(reqChannel.Guild.Id)
-            known = g.GetUser(reqUser.Id).IsKnown
-            If known Then
-                g.DeleteUserAsync(reqUser.Id).Wait()
-            End If
-        End SyncLock
+        Dim g = Instance.GuildCache(reqChannel.Guild.Id)
+        known = g.GetUser(reqUser.Id).IsKnown
+        ' Delete database and cache entry
+        Await g.DeleteUserAsync(reqUser.Id)
         If Not known Then
             Await reqChannel.SendMessageAsync(":white_check_mark: I don't have your information. Nothing to remove.")
         Else
