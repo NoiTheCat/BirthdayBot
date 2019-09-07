@@ -15,22 +15,22 @@ Class BirthdayBot
     Private ReadOnly _cmdsHelp As HelpInfoCommands
     Private ReadOnly _cmdsMods As ManagerCommands
 
-    Private WithEvents _client As DiscordSocketClient
+    Private WithEvents Client As DiscordShardedClient
     Private ReadOnly _worker As BackgroundServiceRunner
 
     Friend ReadOnly Property Config As Configuration
 
-    Friend ReadOnly Property DiscordClient As DiscordSocketClient
+    Friend ReadOnly Property DiscordClient As DiscordShardedClient
         Get
-            Return _client
+            Return Client
         End Get
     End Property
 
     Friend ReadOnly Property GuildCache As ConcurrentDictionary(Of ULong, GuildStateInformation)
 
-    Public Sub New(conf As Configuration, dc As DiscordSocketClient)
+    Public Sub New(conf As Configuration, dc As DiscordShardedClient)
         Config = conf
-        _client = dc
+        Client = dc
         GuildCache = New ConcurrentDictionary(Of ULong, GuildStateInformation)
 
         _worker = New BackgroundServiceRunner(Me)
@@ -56,8 +56,8 @@ Class BirthdayBot
     End Sub
 
     Public Async Function Start() As Task
-        Await _client.LoginAsync(TokenType.Bot, Config.BotToken)
-        Await _client.StartAsync()
+        Await Client.LoginAsync(TokenType.Bot, Config.BotToken)
+        Await Client.StartAsync()
         _worker.Start()
 
         Await Task.Delay(-1)
@@ -68,28 +68,28 @@ Class BirthdayBot
     ''' </summary>
     Public Async Function Shutdown() As Task
         Await _worker.Cancel()
-        Await _client.LogoutAsync()
-        _client.Dispose()
+        Await Client.LogoutAsync()
+        Client.Dispose()
     End Function
 
-    Private Async Function LoadGuild(g As SocketGuild) As Task Handles _client.JoinedGuild, _client.GuildAvailable
+    Private Async Function LoadGuild(g As SocketGuild) As Task Handles Client.JoinedGuild, Client.GuildAvailable
         If Not GuildCache.ContainsKey(g.Id) Then
             Dim gi = Await GuildStateInformation.LoadSettingsAsync(Config.DatabaseSettings, g.Id)
             GuildCache.TryAdd(g.Id, gi)
         End If
     End Function
 
-    Private Function DiscardGuild(g As SocketGuild) As Task Handles _client.LeftGuild
+    Private Function DiscardGuild(g As SocketGuild) As Task Handles Client.LeftGuild
         Dim rm As GuildStateInformation = Nothing
         GuildCache.TryRemove(g.Id, rm)
         Return Task.CompletedTask
     End Function
 
-    Private Async Function SetStatus() As Task Handles _client.Connected
-        Await _client.SetGameAsync(CommandPrefix + "help")
+    Private Async Function SetStatus() As Task Handles Client.ShardConnected
+        Await Client.SetGameAsync(CommandPrefix + "help")
     End Function
 
-    Private Async Function Dispatch(msg As SocketMessage) As Task Handles _client.MessageReceived
+    Private Async Function Dispatch(msg As SocketMessage) As Task Handles Client.MessageReceived
         If TypeOf msg.Channel Is IDMChannel Then Return
         If msg.Author.IsBot Then Return
 

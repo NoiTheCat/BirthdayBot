@@ -15,11 +15,14 @@ Class Heartbeat
             Log($"Tick {tick:00000} - Bot uptime: {BotUptime()}")
         End If
 
-        If (BotInstance.DiscordClient.ConnectionState = Discord.ConnectionState.Disconnected) Then
-            Log("Client is disconnected! Restart the app if this persists.")
-            ' The library alone cannot be restarted as it is in an unknown state. It was not designed to be restarted.
-            ' This is the part where we'd signal something to restart us if we were fancy.
-        End If
+        ' Disconnection warn
+        For Each shard In BotInstance.DiscordClient.Shards
+            If shard.ConnectionState = Discord.ConnectionState.Disconnected Then
+                Log($"Shard {shard.ShardId} is disconnected! Restart the app if this persists.")
+                ' The library alone cannot be restarted as it is in an unknown state. It was not designed to be restarted.
+                ' This is the part where we'd signal something to restart us if we were fancy.
+            End If
+        Next
 
         Return Task.CompletedTask
     End Function

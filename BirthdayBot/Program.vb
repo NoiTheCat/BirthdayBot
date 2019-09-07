@@ -25,9 +25,11 @@ Module Program
             .AlwaysDownloadUsers = True
             .DefaultRetryMode = Discord.RetryMode.RetryRatelimit
             .MessageCacheSize = 0
+            .TotalShards = cfg.ShardCount
+            .ExclusiveBulkDelete = True
         End With
 
-        Dim client As New DiscordSocketClient(dc)
+        Dim client As New DiscordShardedClient(dc)
         AddHandler client.Log, AddressOf DNetLog
 
         _bot = New BirthdayBot(cfg, client)
@@ -50,6 +52,7 @@ Module Program
     End Sub
 
     Private Function DNetLog(arg As LogMessage) As Task
+
         If arg.Severity <= LogSeverity.Info Then
             Log("Discord.Net", $"{arg.Severity}: {arg.Message}")
         End If

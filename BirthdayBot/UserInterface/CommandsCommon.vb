@@ -38,7 +38,7 @@ Friend MustInherit Class CommandsCommon
 
     Protected ReadOnly Instance As BirthdayBot
     Protected ReadOnly BotConfig As Configuration
-    Protected ReadOnly Discord As DiscordSocketClient
+    Protected ReadOnly Discord As DiscordShardedClient
 
     Sub New(inst As BirthdayBot, db As Configuration)
         Instance = inst

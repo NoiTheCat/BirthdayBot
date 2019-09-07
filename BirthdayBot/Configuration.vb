@@ -10,6 +10,8 @@ Class Configuration
     Public ReadOnly Property DBotsToken As String
     Public ReadOnly Property DatabaseSettings As Database
 
+    Public ReadOnly Property ShardCount As Integer
+
     Sub New()
         ' Looks for settings.json in the executable directory.
         Dim confPath = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location)
@@ -38,5 +40,15 @@ Class Configuration
             Throw New Exception("'SqlConnectionString' must be specified.")
         End If
         DatabaseSettings = New Database(sqlcs)
+
+        Dim sc? = jc("ShardCount")?.Value(Of Integer)()
+        If Not sc.HasValue Then
+            ShardCount = 1
+        Else
+            ShardCount = sc.Value
+            If ShardCount <= 0 Then
+                Throw New Exception("'ShardCount' must be a positive integer.")
+            End If
+        End If
     End Sub
 End Class

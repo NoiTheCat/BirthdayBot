@@ -7,11 +7,9 @@ Friend Class HelpInfoCommands
 
     Private ReadOnly _helpEmbed As Embed
     Private ReadOnly _helpConfigEmbed As Embed
-    Private ReadOnly _discordClient As DiscordSocketClient
 
-    Sub New(inst As BirthdayBot, db As Configuration, client As DiscordSocketClient)
+    Sub New(inst As BirthdayBot, db As Configuration, client As DiscordShardedClient)
         MyBase.New(inst, db)
-        _discordClient = client
         Dim embeds = BuildHelpEmbeds()
         _helpEmbed = embeds.Item1
         _helpConfigEmbed = embeds.Item2
@@ -146,7 +144,7 @@ Friend Class HelpInfoCommands
         Dim strStatus As New StringBuilder
         Dim asmnm = Reflection.Assembly.GetExecutingAssembly.GetName()
         strStatus.AppendLine("Birthday Bot v" + asmnm.Version.ToString(3))
-        strStatus.AppendLine("Server count: " + _discordClient.Guilds.Count.ToString())
+        strStatus.AppendLine("Server count: " + Discord.Guilds.Count.ToString())
         strStatus.AppendLine("Uptime: " + BotUptime())
 
         ' TODO fun stats
@@ -155,7 +153,7 @@ Friend Class HelpInfoCommands
         Dim embed As New EmbedBuilder With {
             .Author = New EmbedAuthorBuilder() With {
                 .Name = "Thank you for using Birthday Bot!",
-                .IconUrl = _discordClient.CurrentUser.GetAvatarUrl()
+                .IconUrl = Discord.CurrentUser.GetAvatarUrl()
             },
             .Description = "Suggestions and feedback are always welcome. Please refer to the listing on Discord Bots " +
             "(discord.bots.gg) for information on reaching my personal server. I may not be available often, but I am happy to " +
