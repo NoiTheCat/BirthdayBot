@@ -140,12 +140,13 @@ Friend Class HelpInfoCommands
     End Function
 
     Private Async Function CmdInfo(param As String(), reqChannel As SocketTextChannel, reqUser As SocketGuildUser) As Task
-        ' Bot status field
-        Dim strStatus As New StringBuilder
+        ' Bot stats field
+        Dim strStats As New StringBuilder
         Dim asmnm = Reflection.Assembly.GetExecutingAssembly.GetName()
-        strStatus.AppendLine("Birthday Bot v" + asmnm.Version.ToString(3))
-        strStatus.AppendLine("Server count: " + Discord.Guilds.Count.ToString())
-        strStatus.AppendLine("Uptime: " + BotUptime())
+        strStats.AppendLine("Birthday Bot v" + asmnm.Version.ToString(3))
+        strStats.AppendLine("Server count: " + Discord.Guilds.Count.ToString())
+        strStats.AppendLine("Shard #" + Discord.GetShardIdFor(reqChannel.Guild).ToString())
+        strStats.AppendLine("Uptime: " + BotUptime())
 
         ' TODO fun stats
         ' current birthdays, total names registered, unique time zones
@@ -162,7 +163,7 @@ Friend Class HelpInfoCommands
         Dim verstr = Reflection.Assembly.GetExecutingAssembly().GetName().Version.ToString(3)
         embed.AddField(New EmbedFieldBuilder With {
             .Name = "Statistics",
-            .Value = strStatus.ToString()
+            .Value = strStats.ToString()
         })
         Await reqChannel.SendMessageAsync(embed:=embed.Build())
     End Function
