@@ -129,24 +129,36 @@ Friend Class ManagerCommands
             gi.UpdateAnnounceChannel(Nothing)
             Await reqChannel.SendMessageAsync(":white_check_mark: The announcement channel has been unset.")
         Else
-            ' Parameter check: This needs a channel mention to function.
+            ' Determine channel from input
+            Dim chId As ULong = 0
+
+            ' Try channel mention
             Dim m = ChannelMention.Match(param(1))
-            If Not m.Success Then
-                Await reqChannel.SendMessageAsync(":x: The given parameter must be a channel. (The channel name must be clickable.)")
-                Return
+            If m.Success Then
+                chId = ULong.Parse(m.Groups(1).Value)
+            ElseIf ULong.TryParse(param(1), chId) Then
+                ' Continue...
+            Else
+                ' Try text-based search
+                Dim res = reqChannel.Guild.TextChannels _
+                    .FirstOrDefault(Function(ch) String.Equals(ch.Name, param(1), StringComparison.OrdinalIgnoreCase))
+                If res IsNot Nothing Then
+                    chId = res.Id ' Yeah... we are throwing the full result away only to look for it again later.
+                End If
             End If
 
-            Dim chId = ULong.Parse(m.Groups(1).Value)
-            ' Check if the channel isn't in the local guild.
-            Dim chInst = reqChannel.Guild.GetTextChannel(chId)
-            If chInst Is Nothing Then
-                Await reqChannel.SendMessageAsync(":x: Unable to find the specified channel on this server.")
+            ' Attempt to find channel in guild
+            Dim chTt As SocketTextChannel = Nothing
+            If chId <> 0 Then
+                chTt = reqChannel.Guild.GetTextChannel(chId)
+            End If
+            If chTt Is Nothing Then
+                Await reqChannel.SendMessageAsync(":x: Unable to find the specified channel.")
                 Return
             End If
 
             ' Update the value
-            Dim gi = Instance.GuildCache(reqChannel.Guild.Id)
-            gi.UpdateAnnounceChannel(chId)
+            Instance.GuildCache(reqChannel.Guild.Id).UpdateAnnounceChannel(chId)
 
             ' Report the success
             Await reqChannel.SendMessageAsync($":white_check_mark: The announcement channel is now set to <#{chId}>.")
