@@ -9,7 +9,8 @@ Class UserCommands
             Return New List(Of (String, CommandHandler)) From {
                 ("set", AddressOf CmdSet),
                 ("zone", AddressOf CmdZone),
-                ("remove", AddressOf CmdRemove)
+                ("remove", AddressOf CmdRemove),
+                ("when", AddressOf CmdWhen)
             }
         End Get
     End Property
@@ -161,5 +162,51 @@ Class UserCommands
         Else
             Await reqChannel.SendMessageAsync(":white_check_mark: Your information has been removed.")
         End If
+    End Function
+
+    Private Async Function CmdWhen(param As String(), reqChannel As SocketTextChannel, reqUser As SocketGuildUser) As Task
+        ' Requires a parameter
+        If param.Count = 1 Then
+            Await reqChannel.SendMessageAsync(GenericError)
+            Return
+        End If
+
+        Dim search = param(1)
+        If param.Count = 3 Then
+            ' param maxes out at 3 values. param(2) might contain part of the search string (if name has a space)
+            search += " " + param(2)
+        End If
+
+        Dim searchTarget As SocketGuildUser = Nothing
+
+        Dim searchId As ULong = 0
+        If Not TryGetUserId(search, searchId) Then ' ID lookup
+            ' name lookup without discriminator
+            For Each searchuser In reqChannel.Guild.Users
+                If String.Equals(search, searchuser.Username, StringComparison.OrdinalIgnoreCase) Then
+                    searchTarget = searchuser
+                    Exit For
+                End If
+            Next
+        Else
+            searchTarget = reqChannel.Guild.GetUser(searchId)
+        End If
+        If searchTarget Is Nothing Then
+            Await reqChannel.SendMessageAsync(BadUserError)
+            Return
+        End If
+
+        Dim users = Instance.GuildCache(reqChannel.Guild.Id).Users
+        Dim searchTargetData = users.FirstOrDefault(Function(u) u.UserId = searchTarget.Id)
+        If searchTargetData Is Nothing Then
+            Await reqChannel.SendMessageAsync("The given user does not exist or has not set a birthday.")
+            Return
+        End If
+
+        With searchTargetData
+            Await reqChannel.SendMessageAsync(FormatName(searchTarget, False) + ": " +
+                                          $"`{ .BirthDay.ToString("00")}-{Common.MonthNames(.BirthMonth)}`" +
+                                          If(.TimeZone Is Nothing, "", $" - `{ .TimeZone}`"))
+        End With
     End Function
 End Class

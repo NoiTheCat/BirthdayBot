@@ -43,7 +43,9 @@ Friend Class HelpInfoCommands
                 $"{cpfx}zone (zone)`" + vbLf +
                 $" » Sets your local time zone. See `{CommandPrefix}help-tzdata`." + vbLf +
                 $"{cpfx}remove`" + vbLf +
-                $" » Removes your birthday information from this bot."
+                $" » Removes your birthday information from this bot." + vbLf +
+                $"{cpfx}when (user)`" + vbLf +
+                $" » Displays birthday information of the given user."
         }
         Dim cmdModField As New EmbedFieldBuilder With {
             .Name = "Moderator-only commands",
