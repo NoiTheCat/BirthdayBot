@@ -70,12 +70,6 @@ Class BirthdayRoleUpdate
 
             If .AnnounceChannelId.HasValue Then channel = guild.GetTextChannel(gs.AnnounceChannelId.Value)
             If .RoleId.HasValue Then role = guild.GetRole(gs.RoleId.Value)
-            If role Is Nothing Then
-                .RoleWarningNonexist = True
-                Return 0
-            Else
-                .RoleWarningNonexist = False
-            End If
         End With
 
         ' Determine who's currently having a birthday
@@ -84,11 +78,11 @@ Class BirthdayRoleUpdate
 
         ' Set birthday roles, get list of users that had the role added
         ' But first check if we are able to do so. Letting all requests fail instead will lead to rate limiting.
-        Dim correctRolePermissions = HasCorrectRolePermissions(guild, role)
+        Dim correctRoleSettings = HasCorrectRoleSettings(guild, role)
         Dim gotForbidden = False
 
         Dim announceNames As IEnumerable(Of SocketGuildUser) = Nothing
-        If correctRolePermissions Then
+        If correctRoleSettings Then
             Try
                 announceNames = Await UpdateGuildBirthdayRoles(guild, role, birthdays)
             Catch ex As Discord.Net.HttpException
@@ -101,8 +95,7 @@ Class BirthdayRoleUpdate
         End If
 
         ' Update warning flag
-        Dim updateError = Not correctRolePermissions Or gotForbidden
-        BotInstance.GuildCache(guild.Id).RoleWarningPermission = updateError
+        Dim updateError = Not correctRoleSettings Or gotForbidden
         ' Quit now if the warning flag was set. Announcement data is not available.
         If updateError Then Return 0
 
@@ -116,7 +109,12 @@ Class BirthdayRoleUpdate
     ''' <summary>
     ''' Checks if the bot may be allowed to alter roles.
     ''' </summary>
-    Private Function HasCorrectRolePermissions(guild As SocketGuild, role As SocketRole) As Boolean
+    Private Function HasCorrectRoleSettings(guild As SocketGuild, role As SocketRole) As Boolean
+        If role Is Nothing Then
+            ' Designated role not found or defined in guild
+            Return False
+        End If
+
         If Not guild.CurrentUser.GuildPermissions.ManageRoles Then
             ' Bot user cannot manage roles
             Return False

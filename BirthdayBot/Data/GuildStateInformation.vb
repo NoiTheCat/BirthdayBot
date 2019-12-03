@@ -20,59 +20,6 @@ Friend Class GuildStateInformation
     Private _announcePing As Boolean
     Private ReadOnly _userCache As Dictionary(Of ULong, GuildUserSettings)
 
-    Private _roleLastWarning As New DateTimeOffset(DateTime.MinValue, TimeSpan.Zero)
-    Private Shared ReadOnly RoleWarningInterval As New TimeSpan(1, 0, 0)
-
-    ''' <summary>
-    ''' Message for notifying servers that the bot is unable to manipulate its designated role for various reasons.
-    ''' The returned value is dependent on certain warning flags accessible in this class. To avoid bombarding users
-    ''' with the same message, this property only returns a non-Nothing value at most once per hour.
-    ''' Otherwise, it shall always return Nothing if there is no warning to be issued.
-    ''' </summary>
-    Public ReadOnly Property IssueRoleWarning As String
-        Get
-            SyncLock Me
-                If DateTimeOffset.UtcNow - _roleLastWarning > RoleWarningInterval Then
-                    _roleLastWarning = DateTimeOffset.UtcNow
-                Else
-                    Return Nothing
-                End If
-
-                If RoleWarningUnset Or RoleWarningNonexist Then
-                    Return "Warning: A birthday role must be configured before this bot can function properly. " +
-                        "Update the designated role with `bb.config role (role name/ID)`."
-                End If
-                If RoleWarningPermission Then
-                    Return "Warning: This bot is unable to set the birthday role onto users. " +
-                        "Make sure that this bot has the Manage Roles permission and is not placed below the birthday role."
-                End If
-
-                Return Nothing
-            End SyncLock
-        End Get
-    End Property
-
-    ''' <summary>
-    ''' Role warning message: The birthday role cannot be accessed.
-    ''' </summary>
-    Friend Property RoleWarningPermission As Boolean = False
-
-    ''' <summary>
-    ''' Role warning message: The birthday role no longer exists.
-    ''' </summary>
-    Friend Property RoleWarningNonexist As Boolean = False
-
-    ''' <summary>
-    ''' Role warning message: The birthday role is not set.
-    ''' </summary>
-    Friend ReadOnly Property RoleWarningUnset As Boolean
-        Get
-            SyncLock Me
-                Return _bdayRole Is Nothing
-            End SyncLock
-        End Get
-    End Property
-
     ''' <summary>
     ''' Gets a list of cached users. Use sparingly.
     ''' </summary>
@@ -303,7 +250,6 @@ Friend Class GuildStateInformation
     Public Sub UpdateRole(roleId As ULong)
         SyncLock Me
             _bdayRole = roleId
-            _roleLastWarning = New DateTimeOffset
             UpdateDatabase()
         End SyncLock
     End Sub

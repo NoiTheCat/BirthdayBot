@@ -5,10 +5,6 @@ Imports Discord.Net
 Imports Discord.WebSocket
 
 Class BirthdayBot
-    Const RoleWarningMsg As String =
-        "Note: This bot does not have a role set or is unable to use the role specified. " +
-        "Update the designated role with `bb.config role (role name/ID)`. This bot cannot function without it."
-
     Private ReadOnly _dispatchCommands As Dictionary(Of String, CommandHandler)
     Private ReadOnly _cmdsUser As UserCommands
     Private ReadOnly _cmdsListing As ListingCommands
@@ -58,6 +54,10 @@ Class BirthdayBot
     Public Async Function Start() As Task
         Await Client.LoginAsync(TokenType.Bot, Config.BotToken)
         Await Client.StartAsync()
+
+        Log("Background processing", "Delaying start")
+        Await Task.Delay(90000) ' TODO don't keep doing this
+        Log("Background processing", "Delay complete")
         _worker.Start()
 
         Await Task.Delay(-1)
@@ -109,8 +109,7 @@ Class BirthdayBot
                     Return
                 End If
 
-                ' Ban and role warning check
-                Dim roleWarningText As String
+                ' Ban check
                 Dim gi = GuildCache(channel.Guild.Id)
                 ' Skip ban check if user is a manager
                 If Not gi.IsUserModerator(author) Then
@@ -118,16 +117,8 @@ Class BirthdayBot
                         Return
                     End If
                 End If
-                roleWarningText = gi.IssueRoleWarning
 
                 Try
-                    If roleWarningText IsNot Nothing Then
-                        Try
-                            Await channel.SendMessageAsync(roleWarningText)
-                        Catch ex As HttpException
-                            ' Don't let this prevent the bot from continuing command execution.
-                        End Try
-                    End If
                     Log("Command", $"{channel.Guild.Name}/{author.Username}#{author.Discriminator}: {msg.Content}")
                     Await command(csplit, channel, author)
                 Catch ex As Exception
