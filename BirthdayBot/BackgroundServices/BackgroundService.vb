@@ -13,5 +13,5 @@ MustInherit Class BackgroundService
         Program.Log(Me.GetType().Name, message)
     End Sub
 
-    MustOverride Function OnTick(tick As Integer) As Task
+    MustOverride Function OnTick() As Task
 End Class

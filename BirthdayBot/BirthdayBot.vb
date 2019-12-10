@@ -118,6 +118,7 @@ Class BirthdayBot
                     End If
                 End If
 
+                ' Execute the command
                 Try
                     Log("Command", $"{channel.Guild.Name}/{author.Username}#{author.Discriminator}: {msg.Content}")
                     Await command(csplit, channel, author)
@@ -130,6 +131,9 @@ Class BirthdayBot
                         ' Fail silently.
                     End Try
                 End Try
+
+                ' Immediately check for role updates in the invoking guild
+                Await _worker.BirthdayUpdater.SingleUpdateFor(channel.Guild)
             End If
         End If
     End Function

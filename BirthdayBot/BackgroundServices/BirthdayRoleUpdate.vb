@@ -4,22 +4,20 @@ Imports Discord.WebSocket
 Imports NodaTime
 
 ''' <summary>
-''' Periodically scans all known guilds and adjusts birthday role membership as necessary.
-''' Also handles birthday announcements.
+''' Core automatic functionality of the bot. Manages role memberships based on birthday information,
+''' and optionally sends the announcement message to appropriate guilds.
 ''' </summary>
 Class BirthdayRoleUpdate
     Inherits BackgroundService
-    Private ReadOnly Property Clock As IClock
 
     Public Sub New(instance As BirthdayBot)
         MyBase.New(instance)
-        Clock = SystemClock.Instance ' can be replaced with FakeClock during testing
     End Sub
 
     ''' <summary>
-    ''' Initial processing: Sets up a task per guild and waits on all.
+    ''' Does processing on all available guilds at once.
     ''' </summary>
-    Public Overrides Async Function OnTick(tick As Integer) As Task
+    Public Overrides Async Function OnTick() As Task
         Dim tasks As New List(Of Task(Of Integer))
         For Each guild In BotInstance.DiscordClient.Guilds
             Dim t = ProcessGuildAsync(guild)
@@ -38,19 +36,24 @@ Class BirthdayRoleUpdate
             Next
         End Try
 
-        ' Usage report: Show how many announcements were done
-        Dim announces = 0
-        Dim guilds = 0
-        For Each task In tasks
-            If task.Result > 0 Then
-                announces += task.Result
-                guilds += 1
-            End If
-        Next
-        If announces > 0 Then Log($"Announcing {announces} birthday(s) in {guilds} guild(s).")
+        ' TODO metrics for role sets, unsets, announcements - and how to do that for singles too?
     End Function
 
-    Async Function ProcessGuildAsync(guild As SocketGuild) As Task(Of Integer)
+    ''' <summary>
+    ''' Does role and announcement processing for a single specified guild.
+    ''' </summary>
+    Public Async Function SingleUpdateFor(guild As SocketGuild) As Task
+        Try
+            Await ProcessGuildAsync(guild)
+        Catch ex As Exception
+            Log("Encountered an error during guild processing:")
+            Log(ex.ToString())
+        End Try
+
+        ' TODO metrics for role sets, unsets, announcements - and I mentioned this above too
+    End Function
+
+    Private Async Function ProcessGuildAsync(guild As SocketGuild) As Task(Of Integer)
         ' Gather required information
         Dim tz As String
         Dim users As IEnumerable(Of GuildUserSettings)
@@ -156,7 +159,7 @@ Class BirthdayRoleUpdate
             Dim targetMonth = item.BirthMonth
             Dim targetDay = item.BirthDay
 
-            Dim checkNow = Clock.GetCurrentInstant().InZone(tz)
+            Dim checkNow = SystemClock.Instance.GetCurrentInstant().InZone(tz)
             ' Special case: If birthday is February 29 and it's not a leap year, recognize it on March 1st
             If targetMonth = 2 And targetDay = 29 And Not Date.IsLeapYear(checkNow.Year) Then
                 targetMonth = 3
