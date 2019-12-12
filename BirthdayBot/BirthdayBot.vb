@@ -10,6 +10,7 @@ Class BirthdayBot
     Private ReadOnly _cmdsListing As ListingCommands
     Private ReadOnly _cmdsHelp As HelpInfoCommands
     Private ReadOnly _cmdsMods As ManagerCommands
+    Private ReadOnly _cmdsDiag As DiagnosticCommands
 
     Private WithEvents Client As DiscordShardedClient
     Private ReadOnly _worker As BackgroundServiceRunner
@@ -49,15 +50,21 @@ Class BirthdayBot
         For Each item In _cmdsMods.Commands
             _dispatchCommands.Add(item.Item1, item.Item2)
         Next
+        _cmdsDiag = New DiagnosticCommands(Me, conf)
+        For Each item In _cmdsDiag.Commands
+            _dispatchCommands.Add(item.Item1, item.Item2)
+        Next
     End Sub
 
     Public Async Function Start() As Task
         Await Client.LoginAsync(TokenType.Bot, Config.BotToken)
         Await Client.StartAsync()
 
+#If Not DEBUG Then
         Log("Background processing", "Delaying start")
         Await Task.Delay(90000) ' TODO don't keep doing this
         Log("Background processing", "Delay complete")
+#End If
         _worker.Start()
 
         Await Task.Delay(-1)
@@ -85,8 +92,8 @@ Class BirthdayBot
         Return Task.CompletedTask
     End Function
 
-    Private Async Function SetStatus() As Task Handles Client.ShardConnected
-        Await Client.SetGameAsync(CommandPrefix + "help")
+    Private Async Function SetStatus(shard As DiscordSocketClient) As Task Handles Client.ShardConnected
+        Await shard.SetGameAsync(CommandPrefix + "help")
     End Function
 
     Private Async Function Dispatch(msg As SocketMessage) As Task Handles Client.MessageReceived

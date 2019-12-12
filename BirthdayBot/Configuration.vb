@@ -7,6 +7,8 @@ Imports System.IO
 ''' </summary>
 Class Configuration
     Public ReadOnly Property BotToken As String
+    Public ReadOnly Property LogWebhook As String
+    Public ReadOnly Property DiagnosticChannel As ULong
     Public ReadOnly Property DBotsToken As String
     Public ReadOnly Property DatabaseSettings As Database
 
@@ -23,10 +25,18 @@ Class Configuration
         End If
 
         Dim jc = JObject.Parse(File.ReadAllText(confPath))
-        BotToken = jc("BotToken").Value(Of String)()
+
+        BotToken = jc("BotToken")?.Value(Of String)()
         If String.IsNullOrWhiteSpace(BotToken) Then
             Throw New Exception("'BotToken' must be specified.")
         End If
+
+        LogWebhook = jc("LogWebhook")?.Value(Of String)()
+        If String.IsNullOrWhiteSpace(LogWebhook) Then
+            Throw New Exception("'LogWebhook' must be specified.")
+        End If
+
+        DiagnosticChannel = jc("DiagnosticChannel").Value(Of ULong)()
 
         Dim dbj = jc("DBotsToken")
         If dbj IsNot Nothing Then
@@ -35,7 +45,7 @@ Class Configuration
             DBotsToken = Nothing
         End If
 
-        Dim sqlcs = jc("SqlConnectionString").Value(Of String)()
+        Dim sqlcs = jc("SqlConnectionString")?.Value(Of String)()
         If String.IsNullOrWhiteSpace(sqlcs) Then
             Throw New Exception("'SqlConnectionString' must be specified.")
         End If

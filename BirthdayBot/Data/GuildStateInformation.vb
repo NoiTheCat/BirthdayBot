@@ -7,7 +7,7 @@ Imports NpgsqlTypes
 ''' Holds various pieces of state information for a guild the bot is operating in.
 ''' Includes, among other things, a copy of the guild's settings and a list of all known users with birthdays.
 ''' </summary>
-Friend Class GuildStateInformation
+Class GuildStateInformation
     Public ReadOnly Property GuildId As ULong
     Private ReadOnly _db As Database
     Private _bdayRole As ULong?
@@ -19,9 +19,10 @@ Friend Class GuildStateInformation
     Private _announceMsgPl As String
     Private _announcePing As Boolean
     Private ReadOnly _userCache As Dictionary(Of ULong, GuildUserSettings)
+    Public ReadOnly Property OperationLog As OperationStatus
 
     ''' <summary>
-    ''' Gets a list of cached users. Use sparingly.
+    ''' Gets a list of cached registered user information.
     ''' </summary>
     Public ReadOnly Property Users As IEnumerable(Of GuildUserSettings)
         Get
@@ -115,6 +116,9 @@ Friend Class GuildStateInformation
     ' Called by LoadSettingsAsync. Double-check ordinals when changes are made.
     Private Sub New(reader As DbDataReader, dbconfig As Database)
         _db = dbconfig
+
+        OperationLog = New OperationStatus()
+
         GuildId = CULng(reader.GetInt64(0))
         ' Weird: if using a ternary operator with a ULong?, Nothing resolves to 0 despite Option Strict On.
         If Not reader.IsDBNull(1) Then
