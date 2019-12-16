@@ -19,7 +19,7 @@ Class GuildStateInformation
     Private _announceMsgPl As String
     Private _announcePing As Boolean
     Private ReadOnly _userCache As Dictionary(Of ULong, GuildUserSettings)
-    Public ReadOnly Property OperationLog As OperationStatus
+    Public Property OperationLog As OperationStatus
 
     ''' <summary>
     ''' Gets a list of cached registered user information.

@@ -38,6 +38,9 @@ Class BirthdayRoleUpdate
         End Try
 
         ' TODO metrics for role sets, unsets, announcements - and how to do that for singles too?
+
+        ' Running GC now. Many long-lasting items have likely been discarded by now.
+        GC.Collect()
     End Function
 
     ''' <summary>
@@ -65,7 +68,6 @@ Class BirthdayRoleUpdate
         Dim channel As SocketTextChannel = Nothing
         Dim announce As (String, String)
         Dim announceping As Boolean
-        Dim op As OperationStatus
 
         ' Skip processing of guild if local info has not yet been loaded
         If Not BotInstance.GuildCache.ContainsKey(guild.Id) Then Return
@@ -77,7 +79,6 @@ Class BirthdayRoleUpdate
             users = .Users
             announce = .AnnounceMessages
             announceping = .AnnouncePing
-            op = .OperationLog
 
             If .AnnounceChannelId.HasValue Then channel = guild.GetTextChannel(gs.AnnounceChannelId.Value)
             If .RoleId.HasValue Then role = guild.GetRole(gs.RoleId.Value)
@@ -91,24 +92,22 @@ Class BirthdayRoleUpdate
         ' But first check if we are able to do so. Letting all requests fail instead will lead to rate limiting.
         Dim roleCheck = CheckCorrectRoleSettings(guild, role)
         If Not roleCheck.Item1 Then
-            SyncLock op
-                op(OperationType.BirthdayRole) = New OperationInfo(New Exception(roleCheck.Item2))
-                op(OperationType.BirthdayAnnounce) = Nothing
+            SyncLock gs
+                gs.OperationLog = New OperationStatus((OperationStatus.OperationType.UpdateBirthdayRoleMembership, roleCheck.Item2))
             End SyncLock
             Return
         End If
 
         Dim announcementList As IEnumerable(Of SocketGuildUser)
+        Dim roleResult As (Integer, Integer) ' Role additions, removals
         ' Do actual role updating
         Try
-            announcementList = Await UpdateGuildBirthdayRoles(guild, role, birthdays)
-            SyncLock op
-                op(OperationType.BirthdayRole) = New OperationInfo()
-            End SyncLock
+            Dim updateResult = Await UpdateGuildBirthdayRoles(guild, role, birthdays)
+            announcementList = updateResult.Item1
+            roleResult = updateResult.Item2
         Catch ex As Discord.Net.HttpException
-            SyncLock op
-                op(OperationType.BirthdayRole) = New OperationInfo(ex)
-                op(OperationType.BirthdayAnnounce) = Nothing
+            SyncLock gs
+                gs.OperationLog = New OperationStatus((OperationStatus.OperationType.UpdateBirthdayRoleMembership, ex.Message))
             End SyncLock
             If ex.HttpCode <> HttpStatusCode.Forbidden Then
                 ' Send unusual exceptions to calling method
@@ -117,9 +116,20 @@ Class BirthdayRoleUpdate
             Return
         End Try
 
+        Dim opResult1, opResult2 As (OperationStatus.OperationType, String)
+        opResult1 = (OperationStatus.OperationType.UpdateBirthdayRoleMembership,
+                     $"Success: Added {roleResult.Item1} member(s), Removed {roleResult.Item2} member(s) from target role.")
+
         If announcementList.Count <> 0 Then
-            Await AnnounceBirthdaysAsync(announce, announceping, channel, announcementList, op)
+            Dim announceOpResult = Await AnnounceBirthdaysAsync(announce, announceping, channel, announcementList)
+            opResult2 = (OperationStatus.OperationType.SendBirthdayAnnouncementMessage, announceOpResult)
+        Else
+            opResult2 = (OperationStatus.OperationType.SendBirthdayAnnouncementMessage, "Announcement not considered.")
         End If
+
+        SyncLock gs
+            gs.OperationLog = New OperationStatus(opResult1, opResult2)
+        End SyncLock
     End Function
 
     ''' <summary>
@@ -127,19 +137,19 @@ Class BirthdayRoleUpdate
     ''' </summary>
     Private Function CheckCorrectRoleSettings(guild As SocketGuild, role As SocketRole) As (Boolean, String)
         If role Is Nothing Then
-            Return (False, "Designated role not found or defined in guild")
+            Return (False, "Failed: Designated role not found or defined.")
         End If
 
         If Not guild.CurrentUser.GuildPermissions.ManageRoles Then
-            Return (False, "Bot does not contain Manage Roles permission")
+            Return (False, "Failed: Bot does not contain Manage Roles permission.")
         End If
 
         ' Check potential role order conflict
         If role.Position >= guild.CurrentUser.Hierarchy Then
-            Return (False, "Targeted role is at or above bot's highest rank")
+            Return (False, "Failed: Bot is beneath the designated role in the role hierarchy.")
         End If
 
-        Return (True, "Success")
+        Return (True, Nothing)
     End Function
 
     ''' <summary>
@@ -189,7 +199,7 @@ Class BirthdayRoleUpdate
     ''' <returns>A list of users who had the birthday role applied. Use for the announcement message.</returns>
     Private Async Function UpdateGuildBirthdayRoles(g As SocketGuild,
                                               r As SocketRole,
-                                              names As HashSet(Of ULong)) As Task(Of IEnumerable(Of SocketGuildUser))
+                                              names As HashSet(Of ULong)) As Task(Of (IEnumerable(Of SocketGuildUser), (Integer, Integer)))
         ' Check members currently with the role. Figure out which users to remove it from.
         Dim roleRemoves As New List(Of SocketGuildUser)
         Dim roleKeeps As New HashSet(Of ULong)
@@ -218,7 +228,7 @@ Class BirthdayRoleUpdate
             newBirthdays.Add(member)
         Next
 
-        Return newBirthdays
+        Return (newBirthdays, (newBirthdays.Count, roleRemoves.Count))
     End Function
 
     Public Const DefaultAnnounce = "Please wish a happy birthday to %n!"
@@ -231,13 +241,9 @@ Class BirthdayRoleUpdate
     Private Async Function AnnounceBirthdaysAsync(announce As (String, String),
                                                   announcePing As Boolean,
                                                   c As SocketTextChannel,
-                                                  names As IEnumerable(Of SocketGuildUser),
-                                                  op As OperationStatus) As Task
+                                                  names As IEnumerable(Of SocketGuildUser)) As Task(Of String)
         If c Is Nothing Then
-            SyncLock op
-                op(OperationType.BirthdayAnnounce) = New OperationInfo("Announcement channel missing or undefined")
-            End SyncLock
-            Return
+            Return "Announcement channel is undefined."
         End If
 
         Dim announceMsg As String
@@ -268,13 +274,9 @@ Class BirthdayRoleUpdate
 
         Try
             Await c.SendMessageAsync(announceMsg.Replace("%n", namedisplay.ToString()))
-            SyncLock op
-                op(OperationType.BirthdayAnnounce) = New OperationInfo()
-            End SyncLock
+            Return $"Successfully announced {names.Count} name(s)"
         Catch ex As Discord.Net.HttpException
-            SyncLock op
-                op(OperationType.BirthdayAnnounce) = New OperationInfo(ex)
-            End SyncLock
+            Return ex.Message
         End Try
     End Function
 End Class

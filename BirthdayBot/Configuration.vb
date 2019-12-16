@@ -8,7 +8,6 @@ Imports System.IO
 Class Configuration
     Public ReadOnly Property BotToken As String
     Public ReadOnly Property LogWebhook As String
-    Public ReadOnly Property DiagnosticChannel As ULong
     Public ReadOnly Property DBotsToken As String
     Public ReadOnly Property DatabaseSettings As Database
 
@@ -35,8 +34,6 @@ Class Configuration
         If String.IsNullOrWhiteSpace(LogWebhook) Then
             Throw New Exception("'LogWebhook' must be specified.")
         End If
-
-        DiagnosticChannel = jc("DiagnosticChannel").Value(Of ULong)()
 
         Dim dbj = jc("DBotsToken")
         If dbj IsNot Nothing Then

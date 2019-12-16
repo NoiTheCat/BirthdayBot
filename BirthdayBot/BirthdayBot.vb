@@ -2,6 +2,7 @@
 Imports BirthdayBot.CommandsCommon
 Imports Discord
 Imports Discord.Net
+Imports Discord.Webhook
 Imports Discord.WebSocket
 
 Class BirthdayBot
@@ -10,7 +11,6 @@ Class BirthdayBot
     Private ReadOnly _cmdsListing As ListingCommands
     Private ReadOnly _cmdsHelp As HelpInfoCommands
     Private ReadOnly _cmdsMods As ManagerCommands
-    Private ReadOnly _cmdsDiag As DiagnosticCommands
 
     Private WithEvents Client As DiscordShardedClient
     Private ReadOnly _worker As BackgroundServiceRunner
@@ -22,12 +22,13 @@ Class BirthdayBot
             Return Client
         End Get
     End Property
-
     Friend ReadOnly Property GuildCache As ConcurrentDictionary(Of ULong, GuildStateInformation)
+    Friend ReadOnly Property LogWebhook As DiscordWebhookClient
 
     Public Sub New(conf As Configuration, dc As DiscordShardedClient)
         Config = conf
         Client = dc
+        LogWebhook = New DiscordWebhookClient(conf.LogWebhook)
         GuildCache = New ConcurrentDictionary(Of ULong, GuildStateInformation)
 
         _worker = New BackgroundServiceRunner(Me)
@@ -48,10 +49,6 @@ Class BirthdayBot
         Next
         _cmdsMods = New ManagerCommands(Me, conf, _cmdsUser.Commands)
         For Each item In _cmdsMods.Commands
-            _dispatchCommands.Add(item.Item1, item.Item2)
-        Next
-        _cmdsDiag = New DiagnosticCommands(Me, conf)
-        For Each item In _cmdsDiag.Commands
             _dispatchCommands.Add(item.Item1, item.Item2)
         Next
     End Sub

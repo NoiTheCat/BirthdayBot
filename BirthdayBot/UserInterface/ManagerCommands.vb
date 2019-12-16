@@ -1,18 +1,22 @@
 ﻿Imports System.Text.RegularExpressions
+Imports Discord
 Imports Discord.WebSocket
+Imports NodaTime
 
 Friend Class ManagerCommands
     Inherits CommandsCommon
+
     Private Delegate Function ConfigSubcommand(param As String(), reqChannel As SocketTextChannel) As Task
 
-    Private _subcommands As Dictionary(Of String, ConfigSubcommand)
-    Private _usercommands As Dictionary(Of String, CommandHandler)
+    Private ReadOnly _subcommands As Dictionary(Of String, ConfigSubcommand)
+    Private ReadOnly _usercommands As Dictionary(Of String, CommandHandler)
 
     Public Overrides ReadOnly Property Commands As IEnumerable(Of (String, CommandHandler))
         Get
             Return New List(Of (String, CommandHandler)) From {
                 ("config", AddressOf CmdConfigDispatch),
-                ("override", AddressOf CmdOverride)
+                ("override", AddressOf CmdOverride),
+                ("status", AddressOf CmdStatus)
             }
         End Get
     End Property
@@ -336,6 +340,40 @@ Friend Class ManagerCommands
         ' Preparations complete. Run the command.
         Await reqChannel.SendMessageAsync($"Executing `{cmdsearch.ToLower()}` on behalf of {If(overuser.Nickname, overuser.Username)}:")
         Await action.Invoke(overparam, reqChannel, overuser)
+    End Function
+
+    ' Prints a status report useful for troubleshooting operational issues within a guild
+    Private Async Function CmdStatus(param As String(), reqChannel As SocketTextChannel, reqUser As SocketGuildUser) As Task
+        ' Moderators only. As with config, silently drop if this check fails.
+        If Not Instance.GuildCache(reqUser.Guild.Id).IsUserModerator(reqUser) Then Return
+
+        Dim result As New EmbedBuilder
+        Dim optime As DateTimeOffset
+        Dim optext As String
+        Dim zone As String
+        Dim gi = Instance.GuildCache(reqChannel.Guild.Id)
+        SyncLock gi
+            Dim opstat = gi.OperationLog
+            optext = opstat.GetDiagStrings() ' !!! Bulk of output handled by this method
+            optime = opstat.Timestamp
+            zone = If(gi.TimeZone, "UTC")
+        End SyncLock
+        Dim shard = Instance.DiscordClient.GetShardIdFor(reqChannel.Guild)
+
+        ' Calculate timestamp in current zone
+        Dim ts As String = "Last update:"
+        Dim zonedTimeInstant = SystemClock.Instance.GetCurrentInstant().InZone(DateTimeZoneProviders.Tzdb.GetZoneOrNull(zone))
+        Dim timeAgoEstimate = DateTimeOffset.UtcNow - optime
+
+        With result
+            .Title = "Background operation status"
+            .Description = $"Shard: {shard}" + vbLf +
+                $"Operation time: {Math.Round(timeAgoEstimate.TotalSeconds)} second(s) ago at {zonedTimeInstant}" + vbLf +
+                "Report:" + vbLf +
+                optext.TrimEnd()
+        End With
+
+        Await reqChannel.SendMessageAsync(embed:=result.Build())
     End Function
 
 #Region "Common/helper methods"
