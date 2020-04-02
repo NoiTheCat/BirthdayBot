@@ -319,6 +319,10 @@ Friend Class ManagerCommands
             Return
         End If
         Dim overuser = reqChannel.Guild.GetUser(user)
+        If overuser Is Nothing Then
+            Await reqChannel.SendMessageAsync(BadUserError)
+            Return
+        End If
 
         ' Third parameter: determine command to invoke.
         ' Reminder that we're only receiving a param array of size 3 at maximum. String must be split again.
