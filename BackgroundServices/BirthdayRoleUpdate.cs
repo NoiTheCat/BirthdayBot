@@ -73,46 +73,29 @@ namespace BirthdayBot.BackgroundServices
         /// </summary>
         private async Task ProcessGuildAsync(SocketGuild guild)
         {
-            // Gather required information
-            string tz;
-            IEnumerable<GuildUserSettings> users;
-            SocketRole role = null;
-            SocketTextChannel channel = null;
-            (string, string) announce;
-            bool announceping;
-
             // Skip processing of guild if local info has not yet been loaded
-            if (!BotInstance.GuildCache.ContainsKey(guild.Id)) return;
+            if (!BotInstance.GuildCache.TryGetValue(guild.Id, out var gs)) return;
 
-            // Lock once to grab all info
-            var gs = BotInstance.GuildCache[guild.Id];
-            tz = gs.TimeZone;
-            users = gs.Users;
-            announce = gs.AnnounceMessages;
-            announceping = gs.AnnouncePing;
-
-            if (gs.AnnounceChannelId.HasValue) channel = guild.GetTextChannel(gs.AnnounceChannelId.Value);
+            // Check if role settings are correct before continuing with further processing
+            SocketRole role = null;
             if (gs.RoleId.HasValue) role = guild.GetRole(gs.RoleId.Value);
-
-            // Determine who's currently having a birthday
-            var birthdays = GetGuildCurrentBirthdays(users, tz);
-            // Note: Don't quit here if zero people are having birthdays. Roles may still need to be removed by BirthdayApply.
-
-            // Set birthday roles, get list of users that had the role added
-            // But first check if we are able to do so. Letting all requests fail instead will lead to rate limiting.
             var roleCheck = CheckCorrectRoleSettings(guild, role);
             if (!roleCheck.Item1)
             {
                 lock (gs)
-                {
                     gs.OperationLog = new OperationStatus((OperationStatus.OperationType.UpdateBirthdayRoleMembership, roleCheck.Item2));
-                }
                 return;
             }
 
+            // Determine who's currently having a birthday
+            var users = gs.Users;
+            var tz = gs.TimeZone;
+            var birthdays = GetGuildCurrentBirthdays(users, tz);
+            // Note: Don't quit here if zero people are having birthdays. Roles may still need to be removed by BirthdayApply.
+
             IEnumerable<SocketGuildUser> announcementList;
             (int, int) roleResult; // role additions, removals
-            // Do actual role updating
+            // Update roles as appropriate
             try
             {
                 var updateResult = await UpdateGuildBirthdayRoles(guild, role, birthdays);
@@ -122,21 +105,23 @@ namespace BirthdayBot.BackgroundServices
             catch (Discord.Net.HttpException ex)
             {
                 lock (gs)
-                {
                     gs.OperationLog = new OperationStatus((OperationStatus.OperationType.UpdateBirthdayRoleMembership, ex.Message));
-                }
                 if (ex.HttpCode != System.Net.HttpStatusCode.Forbidden)
                 {
-                    // Send unusual exceptions to calling method
+                    // Send unusual exceptions to caller
                     throw;
                 }
                 return;
             }
-
             (OperationStatus.OperationType, string) opResult1, opResult2;
             opResult1 = (OperationStatus.OperationType.UpdateBirthdayRoleMembership,
                 $"Success: Added {roleResult.Item1} member(s), Removed {roleResult.Item2} member(s) from target role.");
 
+            // Birthday announcement
+            var announce = gs.AnnounceMessages;
+            var announceping = gs.AnnouncePing;
+            SocketTextChannel channel = null;
+            if (gs.AnnounceChannelId.HasValue) channel = guild.GetTextChannel(gs.AnnounceChannelId.Value);
             if (announcementList.Count() != 0)
             {
                 var announceOpResult = await AnnounceBirthdaysAsync(announce, announceping, channel, announcementList);
@@ -147,21 +132,20 @@ namespace BirthdayBot.BackgroundServices
                 opResult2 = (OperationStatus.OperationType.SendBirthdayAnnouncementMessage, "Announcement not considered.");
             }
 
-            lock (gs)
-            {
-                gs.OperationLog = new OperationStatus(opResult1, opResult2);
-            }
+            // Update status
+            lock (gs) gs.OperationLog = new OperationStatus(opResult1, opResult2);
         }
 
         /// <summary>
         /// Checks if the bot may be allowed to alter roles.
         /// </summary>
+        /// <returns>
+        /// First item: Boolean value determining if the role setup is correct.
+        /// Second item: String to append to operation status in case of failure.
+        /// </returns>
         private (bool, string) CheckCorrectRoleSettings(SocketGuild guild, SocketRole role)
         {
-            if (role == null)
-            {
-                return (false, "Failed: Designated role not found or defined.");
-            }
+            if (role == null) return (false, "Failed: Designated role not found or defined.");
 
             if (!guild.CurrentUser.GuildPermissions.ManageRoles)
             {
@@ -186,12 +170,8 @@ namespace BirthdayBot.BackgroundServices
             var birthdayUsers = new HashSet<ulong>();
 
             DateTimeZone defaultTz = null;
-            if (defaultTzStr != null)
-            {
-                defaultTz = DateTimeZoneProviders.Tzdb.GetZoneOrNull(defaultTzStr);
-            }
-            defaultTz = defaultTz ?? DateTimeZoneProviders.Tzdb.GetZoneOrNull("UTC");
-            // TODO determine defaultTz from guild's voice region
+            if (defaultTzStr != null) defaultTz = DateTimeZoneProviders.Tzdb.GetZoneOrNull(defaultTzStr);
+            defaultTz ??= DateTimeZoneProviders.Tzdb.GetZoneOrNull("UTC");
 
             foreach (var item in guildUsers)
             {
@@ -202,7 +182,7 @@ namespace BirthdayBot.BackgroundServices
                     // Try user-provided time zone
                     tz = DateTimeZoneProviders.Tzdb.GetZoneOrNull(item.TimeZone);
                 }
-                tz = tz ?? defaultTz;
+                tz ??= defaultTz;
 
                 var targetMonth = item.BirthMonth;
                 var targetDay = item.BirthDay;
@@ -226,25 +206,20 @@ namespace BirthdayBot.BackgroundServices
         /// <summary>
         /// Sets the birthday role to all applicable users. Unsets it from all others who may have it.
         /// </summary>
-        /// <returns>A list of users who had the birthday role applied. Use for the announcement message.</returns>
+        /// <returns>
+        /// First item: List of users who had the birthday role applied, used to announce.
+        /// Second item: Counts of users who have had roles added/removed, used for operation reporting.
+        /// </returns>
         private async Task<(IEnumerable<SocketGuildUser>, (int, int))> UpdateGuildBirthdayRoles(
             SocketGuild g, SocketRole r, HashSet<ulong> names)
         {
             // Check members currently with the role. Figure out which users to remove it from.
             var roleRemoves = new List<SocketGuildUser>();
             var roleKeeps = new HashSet<ulong>();
-            var q = 0;
             foreach (var member in r.Members)
             {
-                if (!names.Contains(member.Id))
-                {
-                    roleRemoves.Add(member);
-                }
-                else
-                {
-                    roleKeeps.Add(member.Id);
-                }
-                q += 1;
+                if (!names.Contains(member.Id)) roleRemoves.Add(member);
+                else roleKeeps.Add(member.Id);
             }
 
             // TODO Can we remove during the iteration instead of after? investigate later...
@@ -274,32 +249,22 @@ namespace BirthdayBot.BackgroundServices
         /// Makes (or attempts to make) an announcement in the specified channel that includes all users
         /// who have just had their birthday role added.
         /// </summary>
+        /// <returns>The message to place into operation status log.</returns>
         private async Task<string> AnnounceBirthdaysAsync(
             (string, string) announce, bool announcePing, SocketTextChannel c, IEnumerable<SocketGuildUser> names)
         {
-            if (c == null)
-            {
-                return "Announcement channel is undefined.";
-            }
+            if (c == null) return "Announcement channel is undefined.";
 
             string announceMsg;
-            if (names.Count() == 1)
-            {
-                announceMsg = announce.Item1 ?? announce.Item2 ?? DefaultAnnounce;
-            }
-            else
-            {
-                announceMsg = announce.Item2 ?? announce.Item1 ?? DefaultAnnouncePl;
-            }
+            if (names.Count() == 1) announceMsg = announce.Item1 ?? announce.Item2 ?? DefaultAnnounce;
+            else announceMsg = announce.Item2 ?? announce.Item1 ?? DefaultAnnouncePl;
             announceMsg = announceMsg.TrimEnd();
             if (!announceMsg.Contains("%n")) announceMsg += " %n";
 
             // Build sorted name list
             var namestrings = new List<string>();
             foreach (var item in names)
-            {
                 namestrings.Add(Common.FormatName(item, announcePing));
-            }
             namestrings.Sort(StringComparer.OrdinalIgnoreCase);
 
             var namedisplay = new StringBuilder();
@@ -321,6 +286,7 @@ namespace BirthdayBot.BackgroundServices
             }
             catch (Discord.Net.HttpException ex)
             {
+                // Directly use the resulting exception message in the operation status log
                 return ex.Message;
             }
         }
