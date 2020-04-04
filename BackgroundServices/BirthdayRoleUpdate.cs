@@ -25,25 +25,25 @@ namespace BirthdayBot.BackgroundServices
             var tasks = new List<Task>();
             foreach (var guild in BotInstance.DiscordClient.Guilds)
             {
-                var t = ProcessGuildAsync(guild);
-                tasks.Add(t);
+                tasks.Add(ProcessGuildAsync(guild));
             }
+            var alltasks = Task.WhenAll(tasks);
 
             try
             {
-                await Task.WhenAll(tasks);
+                await alltasks;
             }
             catch (Exception ex)
             {
-                // TODO does this not actually work as might be expected?
-                var exs = from task in tasks
-                          where task.Exception != null
-                          select task.Exception;
-                Log($"Encountered {exs.Count()} errors during bulk guild processing.");
-                foreach (var iex in exs)
+                var exs = alltasks.Exception;
+                if (exs != null)
                 {
-                    // TODO probably not a good idea
-                    Log(iex.ToString());
+                    Log($"{exs.InnerExceptions.Count} exception(s) during bulk processing!");
+                    // TODO needs major improvements. output to file?
+                }
+                else
+                {
+                    Log(ex.ToString());
                 }
             }
 
