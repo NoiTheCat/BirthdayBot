@@ -11,7 +11,12 @@ namespace BirthdayBot
     /// </summary>
     class BackgroundServiceRunner
     {
-        const int Interval = 8 * 60; // Tick interval in seconds. Adjust as needed.
+        // Amount of idle time between each round of task execution, in seconds.
+        const int Interval = 8 * 60;
+        // Amount of time between start and first round of processing, in seconds.
+        const int StartDelay = 60;
+
+        const string LogName = nameof(BackgroundServiceRunner);
 
         private List<BackgroundService> _workers;
         private readonly CancellationTokenSource _workerCancel;
@@ -48,30 +53,46 @@ namespace BirthdayBot
         /// </summary>
         private async Task WorkerLoop()
         {
+#if !DEBUG
+            // Start an initial delay before tasks begin running
+            Program.Log(LogName, $"Delaying first background execution by {StartDelay} seconds.");
+            try { await Task.Delay(StartDelay * 1000, _workerCancel.Token); }
+            catch (TaskCanceledException) { return; }
+#else
+            Program.Log(LogName, "Debug build - skipping initial processing delay.");
+#endif
             while (!_workerCancel.IsCancellationRequested)
             {
+                // Initiate background tasks
+                var tasks = new List<Task>();
+                foreach (var service in _workers) tasks.Add(service.OnTick());
+                var alltasks = Task.WhenAll(tasks);
+
+                // Await and check result
+                // Cancellation token not checked at this point...
                 try
                 {
-                    // Delay a bit before we start (or continue) work.
-                    await Task.Delay(Interval * 1000, _workerCancel.Token);
-
-                    // Execute background tasks.
-                    var tasks = new List<Task>();
-                    foreach (var service in _workers)
-                    {
-                        tasks.Add(service.OnTick());
-                    }
-                    await Task.WhenAll(tasks);
-                }
-                catch (TaskCanceledException)
-                {
-                    return;
+                    await alltasks;
                 }
                 catch (Exception ex)
                 {
-                    Program.Log("Background task", "Unhandled exception during background task execution:");
-                    Program.Log("Background task", ex.ToString());
+                    var exs = alltasks.Exception;
+                    if (exs != null)
+                    {
+                        Program.Log(LogName, $"{exs.InnerExceptions.Count} exception(s) during background task execution:");
+                        foreach (var iex in exs.InnerExceptions)
+                        {
+                            Program.Log(LogName, iex.Message);
+                        }
+                    }
+                    else
+                    {
+                        Program.Log(LogName, ex.ToString());
+                    }
                 }
+
+                try { await Task.Delay(Interval * 1000, _workerCancel.Token); }
+                catch (TaskCanceledException) { return; }
             }
         }
     }

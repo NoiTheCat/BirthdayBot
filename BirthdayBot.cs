@@ -60,11 +60,6 @@ namespace BirthdayBot
             await DiscordClient.LoginAsync(TokenType.Bot, Config.BotToken);
             await DiscordClient.StartAsync();
 
-#if !DEBUG
-            Program.Log("Background processing", "Delaying start");
-            await Task.Delay(90000); // TODO don't keep doing this
-            Program.Log("Background processing", "Delay complete");
-#endif
             _worker.Start();
 
             await Task.Delay(-1);
