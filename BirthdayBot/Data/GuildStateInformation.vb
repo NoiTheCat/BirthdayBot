@@ -320,13 +320,14 @@ Class GuildStateInformation
                 "moderator_role bigint null, " +
                 "announce_message text null, " +
                 "announce_message_pl text null, " +
-                "announce_ping boolean not null default FALSE" +
+                "announce_ping boolean not null default FALSE, " +
+                "last_seen timestamptz not null default NOW()" +
                 ")"
             c.ExecuteNonQuery()
         End Using
         Using c = db.CreateCommand()
             c.CommandText = $"create table if not exists {BackingTableBans} (" +
-                $"guild_id bigint not null references {BackingTable}, " +
+                $"guild_id bigint not null references {BackingTable} ON DELETE CASCADE, " +
                 "user_id bigint not null, " +
                 "PRIMARY KEY (guild_id, user_id)" +
                 ")"

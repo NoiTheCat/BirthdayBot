@@ -17,7 +17,8 @@ Class BackgroundServiceRunner
         Workers = New List(Of BackgroundService) From {
             {New GuildStatistics(instance)},
             {New Heartbeat(instance)},
-            {BirthdayUpdater}
+            {BirthdayUpdater},
+            {New StaleDataCleaner(instance)}
         }
     End Sub
 
