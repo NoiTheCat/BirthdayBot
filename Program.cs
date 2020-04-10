@@ -65,7 +65,7 @@ namespace BirthdayBot
             return Task.CompletedTask;
         }
 
-        private void OnCancelKeyPressed(Object sender, ConsoleCancelEventArgs e)
+        private static void OnCancelKeyPressed(object sender, ConsoleCancelEventArgs e)
         {
             e.Cancel = true;
             Log("Shutdown", "Caught cancel key. Will shut down...");
