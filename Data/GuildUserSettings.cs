@@ -126,7 +126,7 @@ namespace BirthdayBot.Data
             using (var c = db.CreateCommand())
             {
                 c.CommandText = $"create table if not exists {BackingTable} ("
-                    + $"guild_id bigint not null references {GuildStateInformation.BackingTable}, "
+                    + $"guild_id bigint not null references {GuildStateInformation.BackingTable} ON DELETE CASCADE, "
                     + "user_id bigint not null, "
                     + "birth_month integer not null, "
                     + "birth_day integer not null, "
