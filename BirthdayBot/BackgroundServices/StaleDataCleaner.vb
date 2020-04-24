@@ -29,7 +29,7 @@ Class StaleDataCleaner
             Using t = db.BeginTransaction()
                 Using c = db.CreateCommand()
                     ' Delete data for guilds not seen in 2 weeks
-                    c.CommandText = $"delete from {GuildUserSettings.BackingTable} where (now() - interval '14 days') > last_seen"
+                    c.CommandText = $"delete from {GuildStateInformation.BackingTable} where (now() - interval '28 days') > last_seen"
                     Dim r = c.ExecuteNonQuery()
                     If r <> 0 Then Log($"Removed {r} stale guild(s).")
                 End Using
