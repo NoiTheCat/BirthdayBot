@@ -130,6 +130,7 @@ Class GuildUserSettings
                 "birth_month integer not null, " +
                 "birth_day integer not null, " +
                 "time_zone text null, " +
+                "last_seen timestamptz not null default NOW(), " +
                 "PRIMARY KEY (guild_id, user_id)" +
                 ")"
             c.ExecuteNonQuery()
