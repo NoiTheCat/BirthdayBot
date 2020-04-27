@@ -1,4 +1,5 @@
-﻿''' <summary>
+﻿Imports NpgsqlTypes
+''' <summary>
 ''' Automatically removes database information for guilds that have not been accessed in a long time.
 ''' </summary>
 Class StaleDataCleaner
@@ -30,14 +31,14 @@ Class StaleDataCleaner
             Dim cUpdateGuild = db.CreateCommand()
             cUpdateGuild.CommandText = $"update {GuildStateInformation.BackingTable} set last_seen = now() " +
                 "where guild_id = @Gid"
-            Dim pUpdateG = cUpdateGuild.Parameters.Add("@Gid", NpgsqlTypes.NpgsqlDbType.Bigint)
+            Dim pUpdateG = cUpdateGuild.Parameters.Add("@Gid", NpgsqlDbType.Bigint)
             cUpdateGuild.Prepare()
 
             Dim cUpdateGuildUser = db.CreateCommand()
             cUpdateGuildUser.CommandText = $"update {GuildUserSettings.BackingTable} set last_seen = now() " +
                 "where guild_id = @Gid and user_id = @Uid"
-            Dim pUpdateGU_g = cUpdateGuildUser.Parameters.Add("@Gid", NpgsqlTypes.NpgsqlDbType.Bigint)
-            Dim pUpdateGU_u = cUpdateGuildUser.Parameters.Add("@Uid", NpgsqlTypes.NpgsqlDbType.Bigint)
+            Dim pUpdateGU_g = cUpdateGuildUser.Parameters.Add("@Gid", NpgsqlDbType.Bigint)
+            Dim pUpdateGU_u = cUpdateGuildUser.Parameters.Add("@Uid", NpgsqlDbType.Bigint)
             cUpdateGuildUser.Prepare()
 
             ' Do actual updates
