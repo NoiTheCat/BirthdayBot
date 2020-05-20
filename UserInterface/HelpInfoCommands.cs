@@ -164,9 +164,11 @@ namespace BirthdayBot.UserInterface
                     IconUrl = Discord.CurrentUser.GetAvatarUrl()
                 },
                 // TODO this message needs an overhaul
-                Description = "Suggestions and feedback are always welcome. Please refer to the listing on Discord Bots "
-                    + "(discord.bots.gg) for information on reaching my personal server. I may not be available often, but I am happy to "
-                    + "respond to feedback in due time." // TODO update this string
+                Description = "For more information regarding support, data retention, privacy, and other details, please refer to: "
+                    + "https://github.com/NoiTheCat/BirthdayBot/blob/master/Readme.md" + "\n\n"
+                    + "This bot is provided for free, without any intention to add premium, pay-only features. "
+                    + "If you find this bot helpful, please consider contributing towards my operating costs "
+                    + "via Patreon: https://www.patreon.com/noibots."
             }.AddField(new EmbedFieldBuilder()
             {
                 Name = "Statistics",
