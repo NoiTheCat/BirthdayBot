@@ -24,6 +24,7 @@ namespace BirthdayBot
         
         internal Configuration Config { get; }
         internal DiscordShardedClient DiscordClient { get; }
+        // TODO consider removal of the guild cache
         internal ConcurrentDictionary<ulong, GuildStateInformation> GuildCache { get; }
         internal DiscordWebhookClient LogWebhook { get; }
 
