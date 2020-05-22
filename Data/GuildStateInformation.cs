@@ -391,7 +391,7 @@ namespace BirthdayBot.Data
                         + "announce_message_pl = @AnnounceMsgPl, "
                         + "announce_ping = @AnnouncePing "
                         + "where guild_id = @Gid";
-                    c.Parameters.Add("@Gid", NpgsqlDbType.Bigint).Value = (ulong)GuildId;
+                    c.Parameters.Add("@Gid", NpgsqlDbType.Bigint).Value = (long)GuildId;
                     NpgsqlParameter p;
 
                     p = c.Parameters.Add("@RoleId", NpgsqlDbType.Bigint);
@@ -406,7 +406,7 @@ namespace BirthdayBot.Data
                     if (_tz != null) p.Value = _tz;
                     else p.Value = DBNull.Value;
 
-                    c.Parameters.Add("@Moderated", NpgsqlDbType.Text).Value = _moderated;
+                    c.Parameters.Add("@Moderated", NpgsqlDbType.Boolean).Value = _moderated;
 
                     p = c.Parameters.Add("@ModRole", NpgsqlDbType.Bigint);
                     if (ModeratorRole.HasValue) p.Value = (long)ModeratorRole.Value;
