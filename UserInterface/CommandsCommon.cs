@@ -17,6 +17,7 @@ namespace BirthdayBot.UserInterface
 #else
         public const string CommandPrefix = "bb.";
 #endif
+        [Obsolete]
         public const string GenericError = ":x: Invalid usage. Consult the help command.";
         public const string BadUserError = ":x: Unable to find user. Specify their `@` mention or their ID.";
         public const string ExpectedNoParametersError = ":x: This command does not take parameters. Did you mean to use another?";
