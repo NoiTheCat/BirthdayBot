@@ -70,7 +70,7 @@ namespace BirthdayBot.UserInterface
             }
 
             // Subcommands get a subset of the parameters, to make things a little easier.
-            var confparam = new string[param.Length - 2]; // subtract one extra??? TODO investigate after port to C#
+            var confparam = new string[param.Length - 1];
             Array.Copy(param, 1, confparam, 0, param.Length - 1);
 
             if (_subcommands.TryGetValue(confparam[0], out ConfigSubcommand h))
