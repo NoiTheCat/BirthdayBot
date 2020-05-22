@@ -87,9 +87,10 @@ namespace BirthdayBot
                     if (exs != null)
                     {
                         Program.Log(LogName, $"{exs.InnerExceptions.Count} exception(s) during background task execution:");
+                        // TODO webhook log
                         foreach (var iex in exs.InnerExceptions)
                         {
-                            Program.Log(LogName, iex.Message);
+                            Program.Log(LogName, iex.ToString());
                         }
                     }
                     else

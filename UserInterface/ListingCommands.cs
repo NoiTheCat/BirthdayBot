@@ -79,6 +79,7 @@ namespace BirthdayBot.UserInterface
             {
                 Program.Log("Listing", ex.ToString());
                 reqChannel.SendMessageAsync(":x: An internal error occurred. It has been reported to the bot owner.").Wait();
+                // TODO webhook report
             }
             finally
             {

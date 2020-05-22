@@ -137,7 +137,9 @@ namespace BirthdayBot
                     try
                     {
                         channel.SendMessageAsync(":x: An unknown error occurred. It has been reported to the bot owner.").Wait();
-                    } catch (HttpException ex2)
+                        // TODO webhook report
+                    }
+                    catch (HttpException)
                     {
                         // Fail silently.
                     }

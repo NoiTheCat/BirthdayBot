@@ -136,6 +136,7 @@ namespace BirthdayBot.UserInterface
             {
                 Program.Log("Error", ex.ToString());
                 reqChannel.SendMessageAsync(":x: An unknown error occurred. The bot owner has been notified.").Wait();
+                // TODO webhook report
                 return;
             }
             if (known)
