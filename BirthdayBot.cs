@@ -106,7 +106,7 @@ namespace BirthdayBot
             // For all cases: base command, 2 parameters.
             // Except this case: "bb.config", subcommand name, subcommand parameters in a single string
             var csplit = msg.Content.Split(" ", 3, StringSplitOptions.RemoveEmptyEntries);
-            if (csplit.Length > 0)
+            if (csplit.Length > 0 && csplit[0].StartsWith(CommandPrefix, StringComparison.OrdinalIgnoreCase))
             {
                 var channel = (SocketTextChannel)msg.Channel;
                 var author = (SocketGuildUser)msg.Author;
