@@ -268,16 +268,12 @@ namespace BirthdayBot.BackgroundServices
             namestrings.Sort(StringComparer.OrdinalIgnoreCase);
 
             var namedisplay = new StringBuilder();
-            var first = true;
             foreach (var item in namestrings)
             {
-                if (!first)
-                {
-                    namedisplay.Append(", ");
-                    first = false;
-                }
+                namedisplay.Append(", ");
                 namedisplay.Append(item);
             }
+            namedisplay.Remove(0, 2); // Remove initial comma and space
 
             try
             {
