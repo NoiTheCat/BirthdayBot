@@ -12,9 +12,20 @@ namespace BirthdayBot
     class BackgroundServiceRunner
     {
         // Amount of idle time between each round of task execution, in seconds.
+#if DEBUG
+        // Amount of idle time between each round of task execution, in seconds.
+        const int Interval = 10;
+
+        // Amount of time between start and first round of processing, in seconds.
+        const int StartDelay = 15;
+#else
+        // Amount of idle time between each round of task execution, in seconds.
         const int Interval = 8 * 60;
+
         // Amount of time between start and first round of processing, in seconds.
         const int StartDelay = 60;
+#endif
+
 
         const string LogName = nameof(BackgroundServiceRunner);
 
@@ -53,14 +64,10 @@ namespace BirthdayBot
         /// </summary>
         private async Task WorkerLoop()
         {
-#if !DEBUG
             // Start an initial delay before tasks begin running
             Program.Log(LogName, $"Delaying first background execution by {StartDelay} seconds.");
             try { await Task.Delay(StartDelay * 1000, _workerCancel.Token); }
             catch (TaskCanceledException) { return; }
-#else
-            Program.Log(LogName, "Debug build - skipping initial processing delay.");
-#endif
             while (!_workerCancel.IsCancellationRequested)
             {
                 // Initiate background tasks
