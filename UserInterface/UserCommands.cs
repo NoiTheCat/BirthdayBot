@@ -253,9 +253,12 @@ namespace BirthdayBot.UserInterface
                 return;
             }
 
-            await reqChannel.SendMessageAsync(Common.FormatName(searchTarget, false) + ": "
-                + $"`{ searchTargetData.BirthDay.ToString("00")}-{Common.MonthNames[searchTargetData.BirthMonth]}`"
-                + searchTargetData.TimeZone == null ? "" : $" - `{ searchTargetData.TimeZone}`");
+            string result = Common.FormatName(searchTarget, false);
+            result += ": ";
+            result += $"`{searchTargetData.BirthDay:00}-{Common.MonthNames[searchTargetData.BirthMonth]}`";
+            result += searchTargetData.TimeZone == null ? "" : $" - `{searchTargetData.TimeZone}`";
+
+            await reqChannel.SendMessageAsync(result);
         }
     }
 }
