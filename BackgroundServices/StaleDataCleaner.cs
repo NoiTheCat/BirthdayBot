@@ -44,7 +44,7 @@ namespace BirthdayBot.BackgroundServices
                 cUpdateGuildUser.CommandText = $"update {GuildUserSettings.BackingTable} set last_seen = now() "
                     + "where guild_id = @Gid and user_id = @Uid";
                 var pUpdateGU_g = cUpdateGuildUser.Parameters.Add("@Gid", NpgsqlDbType.Bigint);
-                var pUpdateGU_u = cUpdateGuild.Parameters.Add("@Uid", NpgsqlDbType.Bigint);
+                var pUpdateGU_u = cUpdateGuildUser.Parameters.Add("@Uid", NpgsqlDbType.Bigint);
                 cUpdateGuildUser.Prepare();
 
                 // Do actual updates
@@ -67,20 +67,20 @@ namespace BirthdayBot.BackgroundServices
                 // Delete all old values - expects referencing tables to have 'on delete cascade'
                 using (var t = db.BeginTransaction())
                 {
+                    int staleGuilds, staleUsers;
                     using (var c = db.CreateCommand())
                     {
                         // Delete data for guilds not seen in 4 weeks
                         c.CommandText = $"delete from {GuildStateInformation.BackingTable} where (now() - interval '28 days') > last_seen";
-                        var r = c.ExecuteNonQuery();
-                        if (r != 0) Log($"Removed {r} stale guild(s).");
+                        staleGuilds = c.ExecuteNonQuery();
                     }
                     using (var c = db.CreateCommand())
                     {
                         // Delete data for users not seen in 8 weeks
                         c.CommandText = $"delete from {GuildUserSettings.BackingTable} where (now() - interval '56 days') > last_seen";
-                        var r = c.ExecuteNonQuery();
-                        if (r != 0) Log($"Removed {r} stale user(s).");
+                        staleUsers = c.ExecuteNonQuery();
                     }
+                    Log($"Will remove {staleGuilds} guilds, {staleUsers} users.");
                     t.Commit();
                 }
             }

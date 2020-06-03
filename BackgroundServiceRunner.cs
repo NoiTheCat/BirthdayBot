@@ -11,21 +11,16 @@ namespace BirthdayBot
     /// </summary>
     class BackgroundServiceRunner
     {
-        // Amount of idle time between each round of task execution, in seconds.
-#if DEBUG
-        // Amount of idle time between each round of task execution, in seconds.
-        const int Interval = 10;
-
-        // Amount of time between start and first round of processing, in seconds.
-        const int StartDelay = 15;
-#else
+#if !DEBUG
         // Amount of idle time between each round of task execution, in seconds.
         const int Interval = 8 * 60;
 
         // Amount of time between start and first round of processing, in seconds.
         const int StartDelay = 60;
+#else
+        const int Interval = 10;
+        const int StartDelay = 15;
 #endif
-
 
         const string LogName = nameof(BackgroundServiceRunner);
 
@@ -43,7 +38,8 @@ namespace BirthdayBot
             {
                 {new GuildStatistics(instance)},
                 {new Heartbeat(instance)},
-                {BirthdayUpdater}
+                {BirthdayUpdater},
+                {new StaleDataCleaner(instance)}
             };
         }
 
