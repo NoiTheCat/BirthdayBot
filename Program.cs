@@ -43,7 +43,6 @@ namespace BirthdayBot
         /// </summary>
         public static void Log(string source, string message)
         {
-            // Add file logging later?
             var ts = DateTime.UtcNow;
             var ls = new string[]{ "\r\n", "\n" };
             foreach (var item in message.Split(ls, StringSplitOptions.None))
@@ -52,6 +51,9 @@ namespace BirthdayBot
 
         private static Task DNetLog(LogMessage arg)
         {
+            // Suppress 'Unknown Dispatch' messages
+            if (arg.Message.StartsWith("Unknown Dispatch ")) return Task.CompletedTask;
+
             if (arg.Severity <= LogSeverity.Info)
             {
                 Log("Discord.Net", $"{arg.Severity}: {arg.Message}");
