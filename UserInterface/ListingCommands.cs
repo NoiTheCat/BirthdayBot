@@ -21,8 +21,76 @@ namespace BirthdayBot.UserInterface
             {
                 ("list", CmdList),
                 ("upcoming", CmdUpcoming),
-                ("recent", CmdUpcoming)
+                ("recent", CmdUpcoming),
+                ("when", CmdWhen)
             };
+
+        #region Documentation
+        public static readonly CommandDocumentation DocList =
+            new CommandDocumentation(new string[] { "list" }, "Exports all birthdays to a file."
+                + " Accepts `csv` as an optional parameter.", null);
+        public static readonly CommandDocumentation DocUpcoming =
+            new CommandDocumentation(new string[] { "recent", "upcoming" }, "Lists recent and upcoming birthdays.", null);
+        public static readonly CommandDocumentation DocWhen =
+            new CommandDocumentation(new string[] { "when" }, "Displays the given user's birthday information.", null);
+        #endregion
+
+        private async Task CmdWhen(string[] param, SocketTextChannel reqChannel, SocketGuildUser reqUser)
+        {
+            // Requires a parameter
+            if (param.Length == 1)
+            {
+                await reqChannel.SendMessageAsync(ParameterError, embed: DocWhen.UsageEmbed);
+                return;
+            }
+
+            var search = param[1];
+            if (param.Length == 3)
+            {
+                // param maxes out at 3 values. param[2] might contain part of the search string (if name has a space)
+                search += " " + param[2];
+            }
+
+            SocketGuildUser searchTarget = null;
+
+            ulong searchId = 0;
+            if (!TryGetUserId(search, out searchId)) // ID lookup
+            {
+                // name lookup without discriminator
+                foreach (var searchuser in reqChannel.Guild.Users)
+                {
+                    if (string.Equals(search, searchuser.Username, StringComparison.OrdinalIgnoreCase))
+                    {
+                        searchTarget = searchuser;
+                        break;
+                    }
+                }
+            }
+            else
+            {
+                searchTarget = reqChannel.Guild.GetUser(searchId);
+            }
+            if (searchTarget == null)
+            {
+                await reqChannel.SendMessageAsync(BadUserError, embed: DocWhen.UsageEmbed);
+                return;
+            }
+
+            var users = Instance.GuildCache[reqChannel.Guild.Id].Users;
+            var searchTargetData = users.FirstOrDefault(u => u.UserId == searchTarget.Id);
+            if (searchTargetData == null)
+            {
+                await reqChannel.SendMessageAsync("I do not have birthday information for that user.");
+                return;
+            }
+
+            string result = Common.FormatName(searchTarget, false);
+            result += ": ";
+            result += $"`{searchTargetData.BirthDay:00}-{Common.MonthNames[searchTargetData.BirthMonth]}`";
+            result += searchTargetData.TimeZone == null ? "" : $" - `{searchTargetData.TimeZone}`";
+
+            await reqChannel.SendMessageAsync(result);
+        }
 
         // Creates a file with all birthdays.
         private async Task CmdList(string[] param, SocketTextChannel reqChannel, SocketGuildUser reqUser)
@@ -30,6 +98,7 @@ namespace BirthdayBot.UserInterface
             // For now, we're restricting this command to moderators only. This may turn into an option later.
             if (!Instance.GuildCache[reqChannel.Guild.Id].IsUserModerator(reqUser))
             {
+                // Do not add detailed usage information to this error message.
                 await reqChannel.SendMessageAsync(":x: Only bot moderators may use this command.");
                 return;
             }
@@ -41,13 +110,13 @@ namespace BirthdayBot.UserInterface
                 if (param[1].ToLower() == "csv") useCsv = true;
                 else
                 {
-                    await reqChannel.SendMessageAsync(":x: That is not available as an export format.");
+                    await reqChannel.SendMessageAsync(":x: That is not available as an export format.", embed: DocList.UsageEmbed);
                     return;
                 }
             }
             else if (param.Length > 2)
             {
-                await reqChannel.SendMessageAsync(GenericError);
+                await reqChannel.SendMessageAsync(ParameterError, embed: DocList.UsageEmbed);
                 return;
             }
 
@@ -78,7 +147,7 @@ namespace BirthdayBot.UserInterface
             catch (Exception ex)
             {
                 Program.Log("Listing", ex.ToString());
-                reqChannel.SendMessageAsync(":x: An internal error occurred. It has been reported to the bot owner.").Wait();
+                reqChannel.SendMessageAsync(InternalError).Wait();
                 // TODO webhook report
             }
             finally

@@ -37,25 +37,18 @@ namespace BirthdayBot.UserInterface
                 Name = "Commands",
                 Value = $"{cpfx}help`, `{CommandPrefix}info`, `{CommandPrefix}help-tzdata`\n"
                     + $" » Help and informational messages.\n"
-                    + $"{cpfx}recent` and `{CommandPrefix}upcoming`\n"
-                    + $" » Lists recent and upcoming birthdays.\n"
-                    + $"{cpfx}set (date) [zone]`\n"
-                    + $" » Registers your birth date. Time zone is optional.\n"
-                    + $" »» Examples: `{CommandPrefix}set jan-31`, `{CommandPrefix}set 15-aug America/Los_Angeles`.\n"
-                    + $"{cpfx}zone (zone)`\n"
-                    + $" » Sets your local time zone. See `{CommandPrefix}help-tzdata`.\n"
-                    + $"{cpfx}remove`\n"
-                    + $" » Removes your birthday information from this bot.\n"
-                    + $"{cpfx}when (user)`\n"
-                    + $" » Displays birthday information of the given user."
+                    + ListingCommands.DocUpcoming.Export() + "\n"
+                    + UserCommands.DocSet.Export() + "\n"
+                    + UserCommands.DocZone.Export() + "\n"
+                    + UserCommands.DocRemove.Export() + "\n"
+                    + ListingCommands.DocWhen.Export()
             };
             var cmdModField = new EmbedFieldBuilder()
             {
-                Name = "Commands",
+                Name = "Moderator actions",
                 Value = $"{cpfx}config`\n"
                     + $" » Edit bot configuration. See `{CommandPrefix}help-config`.\n"
-                    + $"{cpfx}list`\n"
-                    + $" » Exports all birthdays to file. Accepts `csv` as a parameter.\n"
+                    + ListingCommands.DocList.Export() + "\n"
                     + $"{cpfx}override (user ping or ID) (command w/ parameters)`\n"
                     + " » Perform certain commands on behalf of another user."
             };

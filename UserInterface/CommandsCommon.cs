@@ -20,7 +20,10 @@ namespace BirthdayBot.UserInterface
         [Obsolete]
         public const string GenericError = ":x: Invalid usage. Consult the help command.";
         public const string BadUserError = ":x: Unable to find user. Specify their `@` mention or their ID.";
-        public const string ExpectedNoParametersError = ":x: This command does not take parameters. Did you mean to use another?";
+        public const string ParameterError = ":x: Incorrect number of parameters. Be sure you have not added spaces"
+                    + " where the bot is not expecting them or that all required information has been provided.";
+        public const string NoParameterError = ":x: This command does not accept parameters.";
+        public const string InternalError = ":x: An internal bot error occurred. The bot maintainer has been notified of the issue.";
 
         public delegate Task CommandHandler(string[] param, SocketTextChannel reqChannel, SocketGuildUser reqUser);
 
@@ -68,7 +71,8 @@ namespace BirthdayBot.UserInterface
                 // Just check if the input exists in the map. Get the "true" value, or reject it altogether.
                 if (!TzNameMap.TryGetValue(tzinput, out tz))
                 {
-                    throw new FormatException(":x: Unknown or invalid time zone name.");
+                    throw new FormatException(":x: Unexpected time zone name."
+                        + $" Refer to `{CommandPrefix}help-tzdata` to help determine the correct value.");
                 }
             }
             return tz;

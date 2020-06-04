@@ -16,8 +16,7 @@ namespace BirthdayBot.UserInterface
             {
                 ("set", CmdSet),
                 ("zone", CmdZone),
-                ("remove", CmdRemove),
-                ("when", CmdWhen)
+                ("remove", CmdRemove)
             };
 
         /// <summary>
@@ -27,6 +26,8 @@ namespace BirthdayBot.UserInterface
         /// <exception cref="FormatException">Thrown for any parsing issue. Reason is expected to be sent to Discord as-is.</exception>
         private (int, int) ParseDate(string dateInput)
         {
+            const string FormatError = ":x: Incorrect date format. Use a three-letter abbreviation and a number separated by "
+                + "hyphen to specify a date. Examples: `jan-15` `23-aug` `may-12` `5-jun`";
             // Not doing DateTime.Parse. Setting it up is rather complicated, and it's probably case sensitive.
             // Admittedly, doing it the way it's being done here probably isn't any better.
             var m = Regex.Match(dateInput, @"^(?<day>\d{1,2})-(?<month>[A-Za-z]{3})$");
@@ -34,7 +35,7 @@ namespace BirthdayBot.UserInterface
             {
                 // Flip the fields around, try again
                 m = Regex.Match(dateInput, @"^(?<month>[A-Za-z]{3})-(?<day>\d{1,2})$");
-                if (!m.Success) throw new FormatException(GenericError);
+                if (!m.Success) throw new FormatException(FormatError);
             }
             int day;
             try
@@ -43,7 +44,7 @@ namespace BirthdayBot.UserInterface
             }
             catch (FormatException)
             {
-                throw new Exception(GenericError);
+                throw new Exception(FormatError);
             }
             var monthVal = m.Groups["month"].Value;
             int month;
@@ -99,12 +100,23 @@ namespace BirthdayBot.UserInterface
             return (month, day);
         }
 
+        #region Documentation
+        public static readonly CommandDocumentation DocSet =
+            new CommandDocumentation(new string[] { "set (date) [zone]" }, "Registers your birth date. Time zone is optional.",
+                $"`{CommandPrefix}set jan-31`, `{CommandPrefix}set 15-aug America/Los_Angeles`.");
+        public static readonly CommandDocumentation DocZone =
+            new CommandDocumentation(new string[] { "zone (zone)" }, "Sets your local time zone. "
+                + $"See also `{CommandPrefix}help-tzdata`.", null);
+        public static readonly CommandDocumentation DocRemove =
+            new CommandDocumentation(new string[] { "remove" }, "Removes your birthday information from this bot.", null);
+        #endregion
+
         private async Task CmdSet(string[] param, SocketTextChannel reqChannel, SocketGuildUser reqUser)
         {
             // Requires one parameter. Optionally two.
             if (param.Length < 2 || param.Length > 3)
             {
-                await reqChannel.SendMessageAsync(GenericError);
+                await reqChannel.SendMessageAsync(ParameterError, embed: DocSet.UsageEmbed);
                 return;
             }
 
@@ -120,7 +132,7 @@ namespace BirthdayBot.UserInterface
             catch (FormatException ex)
             {
                 // Our parse methods' FormatException has its message to send out to Discord.
-                reqChannel.SendMessageAsync(ex.Message).Wait();
+                reqChannel.SendMessageAsync(ex.Message, embed: DocSet.UsageEmbed).Wait();
                 return;
             }
 
@@ -135,8 +147,8 @@ namespace BirthdayBot.UserInterface
             catch (Exception ex)
             {
                 Program.Log("Error", ex.ToString());
-                reqChannel.SendMessageAsync(":x: An unknown error occurred. The bot owner has been notified.").Wait();
                 // TODO webhook report
+                reqChannel.SendMessageAsync(InternalError).Wait();
                 return;
             }
             if (known)
@@ -153,25 +165,26 @@ namespace BirthdayBot.UserInterface
         {
             if (param.Length != 2)
             {
-                await reqChannel.SendMessageAsync(GenericError);
+                await reqChannel.SendMessageAsync(ParameterError, embed: DocZone.UsageEmbed);
                 return;
             }
 
-            string btz = null;
             var user = Instance.GuildCache[reqChannel.Guild.Id].GetUser(reqUser.Id);
             if (!user.IsKnown)
             {
-                await reqChannel.SendMessageAsync(":x: Can't set your time zone if your birth date isn't registered.");
+                await reqChannel.SendMessageAsync(":x: You may only update your time zone when you have a birthday registered."
+                    + $" Refer to the `{CommandPrefix}set` command.", embed: DocZone.UsageEmbed);
                 return;
             }
 
+            string btz;
             try
             {
                 btz = ParseTimeZone(param[1]);
             }
             catch (Exception ex)
             {
-                reqChannel.SendMessageAsync(ex.Message).Wait();
+                reqChannel.SendMessageAsync(ex.Message, embed: DocZone.UsageEmbed).Wait();
                 return;
             }
             await user.UpdateAsync(user.BirthMonth, user.BirthDay, btz, BotConfig.DatabaseSettings);
@@ -184,7 +197,7 @@ namespace BirthdayBot.UserInterface
             // Parameter count check
             if (param.Length != 1)
             {
-                await reqChannel.SendMessageAsync(ExpectedNoParametersError);
+                await reqChannel.SendMessageAsync(NoParameterError, embed: DocRemove.UsageEmbed);
                 return;
             }
 
@@ -196,69 +209,12 @@ namespace BirthdayBot.UserInterface
             await g.DeleteUserAsync(reqUser.Id);
             if (!known)
             {
-                await reqChannel.SendMessageAsync(":white_check_mark: I don't have your information. Nothing to remove.");
+                await reqChannel.SendMessageAsync(":white_check_mark: This bot already does not contain your information.");
             }
             else
             {
                 await reqChannel.SendMessageAsync(":white_check_mark: Your information has been removed.");
             }
-        }
-
-        private async Task CmdWhen(string[] param, SocketTextChannel reqChannel, SocketGuildUser reqUser)
-        {
-            // Requires a parameter
-            if (param.Length == 1)
-            {
-                await reqChannel.SendMessageAsync(GenericError);
-                return;
-            }
-
-            var search = param[1];
-            if (param.Length == 3)
-            {
-                // param maxes out at 3 values. param[2] might contain part of the search string (if name has a space)
-                search += " " + param[2];
-            }
-
-            SocketGuildUser searchTarget = null;
-
-            ulong searchId = 0;
-            if (!TryGetUserId(search, out searchId)) // ID lookup
-            {
-                // name lookup without discriminator
-                foreach (var searchuser in reqChannel.Guild.Users)
-                {
-                    if (string.Equals(search, searchuser.Username, StringComparison.OrdinalIgnoreCase))
-                    {
-                        searchTarget = searchuser;
-                        break;
-                    }
-                }
-            }
-            else
-            {
-                searchTarget = reqChannel.Guild.GetUser(searchId);
-            }
-            if (searchTarget == null)
-            {
-                await reqChannel.SendMessageAsync(BadUserError);
-                return;
-            }
-
-            var users = Instance.GuildCache[reqChannel.Guild.Id].Users;
-            var searchTargetData = users.FirstOrDefault(u => u.UserId == searchTarget.Id);
-            if (searchTargetData == null)
-            {
-                await reqChannel.SendMessageAsync("The given user does not exist or has not set a birthday.");
-                return;
-            }
-
-            string result = Common.FormatName(searchTarget, false);
-            result += ": ";
-            result += $"`{searchTargetData.BirthDay:00}-{Common.MonthNames[searchTargetData.BirthMonth]}`";
-            result += searchTargetData.TimeZone == null ? "" : $" - `{searchTargetData.TimeZone}`";
-
-            await reqChannel.SendMessageAsync(result);
         }
     }
 }
