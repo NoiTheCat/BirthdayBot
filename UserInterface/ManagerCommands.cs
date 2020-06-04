@@ -1,4 +1,5 @@
-﻿using Discord;
+﻿using BirthdayBot.BackgroundServices;
+using Discord;
 using Discord.WebSocket;
 using NodaTime;
 using System;
@@ -11,6 +12,8 @@ namespace BirthdayBot.UserInterface
 {
     internal class ManagerCommands : CommandsCommon
     {
+        private static readonly string ConfErrorPostfix =
+            $" Refer to the `{CommandPrefix}help-config` command for information on this command's usage.";
         private delegate Task ConfigSubcommand(string[] param, SocketTextChannel reqChannel);
 
         private readonly Dictionary<string, ConfigSubcommand> _subcommands;
@@ -45,6 +48,12 @@ namespace BirthdayBot.UserInterface
                 ("override", CmdOverride),
                 ("status", CmdStatus)
             };
+
+        #region Documentation
+        public static readonly CommandDocumentation DocOverride =
+            new CommandDocumentation(new string[] { "override (user ping or ID) (command w/ parameters)" },
+                "Perform certain commands on behalf of another user.", null);
+        #endregion
 
         private async Task CmdConfigDispatch(string[] param, SocketTextChannel reqChannel, SocketGuildUser reqUser)
         {
@@ -267,7 +276,7 @@ namespace BirthdayBot.UserInterface
         {
             if (param.Length != 2)
             {
-                await reqChannel.SendMessageAsync(GenericError);
+                await reqChannel.SendMessageAsync(ParameterError + ConfErrorPostfix);
                 return;
             }
 
@@ -313,7 +322,7 @@ namespace BirthdayBot.UserInterface
         {
             if (param.Length != 2)
             {
-                await reqChannel.SendMessageAsync(GenericError);
+                await reqChannel.SendMessageAsync(ParameterError + ConfErrorPostfix);
                 return;
             }
 
@@ -323,7 +332,7 @@ namespace BirthdayBot.UserInterface
             else if (parameter == "off") modSet = false;
             else
             {
-                await reqChannel.SendMessageAsync(GenericError);
+                await reqChannel.SendMessageAsync(":x: Expected `on` or `off` as a parameter." + ConfErrorPostfix);
                 return;
             }
 
@@ -373,7 +382,7 @@ namespace BirthdayBot.UserInterface
 
             if (param.Length != 3)
             {
-                await reqChannel.SendMessageAsync(GenericError);
+                await reqChannel.SendMessageAsync(ParameterError, embed: DocOverride.UsageEmbed);
                 return;
             }
 
@@ -381,13 +390,13 @@ namespace BirthdayBot.UserInterface
             ulong user = 0;
             if (!TryGetUserId(param[1], out user))
             {
-                await reqChannel.SendMessageAsync(BadUserError);
+                await reqChannel.SendMessageAsync(BadUserError, embed: DocOverride.UsageEmbed);
                 return;
             }
             var overuser = reqChannel.Guild.GetUser(user);
             if (overuser == null)
             {
-                await reqChannel.SendMessageAsync(BadUserError);
+                await reqChannel.SendMessageAsync(BadUserError, embed: DocOverride.UsageEmbed);
                 return;
             }
 
@@ -408,7 +417,7 @@ namespace BirthdayBot.UserInterface
             CommandHandler action = null;
             if (!_usercommands.TryGetValue(cmdsearch, out action))
             {
-                await reqChannel.SendMessageAsync($":x: `{cmdsearch}` is not an overridable command.");
+                await reqChannel.SendMessageAsync($":x: `{cmdsearch}` is not an overridable command.", embed: DocOverride.UsageEmbed);
                 return;
             }
 

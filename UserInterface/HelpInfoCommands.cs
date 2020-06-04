@@ -49,8 +49,7 @@ namespace BirthdayBot.UserInterface
                 Value = $"{cpfx}config`\n"
                     + $" » Edit bot configuration. See `{CommandPrefix}help-config`.\n"
                     + ListingCommands.DocList.Export() + "\n"
-                    + $"{cpfx}override (user ping or ID) (command w/ parameters)`\n"
-                    + " » Perform certain commands on behalf of another user."
+                    + ManagerCommands.DocOverride.Export()
             };
             var helpRegular = new EmbedBuilder().AddField(cmdField).AddField(cmdModField);
 

@@ -17,12 +17,9 @@ namespace BirthdayBot.UserInterface
 #else
         public const string CommandPrefix = "bb.";
 #endif
-        [Obsolete]
-        public const string GenericError = ":x: Invalid usage. Consult the help command.";
         public const string BadUserError = ":x: Unable to find user. Specify their `@` mention or their ID.";
-        public const string ParameterError = ":x: Incorrect number of parameters. Be sure you have not added spaces"
-                    + " where the bot is not expecting them or that all required information has been provided.";
-        public const string NoParameterError = ":x: This command does not accept parameters.";
+        public const string ParameterError = ":x: Invalid usage. Refer to how to use the command and try again.";
+        public const string NoParameterError = ":x: This command does not accept any parameters.";
         public const string InternalError = ":x: An internal bot error occurred. The bot maintainer has been notified of the issue.";
 
         public delegate Task CommandHandler(string[] param, SocketTextChannel reqChannel, SocketGuildUser reqUser);
