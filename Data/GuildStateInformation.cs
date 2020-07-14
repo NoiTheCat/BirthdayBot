@@ -27,7 +27,6 @@ namespace BirthdayBot.Data
         private readonly Dictionary<ulong, GuildUserSettings> _userCache;
 
         public ulong GuildId { get; }
-        public OperationStatus OperationLog { get; set; }
 
         /// <summary>
         /// Gets a list of cached registered user information.
@@ -82,8 +81,6 @@ namespace BirthdayBot.Data
         private GuildStateInformation(DbDataReader reader, Database dbconfig)
         {
             _db = dbconfig;
-
-            OperationLog = new OperationStatus();
 
             GuildId = (ulong)reader.GetInt64(0);
             if (!reader.IsDBNull(1))

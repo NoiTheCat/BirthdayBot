@@ -1,7 +1,4 @@
-﻿using BirthdayBot.BackgroundServices;
-using Discord;
-using Discord.WebSocket;
-using NodaTime;
+﻿using Discord.WebSocket;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -18,8 +15,10 @@ namespace BirthdayBot.UserInterface
 
         private readonly Dictionary<string, ConfigSubcommand> _subcommands;
         private readonly Dictionary<string, CommandHandler> _usercommands;
+        private readonly Func<SocketGuild, Task<string>> _bRoleUpdAccess;
 
-        public ManagerCommands(BirthdayBot inst, Configuration db, IEnumerable<(string, CommandHandler)> userCommands)
+        public ManagerCommands(BirthdayBot inst, Configuration db,
+            IEnumerable<(string, CommandHandler)> userCommands, Func<SocketGuild, Task<string>> brsingleupdate)
             : base(inst, db)
         {
             _subcommands = new Dictionary<string, ConfigSubcommand>(StringComparer.OrdinalIgnoreCase)
@@ -39,6 +38,9 @@ namespace BirthdayBot.UserInterface
             // Set up local copy of all user commands accessible by the override command
             _usercommands = new Dictionary<string, CommandHandler>(StringComparer.OrdinalIgnoreCase);
             foreach (var item in userCommands) _usercommands.Add(item.Item1, item.Item2);
+
+            // and access to the otherwise automated guild update function
+            _bRoleUpdAccess = brsingleupdate;
         }
 
         public override IEnumerable<(string, CommandHandler)> Commands
@@ -46,7 +48,7 @@ namespace BirthdayBot.UserInterface
             {
                 ("config", CmdConfigDispatch),
                 ("override", CmdOverride),
-                ("status", CmdStatus)
+                ("test", CmdTest)
             };
 
         #region Documentation
@@ -426,39 +428,36 @@ namespace BirthdayBot.UserInterface
             await action.Invoke(overparam, reqChannel, overuser);
         }
 
-        // Prints a status report useful for troubleshooting operational issues within a guild
-        private async Task CmdStatus(string[] param, SocketTextChannel reqChannel, SocketGuildUser reqUser)
+        // Publicly available command that immediately processes the current guild, 
+        private async Task CmdTest(string[] param, SocketTextChannel reqChannel, SocketGuildUser reqUser)
         {
             // Moderators only. As with config, silently drop if this check fails.
             if (!Instance.GuildCache[reqUser.Guild.Id].IsUserModerator(reqUser)) return;
+            // TODO fix this or incorporate into final output - checking existence in guild cache is a step in the process
 
-            DateTimeOffset optime;
-            string optext;
-            string zone;
-            var gi = Instance.GuildCache[reqChannel.Guild.Id];
-            lock (gi)
+            if (param.Length != 1) 
             {
-                var opstat = gi.OperationLog;
-                optext = opstat.GetDiagStrings(); // !!! Bulk of output handled by this method
-                optime = opstat.Timestamp;
-                zone = gi.TimeZone ?? "UTC";
+                // Too many parameters
+                // Note: Non-standard error display
+                await reqChannel.SendMessageAsync(NoParameterError);
+                return;
             }
-            var shard = Instance.DiscordClient.GetShardIdFor(reqChannel.Guild);
 
-            // Calculate timestamp in current zone
-            var zonedTimeInstant = SystemClock.Instance.GetCurrentInstant().InZone(DateTimeZoneProviders.Tzdb.GetZoneOrNull(zone));
-            var timeAgoEstimate = DateTimeOffset.UtcNow - optime;
+            // had an option to clear roles here, but application testing revealed that running the
+            // test at this point would make the updater assume that roles had not yet been cleared
+            // may revisit this later...
 
-            var result = new EmbedBuilder
+            try
             {
-                Title = "Background operation status",
-                Description = $"Shard: {shard}\n"
-                + $"Operation time: {Math.Round(timeAgoEstimate.TotalSeconds)} second(s) ago at {zonedTimeInstant}\n"
-                + "Report:\n"
-                + optext.TrimEnd()
-            };
-
-            await reqChannel.SendMessageAsync(embed: result.Build());
+                var result = await _bRoleUpdAccess(reqChannel.Guild);
+                await reqChannel.SendMessageAsync(result);
+            }
+            catch (Exception ex)
+            {
+                Program.Log("Test command", ex.ToString());
+                reqChannel.SendMessageAsync(InternalError).Wait();
+                // TODO webhook report
+            }
         }
 
         #region Common/helper methods

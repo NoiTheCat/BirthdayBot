@@ -45,7 +45,7 @@ namespace BirthdayBot
             foreach (var item in _cmdsListing.Commands) _dispatchCommands.Add(item.Item1, item.Item2);
             _cmdsHelp = new HelpInfoCommands(this, conf);
             foreach (var item in _cmdsHelp.Commands) _dispatchCommands.Add(item.Item1, item.Item2);
-            _cmdsMods = new ManagerCommands(this, conf, _cmdsUser.Commands);
+            _cmdsMods = new ManagerCommands(this, conf, _cmdsUser.Commands, _worker.BirthdayUpdater.SingleProcessGuildAsync);
             foreach (var item in _cmdsMods.Commands) _dispatchCommands.Add(item.Item1, item.Item2);
 
             // Register event handlers
@@ -91,9 +91,25 @@ namespace BirthdayBot
             return Task.CompletedTask;
         }
 
-        private async Task SetStatus(DiscordSocketClient shard)
+        private async Task SetStatus(DiscordSocketClient shard) => await shard.SetGameAsync(CommandPrefix + "help");
+
+        public async Task PushErrorLog(string source, string message)
         {
-            await shard.SetGameAsync(CommandPrefix + "help");
+            // Attempt to report instance logging failure to the reporting channel
+            try
+            {
+                EmbedBuilder e = new EmbedBuilder()
+                {
+                    Footer = new EmbedFooterBuilder() { Text = source },
+                    Timestamp = DateTimeOffset.UtcNow,
+                    Description = message
+                };
+                await LogWebhook.SendMessageAsync(embeds: new Embed[] { e.Build() });
+            }
+            catch
+            {
+                return; // Give up
+            }
         }
 
         private async Task Dispatch(SocketMessage msg)
@@ -144,10 +160,6 @@ namespace BirthdayBot
                         // Fail silently.
                     }
                 }
-
-                // Immediately check for role updates in the invoking guild
-                // TODO be smarter about when to call this
-                await _worker.BirthdayUpdater.SingleUpdateFor(channel.Guild);
             }
         }
     }

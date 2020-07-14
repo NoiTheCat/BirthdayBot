@@ -53,69 +53,54 @@ namespace BirthdayBot.BackgroundServices
             GC.Collect();
         }
 
-        public async Task SingleUpdateFor(SocketGuild guild)
-        {
-            try
-            {
-                await ProcessGuildAsync(guild);
-            }
-            catch (Exception ex)
-            {
-                Log("Encountered an error during guild processing:");
-                Log(ex.ToString());
-            }
-
-            // TODO metrics for role sets, unsets, announcements - and I mentioned this above too
-        }
+        /// <summary>
+        /// Access to <see cref="ProcessGuildAsync(SocketGuild)"/> for the testing command.
+        /// </summary>
+        /// <returns>Diagnostic data in string form.</returns>
+        public async Task<string> SingleProcessGuildAsync(SocketGuild guild) => (await ProcessGuildAsync(guild)).Export();
 
         /// <summary>
         /// Main method where actual guild processing occurs.
         /// </summary>
-        private async Task ProcessGuildAsync(SocketGuild guild)
+        private async Task<PGDiagnostic> ProcessGuildAsync(SocketGuild guild)
         {
+            var diag = new PGDiagnostic();
+
             // Skip processing of guild if local info has not yet been loaded
-            if (!BotInstance.GuildCache.TryGetValue(guild.Id, out var gs)) return;
+            if (!BotInstance.GuildCache.TryGetValue(guild.Id, out var gs))
+            {
+                diag.FetchCachedGuild = "Server information not yet loaded by the bot. Try again later.";
+                return diag;
+            }
+            diag.FetchCachedGuild = null;
 
             // Check if role settings are correct before continuing with further processing
             SocketRole role = null;
             if (gs.RoleId.HasValue) role = guild.GetRole(gs.RoleId.Value);
-            var roleCheck = CheckCorrectRoleSettings(guild, role);
-            if (!roleCheck.Item1)
-            {
-                lock (gs)
-                    gs.OperationLog = new OperationStatus((OperationStatus.OperationType.UpdateBirthdayRoleMembership, roleCheck.Item2));
-                return;
-            }
+            diag.RoleCheck = CheckCorrectRoleSettings(guild, role);
+            if (diag.RoleCheck != null) return diag;
 
             // Determine who's currently having a birthday
             var users = gs.Users;
             var tz = gs.TimeZone;
             var birthdays = GetGuildCurrentBirthdays(users, tz);
             // Note: Don't quit here if zero people are having birthdays. Roles may still need to be removed by BirthdayApply.
+            diag.CurrentBirthdays = birthdays.Count.ToString();
 
             IEnumerable<SocketGuildUser> announcementList;
-            (int, int) roleResult; // role additions, removals
             // Update roles as appropriate
             try
             {
                 var updateResult = await UpdateGuildBirthdayRoles(guild, role, birthdays);
                 announcementList = updateResult.Item1;
-                roleResult = updateResult.Item2;
+                diag.RoleApplyResult = updateResult.Item2; // statistics
             }
             catch (Discord.Net.HttpException ex)
             {
-                lock (gs)
-                    gs.OperationLog = new OperationStatus((OperationStatus.OperationType.UpdateBirthdayRoleMembership, ex.Message));
-                if (ex.HttpCode != System.Net.HttpStatusCode.Forbidden)
-                {
-                    // Send unusual exceptions to caller
-                    throw;
-                }
-                return;
+                diag.RoleApply = ex.Message;
+                return diag;
             }
-            (OperationStatus.OperationType, string) opResult1, opResult2;
-            opResult1 = (OperationStatus.OperationType.UpdateBirthdayRoleMembership,
-                $"Success: Added {roleResult.Item1} member(s), Removed {roleResult.Item2} member(s) from target role.");
+            diag.RoleApply = null;
 
             // Birthday announcement
             var announce = gs.AnnounceMessages;
@@ -124,41 +109,36 @@ namespace BirthdayBot.BackgroundServices
             if (gs.AnnounceChannelId.HasValue) channel = guild.GetTextChannel(gs.AnnounceChannelId.Value);
             if (announcementList.Count() != 0)
             {
-                var announceOpResult = await AnnounceBirthdaysAsync(announce, announceping, channel, announcementList);
-                opResult2 = (OperationStatus.OperationType.SendBirthdayAnnouncementMessage, announceOpResult);
+                var announceResult = await AnnounceBirthdaysAsync(announce, announceping, channel, announcementList);
+                diag.Announcement = announceResult;
             }
             else
             {
-                opResult2 = (OperationStatus.OperationType.SendBirthdayAnnouncementMessage, "Announcement not considered.");
+                diag.Announcement = "No new role additions. Announcement not needed.";
             }
 
-            // Update status
-            lock (gs) gs.OperationLog = new OperationStatus(opResult1, opResult2);
+            return diag;
         }
 
         /// <summary>
         /// Checks if the bot may be allowed to alter roles.
         /// </summary>
-        /// <returns>
-        /// First item: Boolean value determining if the role setup is correct.
-        /// Second item: String to append to operation status in case of failure.
-        /// </returns>
-        private (bool, string) CheckCorrectRoleSettings(SocketGuild guild, SocketRole role)
+        private string CheckCorrectRoleSettings(SocketGuild guild, SocketRole role)
         {
-            if (role == null) return (false, "Failed: Designated role not found or defined.");
+            if (role == null) return "Designated role is not set, or target role cannot be found.";
 
             if (!guild.CurrentUser.GuildPermissions.ManageRoles)
             {
-                return (false, "Failed: Bot does not contain Manage Roles permission.");
+                return "Bot does not have the 'Manage Roles' permission.";
             }
 
             // Check potential role order conflict
             if (role.Position >= guild.CurrentUser.Hierarchy)
             {
-                return (false, "Failed: Bot is beneath the designated role in the role hierarchy.");
+                return "Bot is unable to access the designated role due to permission hierarchy.";
             }
 
-            return (true, null);
+            return null;
         }
 
         /// <summary>
@@ -253,7 +233,7 @@ namespace BirthdayBot.BackgroundServices
         private async Task<string> AnnounceBirthdaysAsync(
             (string, string) announce, bool announcePing, SocketTextChannel c, IEnumerable<SocketGuildUser> names)
         {
-            if (c == null) return "Announcement channel is undefined.";
+            if (c == null) return "Announcement channel is not set, or previous announcement channel has been deleted.";
 
             string announceMsg;
             if (names.Count() == 1) announceMsg = announce.Item1 ?? announce.Item2 ?? DefaultAnnounce;
@@ -278,12 +258,40 @@ namespace BirthdayBot.BackgroundServices
             try
             {
                 await c.SendMessageAsync(announceMsg.Replace("%n", namedisplay.ToString()));
-                return $"Successfully announced {names.Count()} name(s)";
+                return null;
             }
             catch (Discord.Net.HttpException ex)
             {
                 // Directly use the resulting exception message in the operation status log
                 return ex.Message;
+            }
+        }
+
+        private class PGDiagnostic
+        {
+            const string DefaultValue = "--";
+
+            public string FetchCachedGuild = DefaultValue;
+            public string RoleCheck = DefaultValue;
+            public string CurrentBirthdays = DefaultValue;
+            public string RoleApply = DefaultValue;
+            public (int, int)? RoleApplyResult;
+            public string Announcement = DefaultValue;
+
+            public string Export()
+            {
+                var result = new StringBuilder();
+                result.AppendLine("Test result:");
+                result.AppendLine("Fetch guild information: " + (FetchCachedGuild ?? ":white_check_mark:"));
+                result.AppendLine("Check role permissions: " + (RoleCheck ?? ":white_check_mark:"));
+                result.AppendLine("Number of known users currently with a birthday: " + CurrentBirthdays);
+                result.AppendLine("Role application process: " + (RoleApply ?? ":white_check_mark:"));
+                result.Append("Role application metrics: ");
+                if (RoleApplyResult.HasValue) result.AppendLine($"{RoleApplyResult.Value.Item1} additions, {RoleApplyResult.Value.Item2} removals.");
+                else result.AppendLine(DefaultValue);
+                result.AppendLine("Announcement: " + (Announcement ?? ":white_check_mark:"));
+
+                return result.ToString();
             }
         }
     }
