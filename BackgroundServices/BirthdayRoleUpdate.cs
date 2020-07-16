@@ -66,23 +66,17 @@ namespace BirthdayBot.BackgroundServices
         {
             var diag = new PGDiagnostic();
 
-            // Skip processing of guild if local info has not yet been loaded
-            if (!BotInstance.GuildCache.TryGetValue(guild.Id, out var gs))
-            {
-                diag.FetchCachedGuild = "Server information not yet loaded by the bot. Try again later.";
-                return diag;
-            }
-            diag.FetchCachedGuild = null;
+            var gc = await GuildConfiguration.LoadAsync(guild.Id);
 
             // Check if role settings are correct before continuing with further processing
             SocketRole role = null;
-            if (gs.RoleId.HasValue) role = guild.GetRole(gs.RoleId.Value);
+            if (gc.RoleId.HasValue) role = guild.GetRole(gc.RoleId.Value);
             diag.RoleCheck = CheckCorrectRoleSettings(guild, role);
             if (diag.RoleCheck != null) return diag;
 
             // Determine who's currently having a birthday
-            var users = gs.Users;
-            var tz = gs.TimeZone;
+            var users = await GuildUserConfiguration.LoadAllAsync(guild.Id);
+            var tz = gc.TimeZone;
             var birthdays = GetGuildCurrentBirthdays(users, tz);
             // Note: Don't quit here if zero people are having birthdays. Roles may still need to be removed by BirthdayApply.
             diag.CurrentBirthdays = birthdays.Count.ToString();
@@ -103,10 +97,10 @@ namespace BirthdayBot.BackgroundServices
             diag.RoleApply = null;
 
             // Birthday announcement
-            var announce = gs.AnnounceMessages;
-            var announceping = gs.AnnouncePing;
+            var announce = gc.AnnounceMessages;
+            var announceping = gc.AnnouncePing;
             SocketTextChannel channel = null;
-            if (gs.AnnounceChannelId.HasValue) channel = guild.GetTextChannel(gs.AnnounceChannelId.Value);
+            if (gc.AnnounceChannelId.HasValue) channel = guild.GetTextChannel(gc.AnnounceChannelId.Value);
             if (announcementList.Count() != 0)
             {
                 var announceResult = await AnnounceBirthdaysAsync(announce, announceping, channel, announcementList);
@@ -145,7 +139,7 @@ namespace BirthdayBot.BackgroundServices
         /// Gets all known users from the given guild and returns a list including only those who are
         /// currently experiencing a birthday in the respective time zone.
         /// </summary>
-        private HashSet<ulong> GetGuildCurrentBirthdays(IEnumerable<GuildUserSettings> guildUsers, string defaultTzStr)
+        private HashSet<ulong> GetGuildCurrentBirthdays(IEnumerable<GuildUserConfiguration> guildUsers, string defaultTzStr)
         {
             var birthdayUsers = new HashSet<ulong>();
 
@@ -271,7 +265,6 @@ namespace BirthdayBot.BackgroundServices
         {
             const string DefaultValue = "--";
 
-            public string FetchCachedGuild = DefaultValue;
             public string RoleCheck = DefaultValue;
             public string CurrentBirthdays = DefaultValue;
             public string RoleApply = DefaultValue;
@@ -282,7 +275,6 @@ namespace BirthdayBot.BackgroundServices
             {
                 var result = new StringBuilder();
                 result.AppendLine("Test result:");
-                result.AppendLine("Fetch guild information: " + (FetchCachedGuild ?? ":white_check_mark:"));
                 result.AppendLine("Check role permissions: " + (RoleCheck ?? ":white_check_mark:"));
                 result.AppendLine("Number of known users currently with a birthday: " + CurrentBirthdays);
                 result.AppendLine("Role application process: " + (RoleApply ?? ":white_check_mark:"));
