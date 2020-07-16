@@ -161,7 +161,7 @@ namespace BirthdayBot.UserInterface
         private async Task CmdUpcoming(string[] param, SocketTextChannel reqChannel, SocketGuildUser reqUser)
         {
             var now = DateTimeOffset.UtcNow;
-            var search = DateIndex(now.Month, now.Day) - 4; // begin search 4 days prior to current date UTC
+            var search = DateIndex(now.Month, now.Day) - 8; // begin search 8 days prior to current date UTC
             if (search <= 0) search = 366 - Math.Abs(search);
 
             var query = await LoadList(reqChannel.Guild, true);
@@ -169,7 +169,7 @@ namespace BirthdayBot.UserInterface
             var output = new StringBuilder();
             var resultCount = 0;
             output.AppendLine("Recent and upcoming birthdays:");
-            for (int count = 0; count <= 11; count++) // cover 11 days total (3 prior, current day, 7 upcoming)
+            for (int count = 0; count <= 21; count++) // cover 21 days total (7 prior, current day, 14 upcoming)
             {
                 var results = from item in query
                               where item.DateIndex == search
@@ -192,13 +192,21 @@ namespace BirthdayBot.UserInterface
 
                 var first = true;
                 output.AppendLine();
-                output.Append($"● `{Common.MonthNames[results.First().BirthMonth]}-{results.First().BirthDay.ToString("00")}`: ");
+                output.Append($"● `{Common.MonthNames[results.First().BirthMonth]}-{results.First().BirthDay:00}`: ");
                 foreach (var item in names)
                 {
                     if (first) first = false;
                     else output.Append(", ");
                     output.Append(item);
+
+                    // If the output is starting to fill up, back out early and prepare to show the result as-is
+                    if (output.Length > 970) goto listfull;
                 }
+                continue;
+
+            listfull:
+                output.AppendLine();
+                output.Append("Not all birthdays have been shown as there are too many to list.");
             }
 
             if (resultCount == 0)
