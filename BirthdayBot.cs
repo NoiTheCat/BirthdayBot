@@ -5,8 +5,8 @@ using Discord.Net;
 using Discord.Webhook;
 using Discord.WebSocket;
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using static BirthdayBot.UserInterface.CommandsCommon;
 
@@ -20,20 +20,20 @@ namespace BirthdayBot
         private readonly HelpInfoCommands _cmdsHelp;
         private readonly ManagerCommands _cmdsMods;
 
-        private BackgroundServiceRunner _worker;
+        private readonly BackgroundServiceRunner _worker;
         
         internal Configuration Config { get; }
         internal DiscordShardedClient DiscordClient { get; }
-        // TODO consider removal of the guild cache
-        internal ConcurrentDictionary<ulong, GuildStateInformation> GuildCache { get; }
         internal DiscordWebhookClient LogWebhook { get; }
 
+        /// <summary>
+        /// Prepares the bot connection and all its event handlers
+        /// </summary>
         public BirthdayBot(Configuration conf, DiscordShardedClient dc)
         {
             Config = conf;
             DiscordClient = dc;
             LogWebhook = new DiscordWebhookClient(conf.LogWebhook);
-            GuildCache = new ConcurrentDictionary<ulong, GuildStateInformation>();
 
             _worker = new BackgroundServiceRunner(this);
 
@@ -49,15 +49,17 @@ namespace BirthdayBot
             foreach (var item in _cmdsMods.Commands) _dispatchCommands.Add(item.Item1, item.Item2);
 
             // Register event handlers
-            DiscordClient.JoinedGuild += LoadGuild;
-            DiscordClient.GuildAvailable += LoadGuild;
-            DiscordClient.LeftGuild += DiscardGuild;
             DiscordClient.ShardConnected += SetStatus;
             DiscordClient.MessageReceived += Dispatch;
         }
 
+        /// <summary>
+        /// Does some more basic initialization and then connects to Discord
+        /// </summary>
         public async Task Start()
         {
+            await Database.DoInitialDatabaseSetupAsync();
+
             await DiscordClient.LoginAsync(TokenType.Bot, Config.BotToken);
             await DiscordClient.StartAsync();
 
@@ -74,21 +76,6 @@ namespace BirthdayBot
             await _worker.Cancel();
             await DiscordClient.LogoutAsync();
             DiscordClient.Dispose();
-        }
-
-        private async Task LoadGuild(SocketGuild g)
-        {
-            if (!GuildCache.ContainsKey(g.Id))
-            {
-                var gi = await GuildStateInformation.LoadSettingsAsync(Config.DatabaseSettings, g.Id);
-                GuildCache.TryAdd(g.Id, gi);
-            }
-        }
-
-        private Task DiscardGuild(SocketGuild g)
-        {
-            GuildCache.TryRemove(g.Id, out _);
-            return Task.CompletedTask;
         }
 
         private async Task SetStatus(DiscordSocketClient shard) => await shard.SetGameAsync(CommandPrefix + "help");
@@ -114,9 +101,10 @@ namespace BirthdayBot
 
         private async Task Dispatch(SocketMessage msg)
         {
-            if (msg.Channel is IDMChannel) return;
-            if (msg.Author.IsBot) return;
-            // TODO determine message type (pin, join, etc)
+            if (!(msg.Channel is SocketTextChannel channel)) return;
+            if (msg.Author.IsBot || msg.Author.IsWebhook) return;
+            if (((IMessage)msg).Type != MessageType.Default) return;
+            var author = (SocketGuildUser)msg.Author;
 
             // Limit 3:
             // For all cases: base command, 2 parameters.
@@ -124,27 +112,25 @@ namespace BirthdayBot
             var csplit = msg.Content.Split(" ", 3, StringSplitOptions.RemoveEmptyEntries);
             if (csplit.Length > 0 && csplit[0].StartsWith(CommandPrefix, StringComparison.OrdinalIgnoreCase))
             {
-                var channel = (SocketTextChannel)msg.Channel;
-                var author = (SocketGuildUser)msg.Author;
-
                 // Determine if it's something we're listening for.
                 // Doing this first before the block check because a block check triggers a database query.
-                CommandHandler command = null;
-                if (!_dispatchCommands.TryGetValue(csplit[0].Substring(CommandPrefix.Length), out command)) return;
+                if (!_dispatchCommands.TryGetValue(csplit[0].Substring(CommandPrefix.Length), out CommandHandler command)) return;
+
+                // Load guild information here
+                var gconf = await GuildConfiguration.LoadAsync(channel.Guild.Id);
 
                 // Ban check
-                var gi = GuildCache[channel.Guild.Id];
-                // Skip ban check if user is a manager
-                if (!gi.IsUserModerator(author))
+                bool isMod = gconf.ModeratorRole.HasValue && author.Roles.Any(r => r.Id == gconf.ModeratorRole.Value);
+                if (!isMod) // skip check if user is a moderator
                 {
-                    if (gi.IsUserBlockedAsync(author.Id).GetAwaiter().GetResult()) return;
+                    if (await gconf.IsUserBlockedAsync(author.Id)) return; // silently ignore
                 }
 
                 // Execute the command
                 try
                 {
                     Program.Log("Command", $"{channel.Guild.Name}/{author.Username}#{author.Discriminator}: {msg.Content}");
-                    await command(csplit, channel, author);
+                    await command(csplit, gconf, channel, author);
                 }
                 catch (Exception ex)
                 {
