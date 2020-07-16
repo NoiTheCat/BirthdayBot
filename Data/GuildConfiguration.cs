@@ -1,306 +1,138 @@
-﻿using Discord.WebSocket;
-using Npgsql;
+﻿using Npgsql;
 using NpgsqlTypes;
 using System;
-using System.Collections.Generic;
 using System.Data.Common;
-using System.Linq;
 using System.Threading.Tasks;
 
 namespace BirthdayBot.Data
 {
     /// <summary>
-    /// Holds various pieces of state information for a guild the bot is operating in.
-    /// Includes, among other things, a copy of the guild's settings and a list of all known users with birthdays.
+    /// Represents guild-specific configuration as exists in the database.
+    /// Updating any property requires a call to <see cref="UpdateAsync"/> for changes to take effect.
     /// </summary>
-    class GuildStateInformation
+    class GuildConfiguration
     {
-        private readonly Database _db;
-        private ulong? _bdayRole;
-        private ulong? _announceCh;
-        private ulong? _modRole;
-        private string _tz;
-        private bool _moderated;
-        private string _announceMsg;
-        private string _announceMsgPl;
-        private bool _announcePing;
-        private readonly Dictionary<ulong, GuildUserSettings> _userCache;
-
+        /// <summary>
+        /// Gets this configuration's corresponding guild ID.
+        /// </summary>
         public ulong GuildId { get; }
 
         /// <summary>
-        /// Gets a list of cached registered user information.
+        /// Gets or sets the guild's designated usable role ID.
+        /// Updating this value requires a call to <see cref="UpdateAsync"/>.
         /// </summary>
-        public IEnumerable<GuildUserSettings> Users {
-            get {
-                var items = new List<GuildUserSettings>();
-                lock (this)
-                {
-                    foreach (var item in _userCache.Values) items.Add(item);
-                }
-                return items;
-            }
-        }
+        public ulong? RoleId { get; set; }
 
         /// <summary>
-        /// Gets the guild's designated Role ID.
+        /// Gets or sets the announcement channel ID.
+        /// Updating this value requires a call to <see cref="UpdateAsync"/>.
         /// </summary>
-        public ulong? RoleId { get { lock (this) { return _bdayRole; } } }
+        public ulong? AnnounceChannelId { get; set; }
 
         /// <summary>
-        /// Gets the designated announcement Channel ID.
+        /// Gets or sets the guild's default time zone ztring.
+        /// Updating this value requires a call to <see cref="UpdateAsync"/>.
         /// </summary>
-        public ulong? AnnounceChannelId { get { lock (this) { return _announceCh; } } }
+        public string TimeZone { get; set; }
 
         /// <summary>
-        /// Gets the guild's default time zone.
+        /// Gets or sets the guild's moderated mode setting.
+        /// Updating this value requires a call to <see cref="UpdateAsync"/>.
         /// </summary>
-        public string TimeZone { get { lock (this) { return _tz; } } }
+        public bool IsModerated { get; set; }
 
         /// <summary>
-        /// Gets whether the guild is in moderated mode.
+        /// Gets or sets the guild's corresponding bot moderator role ID.
+        /// Updating this value requires a call to <see cref="UpdateAsync"/>.
         /// </summary>
-        public bool IsModerated { get { lock (this) { return _moderated; } } }
+        public ulong? ModeratorRole { get; set; }
 
         /// <summary>
-        /// Gets the designated moderator role ID.
+        /// Gets or sets the guild-specific birthday announcement message.
+        /// Updating this value requires a call to <see cref="UpdateAsync"/>.
         /// </summary>
-        public ulong? ModeratorRole { get { lock (this) { return _modRole; } } }
+        public (string, string) AnnounceMessages { get; set; }
 
         /// <summary>
-        /// Gets the guild-specific birthday announcement message.
+        /// Gets or sets the announcement ping setting.
+        /// Updating this value requires a call to <see cref="UpdateAsync"/>.
         /// </summary>
-        public (string, string) AnnounceMessages { get { lock (this) { return (_announceMsg, _announceMsgPl); } } }
+        public bool AnnouncePing { get; set; }
 
-        /// <summary>
-        /// Gets whether to ping users in the announcement message instead of displaying their names.
-        /// </summary>
-        public bool AnnouncePing { get { lock (this) { return _announcePing; } } }
-
-        // Called by LoadSettingsAsync. Double-check ordinals when changes are made.
-        private GuildStateInformation(DbDataReader reader, Database dbconfig)
+        // Called by Load. Double-check ordinals when changes are made.
+        private GuildConfiguration(DbDataReader reader)
         {
-            _db = dbconfig;
-
             GuildId = (ulong)reader.GetInt64(0);
-            if (!reader.IsDBNull(1))
-            {
-                _bdayRole = (ulong)reader.GetInt64(1);
-            }
-            if (!reader.IsDBNull(2)) _announceCh = (ulong)reader.GetInt64(2);
-            _tz = reader.IsDBNull(3) ? null : reader.GetString(3);
-            _moderated = reader.GetBoolean(4);
-            if (!reader.IsDBNull(5)) _modRole = (ulong)reader.GetInt64(5);
-            _announceMsg = reader.IsDBNull(6) ? null : reader.GetString(6);
-            _announceMsgPl = reader.IsDBNull(7) ? null : reader.GetString(7);
-            _announcePing = reader.GetBoolean(8);
-
-            // Get user information loaded up.
-            var userresult = GuildUserSettings.GetGuildUsersAsync(dbconfig, GuildId);
-            _userCache = new Dictionary<ulong, GuildUserSettings>();
-            foreach (var item in userresult)
-            {
-                _userCache.Add(item.UserId, item);
-            }
+            if (!reader.IsDBNull(1)) RoleId = (ulong)reader.GetInt64(1);
+            if (!reader.IsDBNull(2)) AnnounceChannelId = (ulong)reader.GetInt64(2);
+            TimeZone = reader.IsDBNull(3) ? null : reader.GetString(3);
+            IsModerated = reader.GetBoolean(4);
+            if (!reader.IsDBNull(5)) ModeratorRole = (ulong)reader.GetInt64(5);
+            string announceMsg = reader.IsDBNull(6) ? null : reader.GetString(6);
+            string announceMsgPl = reader.IsDBNull(7) ? null : reader.GetString(7);
+            AnnounceMessages = (announceMsg, announceMsgPl);
+            AnnouncePing = reader.GetBoolean(8);
         }
 
         /// <summary>
-        /// Gets user information from th is guild. If the user doesn't exist in the backing database,
-        /// a new instance is created which is capable of adding the user to the database.
-        /// </summary>
-        /// <remarks>
-        /// For users with the Known property set to false, be sure to call
-        /// <see cref="GuildUserSettings.DeleteAsync(Database)"/> if the resulting object is otherwise unused.
-        /// </remarks>
-        public GuildUserSettings GetUser(ulong userId)
-        {
-            lock (this)
-            {
-                if (_userCache.ContainsKey(userId))
-                {
-                    return _userCache[userId];
-                }
-
-                // No result. Create a blank entry and add it to the list,
-                // in case it gets updated and then referenced later.
-                var blank = new GuildUserSettings(GuildId, userId);
-                _userCache.Add(userId, blank);
-                return blank;
-            }
-        }
-
-        /// <summary>
-        /// Deletes the user from the backing database. Drops the locally cached entry.
-        /// </summary>
-        public async Task DeleteUserAsync(ulong userId)
-        {
-            GuildUserSettings user = null;
-            lock (this)
-            {
-                if (!_userCache.TryGetValue(userId, out user))
-                {
-                    return;
-                }
-                _userCache.Remove(userId);
-            }
-            await user.DeleteAsync(_db);
-        }
-
-        /// <summary>
-        /// Checks if the given user is blocked from issuing commands.
+        /// Checks if the given user exists in the block list.
         /// If the server is in moderated mode, this always returns true.
-        /// Does not check if the user is a manager.
         /// </summary>
         public async Task<bool> IsUserBlockedAsync(ulong userId)
         {
             if (IsModerated) return true;
 
-            // Block list is not cached, thus doing a database lookup
-            // TODO cache block list?
-            using (var db = await _db.OpenConnectionAsync())
-            {
-                using (var c = db.CreateCommand())
-                {
-                    c.CommandText = $"select * from {BackingTableBans} "
-                        + "where guild_id = @Gid and user_id = @Uid";
-                    c.Parameters.Add("@Gid", NpgsqlDbType.Bigint).Value = (long)GuildId;
-                    c.Parameters.Add("@Uid", NpgsqlDbType.Bigint).Value = (long)userId;
-                    c.Prepare();
-                    using (var r = await c.ExecuteReaderAsync())
-                    {
-                        if (await r.ReadAsync()) return true;
-                        return false;
-                    }
-                }
-            }
-        }
-
-        /// <summary>
-        /// Checks if the given user is a moderator either by having the Manage Server permission or
-        /// being in the designated moderator role.
-        /// </summary>
-        public bool IsUserModerator(SocketGuildUser user)
-        {
-            if (user.GuildPermissions.ManageGuild) return true;
-            lock (this)
-            {
-                if (ModeratorRole.HasValue)
-                {
-                    if (user.Roles.Where(r => r.Id == ModeratorRole.Value).Count() > 0) return true;
-                }
-            }
-
+            using var db = await Database.OpenConnectionAsync();
+            using var c = db.CreateCommand();
+            c.CommandText = $"select * from {BackingTableBans} "
+                + "where guild_id = @Gid and user_id = @Uid";
+            c.Parameters.Add("@Gid", NpgsqlDbType.Bigint).Value = (long)GuildId;
+            c.Parameters.Add("@Uid", NpgsqlDbType.Bigint).Value = (long)userId;
+            c.Prepare();
+            using var r = await c.ExecuteReaderAsync();
+            if (await r.ReadAsync()) return true;
             return false;
         }
 
         /// <summary>
-        /// Adds the specified user to the block list, preventing them from issuing commands.
+        /// Adds the specified user to the block list corresponding to this guild.
         /// </summary>
         public async Task BlockUserAsync(ulong userId)
         {
-            // TODO cache block list?
-            using (var db = await _db.OpenConnectionAsync())
-            {
-                using (var c = db.CreateCommand())
-                {
-                    c.CommandText = $"insert into {BackingTableBans} (guild_id, user_id) "
-                        + "values (@Gid, @Uid) "
-                        + "on conflict (guild_id, user_id) do nothing";
-                    c.Parameters.Add("@Gid", NpgsqlDbType.Bigint).Value = (long)GuildId;
-                    c.Parameters.Add("@Uid", NpgsqlDbType.Bigint).Value = (long)userId;
-                    c.Prepare();
-                    await c.ExecuteNonQueryAsync();
-                }
-            }
+            using var db = await Database.OpenConnectionAsync();
+            using var c = db.CreateCommand();
+            c.CommandText = $"insert into {BackingTableBans} (guild_id, user_id) "
+                + "values (@Gid, @Uid) "
+                + "on conflict (guild_id, user_id) do nothing";
+            // There is no validation on whether the requested user is even in the guild. will this be a problem?
+            c.Parameters.Add("@Gid", NpgsqlDbType.Bigint).Value = (long)GuildId;
+            c.Parameters.Add("@Uid", NpgsqlDbType.Bigint).Value = (long)userId;
+            c.Prepare();
+            await c.ExecuteNonQueryAsync();
         }
 
-        public async Task UnbanUserAsync(ulong userId)
+        /// <summary>
+        /// Removes the specified user from the block list corresponding to this guild.
+        /// </summary>
+        /// <returns>True if a user has been removed, false if the requested user was not in this list.</returns>
+        public async Task<bool> UnblockUserAsync(ulong userId)
         {
-            // TODO cache block list?
-            using (var db = await _db.OpenConnectionAsync())
-            {
-                using (var c = db.CreateCommand())
-                {
-                    c.CommandText = $"delete from {BackingTableBans} where "
-                        + "guild_id = @Gid and user_id = @Uid";
-                    c.Parameters.Add("@Gid", NpgsqlDbType.Bigint).Value = (long)GuildId;
-                    c.Parameters.Add("@Uid", NpgsqlDbType.Bigint).Value = (long)userId;
-                    c.Prepare();
-                    await c.ExecuteNonQueryAsync();
-                }
-            }
-        }
-
-        public void UpdateRole(ulong roleId)
-        {
-            lock (this)
-            {
-                _bdayRole = roleId;
-                UpdateDatabase();
-            }
-        }
-
-        public void UpdateAnnounceChannel(ulong? channelId)
-        {
-            lock (this)
-            {
-                _announceCh = channelId;
-                UpdateDatabase();
-            }
-        }
-
-        public void UpdateTimeZone(string tzString)
-        {
-            lock (this)
-            {
-                _tz = tzString;
-                UpdateDatabase();
-            }
-        }
-
-        public void UpdateModeratedMode(bool isModerated)
-        {
-            lock (this)
-            {
-                _moderated = isModerated;
-                UpdateDatabase();
-            }
-        }
-
-        public void UpdateModeratorRole(ulong? roleId)
-        {
-            lock (this)
-            {
-                _modRole = roleId;
-                UpdateDatabase();
-            }
-        }
-
-        public void UpdateAnnounceMessage(string message, bool plural)
-        {
-            lock (this)
-            {
-                if (plural) _announceMsgPl = message;
-                else _announceMsg = message;
-
-                UpdateDatabase();
-            }
-        }
-
-        public void UpdateAnnouncePing(bool value)
-        {
-            lock (this)
-            {
-                _announcePing = value;
-                UpdateDatabase();
-            }
+            using var db = await Database.OpenConnectionAsync();
+            using var c = db.CreateCommand();
+            c.CommandText = $"delete from {BackingTableBans} where "
+                + "guild_id = @Gid and user_id = @Uid";
+            c.Parameters.Add("@Gid", NpgsqlDbType.Bigint).Value = (long)GuildId;
+            c.Parameters.Add("@Uid", NpgsqlDbType.Bigint).Value = (long)userId;
+            c.Prepare();
+            var result = await c.ExecuteNonQueryAsync();
+            return result != 0;
         }
 
         #region Database
         public const string BackingTable = "settings";
         public const string BackingTableBans = "banned_users";
 
-        internal static void SetUpDatabaseTable(NpgsqlConnection db)
+        internal static async Task DatabaseSetupAsync(NpgsqlConnection db)
         {
             using (var c = db.CreateCommand())
             {
@@ -316,7 +148,7 @@ namespace BirthdayBot.Data
                     + "announce_ping boolean not null default FALSE, "
                     + "last_seen timestamptz not null default NOW()"
                     + ")";
-                c.ExecuteNonQuery();
+                await c.ExecuteNonQueryAsync();
             }
             using (var c = db.CreateCommand())
             {
@@ -325,104 +157,92 @@ namespace BirthdayBot.Data
                     + "user_id bigint not null, "
                     + "PRIMARY KEY (guild_id, user_id)"
                     + ")";
-                c.ExecuteNonQuery();
+                await c.ExecuteNonQueryAsync();
             }
         }
 
         /// <summary>
-        /// Retrieves an object instance representative of guild settings for the specified guild.
-        /// If settings for the given guild do not yet exist, a new value is created.
+        /// Fetches guild settings from the database. If no corresponding entry exists, it will be created.
         /// </summary>
-        internal async static Task<GuildStateInformation> LoadSettingsAsync(Database dbsettings, ulong guild)
+        public static async Task<GuildConfiguration> LoadAsync(ulong guildId)
         {
-            using (var db = await dbsettings.OpenConnectionAsync())
+            using (var db = await Database.OpenConnectionAsync())
             {
                 using (var c = db.CreateCommand())
                 {
-                    // Take note of ordinals for use in the constructor
+                    // Take note of ordinals for the constructor
                     c.CommandText = "select guild_id, role_id, channel_announce_id, time_zone, "
                         + " moderated, moderator_role, announce_message, announce_message_pl, announce_ping "
                         + $"from {BackingTable} where guild_id = @Gid";
-                    c.Parameters.Add("@Gid", NpgsqlDbType.Bigint).Value = (long)guild;
+                    c.Parameters.Add("@Gid", NpgsqlDbType.Bigint).Value = (long)guildId;
                     c.Prepare();
-                    using (var r = await c.ExecuteReaderAsync())
-                    {
-                        if (await r.ReadAsync())
-                        {
-                            return new GuildStateInformation(r, dbsettings);
-                        }
-                    }
+                    using var r = await c.ExecuteReaderAsync();
+                    if (await r.ReadAsync()) return new GuildConfiguration(r);
                 }
 
-                // If we got here, no row exists. Create it.
+                // If we got here, no row exists. Create it with default values.
                 using (var c = db.CreateCommand())
                 {
                     c.CommandText = $"insert into {BackingTable} (guild_id) values (@Gid)";
-                    c.Parameters.Add("@Gid", NpgsqlDbType.Bigint).Value = (long)guild;
+                    c.Parameters.Add("@Gid", NpgsqlDbType.Bigint).Value = (long)guildId;
                     c.Prepare();
                     await c.ExecuteNonQueryAsync();
                 }
             }
-
-            // New row created. Try this again.
-            return await LoadSettingsAsync(dbsettings, guild);
+            // With a new row created, try this again
+            return await LoadAsync(guildId);
         }
 
         /// <summary>
-        /// Updates the backing database with values from this instance
-        /// This is a non-asynchronous operation. That may be bad.
+        /// Updates values on the backing database with values from this object instance.
         /// </summary>
-        private void UpdateDatabase()
+        public async Task UpdateAsync()
         {
-            using (var db = _db.OpenConnectionAsync().GetAwaiter().GetResult())
-            {
-                using (var c = db.CreateCommand())
-                {
-                    c.CommandText = $"update {BackingTable} set "
-                        + "role_id = @RoleId, "
-                        + "channel_announce_id = @ChannelId, "
-                        + "time_zone = @TimeZone, "
-                        + "moderated = @Moderated, "
-                        + "moderator_role = @ModRole, "
-                        + "announce_message = @AnnounceMsg, "
-                        + "announce_message_pl = @AnnounceMsgPl, "
-                        + "announce_ping = @AnnouncePing "
-                        + "where guild_id = @Gid";
-                    c.Parameters.Add("@Gid", NpgsqlDbType.Bigint).Value = (long)GuildId;
-                    NpgsqlParameter p;
+            using var db = await Database.OpenConnectionAsync();
+            using var c = db.CreateCommand();
+            c.CommandText = $"update {BackingTable} set "
+                + "role_id = @RoleId, "
+                + "channel_announce_id = @ChannelId, "
+                + "time_zone = @TimeZone, "
+                + "moderated = @Moderated, "
+                + "moderator_role = @ModRole, "
+                + "announce_message = @AnnounceMsg, "
+                + "announce_message_pl = @AnnounceMsgPl, "
+                + "announce_ping = @AnnouncePing "
+                + "where guild_id = @Gid";
+            c.Parameters.Add("@Gid", NpgsqlDbType.Bigint).Value = (long)GuildId;
+            NpgsqlParameter p;
 
-                    p = c.Parameters.Add("@RoleId", NpgsqlDbType.Bigint);
-                    if (RoleId.HasValue) p.Value = (long)RoleId.Value;
-                    else p.Value = DBNull.Value;
+            p = c.Parameters.Add("@RoleId", NpgsqlDbType.Bigint);
+            if (RoleId.HasValue) p.Value = (long)RoleId.Value;
+            else p.Value = DBNull.Value;
 
-                    p = c.Parameters.Add("@ChannelId", NpgsqlDbType.Bigint);
-                    if (_announceCh.HasValue) p.Value = (long)_announceCh.Value;
-                    else p.Value = DBNull.Value;
+            p = c.Parameters.Add("@ChannelId", NpgsqlDbType.Bigint);
+            if (AnnounceChannelId.HasValue) p.Value = (long)AnnounceChannelId.Value;
+            else p.Value = DBNull.Value;
 
-                    p = c.Parameters.Add("@TimeZone", NpgsqlDbType.Text);
-                    if (_tz != null) p.Value = _tz;
-                    else p.Value = DBNull.Value;
+            p = c.Parameters.Add("@TimeZone", NpgsqlDbType.Text);
+            if (TimeZone != null) p.Value = TimeZone;
+            else p.Value = DBNull.Value;
 
-                    c.Parameters.Add("@Moderated", NpgsqlDbType.Boolean).Value = _moderated;
+            c.Parameters.Add("@Moderated", NpgsqlDbType.Boolean).Value = IsModerated;
 
-                    p = c.Parameters.Add("@ModRole", NpgsqlDbType.Bigint);
-                    if (ModeratorRole.HasValue) p.Value = (long)ModeratorRole.Value;
-                    else p.Value = DBNull.Value;
+            p = c.Parameters.Add("@ModRole", NpgsqlDbType.Bigint);
+            if (ModeratorRole.HasValue) p.Value = (long)ModeratorRole.Value;
+            else p.Value = DBNull.Value;
 
-                    p = c.Parameters.Add("@AnnounceMsg", NpgsqlDbType.Text);
-                    if (_announceMsg != null) p.Value = _announceMsg;
-                    else p.Value = DBNull.Value;
+            p = c.Parameters.Add("@AnnounceMsg", NpgsqlDbType.Text);
+            if (AnnounceMessages.Item1 != null) p.Value = AnnounceMessages.Item1;
+            else p.Value = DBNull.Value;
 
-                    p = c.Parameters.Add("@AnnounceMsgPl", NpgsqlDbType.Text);
-                    if (_announceMsgPl != null) p.Value = _announceMsgPl;
-                    else p.Value = DBNull.Value;
+            p = c.Parameters.Add("@AnnounceMsgPl", NpgsqlDbType.Text);
+            if (AnnounceMessages.Item2 != null) p.Value = AnnounceMessages.Item2;
+            else p.Value = DBNull.Value;
 
-                    c.Parameters.Add("@AnnouncePing", NpgsqlDbType.Boolean).Value = _announcePing;
+            c.Parameters.Add("@AnnouncePing", NpgsqlDbType.Boolean).Value = AnnouncePing;
 
-                    c.Prepare();
-                    c.ExecuteNonQuery();
-                }
-            }
+            c.Prepare();
+            c.ExecuteNonQuery();
         }
         #endregion
     }
