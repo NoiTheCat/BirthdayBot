@@ -1,7 +1,9 @@
-﻿using Npgsql;
+﻿using Discord.WebSocket;
+using Npgsql;
 using NpgsqlTypes;
 using System;
 using System.Data.Common;
+using System.Linq;
 using System.Threading.Tasks;
 
 namespace BirthdayBot.Data
@@ -127,6 +129,13 @@ namespace BirthdayBot.Data
             var result = await c.ExecuteNonQueryAsync();
             return result != 0;
         }
+
+        /// <summary>
+        /// Checks if the given user can be considered a bot moderator.
+        /// Checks for either the Manage Guild permission or if the user is within a predetermined role.
+        /// </summary>
+        public bool IsBotModerator(SocketGuildUser user)
+            => user.GuildPermissions.ManageGuild || (ModeratorRole.HasValue && user.Roles.Any(r => r.Id == ModeratorRole.Value));
 
         #region Database
         public const string BackingTable = "settings";

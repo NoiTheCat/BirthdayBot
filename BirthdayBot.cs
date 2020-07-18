@@ -120,8 +120,7 @@ namespace BirthdayBot
                 var gconf = await GuildConfiguration.LoadAsync(channel.Guild.Id);
 
                 // Ban check
-                bool isMod = gconf.ModeratorRole.HasValue && author.Roles.Any(r => r.Id == gconf.ModeratorRole.Value);
-                if (!isMod) // skip check if user is a moderator
+                if (!gconf.IsBotModerator(author)) // skip check if user is a moderator
                 {
                     if (await gconf.IsUserBlockedAsync(author.Id)) return; // silently ignore
                 }
