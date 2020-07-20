@@ -14,7 +14,6 @@ namespace BirthdayBot
         public string BotToken { get; }
         public string LogWebhook { get; }
         public string DBotsToken { get; }
-        public Database DatabaseSettings { get; }
         public int ShardCount { get; }
 
         public Configuration()
