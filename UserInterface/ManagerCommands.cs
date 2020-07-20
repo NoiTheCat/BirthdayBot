@@ -1,4 +1,5 @@
-﻿using Discord.WebSocket;
+﻿using BirthdayBot.Data;
+using Discord.WebSocket;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -11,7 +12,7 @@ namespace BirthdayBot.UserInterface
     {
         private static readonly string ConfErrorPostfix =
             $" Refer to the `{CommandPrefix}help-config` command for information on this command's usage.";
-        private delegate Task ConfigSubcommand(string[] param, SocketTextChannel reqChannel);
+        private delegate Task ConfigSubcommand(string[] param, GuildConfiguration gconf, SocketTextChannel reqChannel);
 
         private readonly Dictionary<string, ConfigSubcommand> _subcommands;
         private readonly Dictionary<string, CommandHandler> _usercommands;
@@ -57,11 +58,10 @@ namespace BirthdayBot.UserInterface
                 "Perform certain commands on behalf of another user.", null);
         #endregion
 
-        private async Task CmdConfigDispatch(string[] param, SocketTextChannel reqChannel, SocketGuildUser reqUser)
+        private async Task CmdConfigDispatch(string[] param, GuildConfiguration gconf, SocketTextChannel reqChannel, SocketGuildUser reqUser)
         {
             // Ignore those without the proper permissions.
-            // Requires either the manage guild permission or to be in the moderators role
-            if (!Instance.GuildCache[reqUser.Guild.Id].IsUserModerator(reqUser))
+            if (!gconf.IsBotModerator(reqUser))
             {
                 await reqChannel.SendMessageAsync(":x: This command may only be used by bot moderators.");
                 return;
@@ -73,7 +73,7 @@ namespace BirthdayBot.UserInterface
                 return;
             }
 
-            // Special case: Restrict 'modrole' to only guild managers
+            // Special case: Restrict 'modrole' to only guild managers, not mods
             if (string.Equals(param[1], "modrole", StringComparison.OrdinalIgnoreCase) && !reqUser.GuildPermissions.ManageGuild)
             {
                 await reqChannel.SendMessageAsync(":x: This command may only be used by those with the `Manage Server` permission.");
@@ -86,13 +86,13 @@ namespace BirthdayBot.UserInterface
 
             if (_subcommands.TryGetValue(confparam[0], out ConfigSubcommand h))
             {
-                await h(confparam, reqChannel);
+                await h(confparam, gconf, reqChannel);
             }
         }
 
         #region Configuration sub-commands
         // Birthday role set
-        private async Task ScmdRole(string[] param, SocketTextChannel reqChannel)
+        private async Task ScmdRole(string[] param, GuildConfiguration gconf, SocketTextChannel reqChannel)
         {
             if (param.Length != 2)
             {
@@ -112,13 +112,14 @@ namespace BirthdayBot.UserInterface
             }
             else
             {
-                Instance.GuildCache[guild.Id].UpdateRole(role.Id);
+                gconf.RoleId = role.Id;
+                await gconf.UpdateAsync();
                 await reqChannel.SendMessageAsync($":white_check_mark: The birthday role has been set as **{role.Name}**.");
             }
         }
 
         // Ping setting
-        private async Task ScmdPing(string[] param, SocketTextChannel reqChannel)
+        private async Task ScmdPing(string[] param, GuildConfiguration gconf, SocketTextChannel reqChannel)
         {
             const string InputErr = ":x: You must specify either `off` or `on` in this setting.";
             if (param.Length != 2)
@@ -146,26 +147,25 @@ namespace BirthdayBot.UserInterface
                 return;
             }
 
-            Instance.GuildCache[reqChannel.Guild.Id].UpdateAnnouncePing(setting);
+            gconf.AnnouncePing = setting;
+            await gconf.UpdateAsync();
             await reqChannel.SendMessageAsync(result);
         }
 
         // Announcement channel set
-        private async Task ScmdChannel(string[] param, SocketTextChannel reqChannel)
+        private async Task ScmdChannel(string[] param, GuildConfiguration gconf, SocketTextChannel reqChannel)
         {
-            if (param.Length == 1)
+            if (param.Length == 1) // No extra parameter. Unset announcement channel.
             {
-                // No extra parameter. Unset announcement channel.
-                var gi = Instance.GuildCache[reqChannel.Guild.Id];
-
                 // Extra detail: Show a unique message if a channel hadn't been set prior.
-                if (!gi.AnnounceChannelId.HasValue)
+                if (!gconf.AnnounceChannelId.HasValue)
                 {
                     await reqChannel.SendMessageAsync(":x: There is no announcement channel set. Nothing to unset.");
                     return;
                 }
 
-                gi.UpdateAnnounceChannel(null);
+                gconf.AnnounceChannelId = null;
+                await gconf.UpdateAsync();
                 await reqChannel.SendMessageAsync(":white_check_mark: The announcement channel has been unset.");
             }
             else
@@ -204,7 +204,8 @@ namespace BirthdayBot.UserInterface
                 }
 
                 // Update the value
-                Instance.GuildCache[reqChannel.Guild.Id].UpdateAnnounceChannel(chId);
+                gconf.AnnounceChannelId = chId;
+                await gconf.UpdateAsync();
 
                 // Report the success
                 await reqChannel.SendMessageAsync($":white_check_mark: The announcement channel is now set to <#{chId}>.");
@@ -212,7 +213,7 @@ namespace BirthdayBot.UserInterface
         }
 
         // Moderator role set
-        private async Task ScmdModRole(string[] param, SocketTextChannel reqChannel)
+        private async Task ScmdModRole(string[] param, GuildConfiguration gconf, SocketTextChannel reqChannel)
         {
             if (param.Length != 2)
             {
@@ -228,27 +229,26 @@ namespace BirthdayBot.UserInterface
             }
             else
             {
-                Instance.GuildCache[guild.Id].UpdateModeratorRole(role.Id);
+                gconf.ModeratorRole = role.Id;
+                await gconf.UpdateAsync();
                 await reqChannel.SendMessageAsync($":white_check_mark: The moderator role is now **{role.Name}**.");
             }
         }
 
         // Guild default time zone set/unset
-        private async Task ScmdZone(string[] param, SocketTextChannel reqChannel)
+        private async Task ScmdZone(string[] param, GuildConfiguration gconf, SocketTextChannel reqChannel)
         {
-            if (param.Length == 1)
+            if (param.Length == 1) // No extra parameter. Unset guild default time zone.
             {
-                // No extra parameter. Unset guild default time zone.
-                var gi = Instance.GuildCache[reqChannel.Guild.Id];
-
                 // Extra detail: Show a unique message if there is no set zone.
-                if (!gi.AnnounceChannelId.HasValue)
+                if (!gconf.AnnounceChannelId.HasValue)
                 {
                     await reqChannel.SendMessageAsync(":x: A default zone is not set. Nothing to unset.");
                     return;
                 }
 
-                gi.UpdateTimeZone(null);
+                gconf.TimeZone = null;
+                await gconf.UpdateAsync();
                 await reqChannel.SendMessageAsync(":white_check_mark: The default time zone preference has been removed.");
             }
             else
@@ -266,7 +266,8 @@ namespace BirthdayBot.UserInterface
                 }
 
                 // Update value
-                Instance.GuildCache[reqChannel.Guild.Id].UpdateTimeZone(zone);
+                gconf.TimeZone = zone;
+                await gconf.UpdateAsync();
 
                 // Report the success
                 await reqChannel.SendMessageAsync($":white_check_mark: The server's time zone has been set to **{zone}**.");
@@ -274,7 +275,7 @@ namespace BirthdayBot.UserInterface
         }
 
         // Block/unblock individual non-manager users from using commands.
-        private async Task ScmdBlock(string[] param, SocketTextChannel reqChannel)
+        private async Task ScmdBlock(string[] param, GuildConfiguration gconf, SocketTextChannel reqChannel)
         {
             if (param.Length != 2)
             {
@@ -284,43 +285,41 @@ namespace BirthdayBot.UserInterface
 
             bool doBan = param[0].ToLower() == "block"; // true = block, false = unblock
 
-            ulong inputId;
-            if (!TryGetUserId(param[1], out inputId))
+            if (!TryGetUserId(param[1], out ulong inputId))
             {
                 await reqChannel.SendMessageAsync(BadUserError);
                 return;
             }
 
-            var gi = Instance.GuildCache[reqChannel.Guild.Id];
-            var isBanned = await gi.IsUserBlockedAsync(inputId);
+            var isBanned = await gconf.IsUserBlockedAsync(inputId);
             if (doBan)
             {
                 if (!isBanned)
                 {
-                    await gi.BlockUserAsync(inputId);
+                    await gconf.BlockUserAsync(inputId);
                     await reqChannel.SendMessageAsync(":white_check_mark: User has been blocked.");
                 }
                 else
                 {
+                    // TODO bug: this is incorrectly always displayed when in moderated mode
                     await reqChannel.SendMessageAsync(":white_check_mark: User is already blocked.");
                 }
             }
             else
             {
-                if (isBanned)
+                if (await gconf.UnblockUserAsync(inputId))
                 {
-                    await gi.UnbanUserAsync(inputId);
                     await reqChannel.SendMessageAsync(":white_check_mark: User is now unblocked.");
                 }
                 else
                 {
-                    await reqChannel.SendMessageAsync(":white_check_mark: The specified user has not been blocked.");
+                    await reqChannel.SendMessageAsync(":white_check_mark: The specified user is not blocked.");
                 }
             }
         }
 
         // "moderated on/off" - Sets/unsets moderated mode.
-        private async Task ScmdModerated(string[] param, SocketTextChannel reqChannel)
+        private async Task ScmdModerated(string[] param, GuildConfiguration gconf, SocketTextChannel reqChannel)
         {
             if (param.Length != 2)
             {
@@ -334,26 +333,24 @@ namespace BirthdayBot.UserInterface
             else if (parameter == "off") modSet = false;
             else
             {
-                await reqChannel.SendMessageAsync(":x: Expected `on` or `off` as a parameter." + ConfErrorPostfix);
+                await reqChannel.SendMessageAsync(":x: Expecting `on` or `off` as a parameter." + ConfErrorPostfix);
                 return;
             }
 
-            var gi = Instance.GuildCache[reqChannel.Guild.Id];
-            var currentSet = gi.IsModerated;
-            gi.UpdateModeratedMode(modSet);
-
-            if (currentSet == modSet)
+            if (gconf.IsModerated == modSet)
             {
                 await reqChannel.SendMessageAsync($":white_check_mark: Moderated mode is already {parameter}.");
             }
             else
             {
+                gconf.IsModerated = modSet;
+                await gconf.UpdateAsync();
                 await reqChannel.SendMessageAsync($":white_check_mark: Moderated mode has been turned {parameter}.");
             }
         }
 
         // Sets/unsets custom announcement message.
-        private async Task ScmdAnnounceMsg(string[] param, SocketTextChannel reqChannel)
+        private async Task ScmdAnnounceMsg(string[] param, GuildConfiguration gconf, SocketTextChannel reqChannel)
         {
             var plural = param[0].ToLower().EndsWith("pl");
 
@@ -370,17 +367,21 @@ namespace BirthdayBot.UserInterface
                 clear = true;
             }
 
-            Instance.GuildCache[reqChannel.Guild.Id].UpdateAnnounceMessage(newmsg, plural);
-            const string report = ":white_check_mark: The {0} birthday announcement message has been {1}.";
-            await reqChannel.SendMessageAsync(string.Format(report, plural ? "plural" : "singular", clear ? "reset" : "updated"));
+            (string, string) update;
+            if (!plural) update = (newmsg, gconf.AnnounceMessages.Item2);
+            else update = (gconf.AnnounceMessages.Item1, newmsg);
+            gconf.AnnounceMessages = update;
+            await gconf.UpdateAsync();
+            await reqChannel.SendMessageAsync(string.Format(":white_check_mark: The {0} birthday announcement message has been {1}.",
+                plural ? "plural" : "singular", clear ? "reset" : "updated"));
         }
         #endregion
 
         // Execute command as another user
-        private async Task CmdOverride(string[] param, SocketTextChannel reqChannel, SocketGuildUser reqUser)
+        private async Task CmdOverride(string[] param, GuildConfiguration gconf, SocketTextChannel reqChannel, SocketGuildUser reqUser)
         {
             // Moderators only. As with config, silently drop if this check fails.
-            if (!Instance.GuildCache[reqUser.Guild.Id].IsUserModerator(reqUser)) return;
+            if (!gconf.IsBotModerator(reqUser)) return;
 
             if (param.Length != 3)
             {
@@ -389,8 +390,7 @@ namespace BirthdayBot.UserInterface
             }
 
             // Second parameter: determine the user to act as
-            ulong user = 0;
-            if (!TryGetUserId(param[1], out user))
+            if (!TryGetUserId(param[1], out ulong user))
             {
                 await reqChannel.SendMessageAsync(BadUserError, embed: DocOverride.UsageEmbed);
                 return;
@@ -416,8 +416,7 @@ namespace BirthdayBot.UserInterface
                 // Add command prefix to input, just in case.
                 overparam[0] = CommandPrefix + overparam[0].ToLower();
             }
-            CommandHandler action = null;
-            if (!_usercommands.TryGetValue(cmdsearch, out action))
+            if (!_usercommands.TryGetValue(cmdsearch, out CommandHandler action))
             {
                 await reqChannel.SendMessageAsync($":x: `{cmdsearch}` is not an overridable command.", embed: DocOverride.UsageEmbed);
                 return;
@@ -425,15 +424,14 @@ namespace BirthdayBot.UserInterface
 
             // Preparations complete. Run the command.
             await reqChannel.SendMessageAsync($"Executing `{cmdsearch.ToLower()}` on behalf of {overuser.Nickname ?? overuser.Username}:");
-            await action.Invoke(overparam, reqChannel, overuser);
+            await action.Invoke(overparam, gconf, reqChannel, overuser);
         }
 
         // Publicly available command that immediately processes the current guild, 
-        private async Task CmdTest(string[] param, SocketTextChannel reqChannel, SocketGuildUser reqUser)
+        private async Task CmdTest(string[] param, GuildConfiguration gconf, SocketTextChannel reqChannel, SocketGuildUser reqUser)
         {
             // Moderators only. As with config, silently drop if this check fails.
-            if (!Instance.GuildCache[reqUser.Guild.Id].IsUserModerator(reqUser)) return;
-            // TODO fix this or incorporate into final output - checking existence in guild cache is a step in the process
+            if (!gconf.IsBotModerator(reqUser)) return;
 
             if (param.Length != 1) 
             {
@@ -472,8 +470,7 @@ namespace BirthdayBot.UserInterface
             if (rmatch.Success) input = rmatch.Groups["snowflake"].Value;
 
             // Attempt to get role by ID, or null
-            ulong rid;
-            if (ulong.TryParse(input, out rid))
+            if (ulong.TryParse(input, out ulong rid))
             {
                 return guild.GetRole(rid);
             }
