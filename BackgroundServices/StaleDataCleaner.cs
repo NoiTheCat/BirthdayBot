@@ -19,9 +19,6 @@ namespace BirthdayBot.BackgroundServices
             var updateList = new Dictionary<ulong, List<ulong>>();
             foreach (var gi in BotInstance.GuildCache)
             {
-                var existingUsers = new List<ulong>();
-                updateList[gi.Key] = existingUsers;
-
                 var guild = BotInstance.DiscordClient.GetGuild(gi.Key);
                 if (guild == null) continue; // Have cache without being in guild. Unlikely, but...
 
@@ -29,6 +26,7 @@ namespace BirthdayBot.BackgroundServices
                 var cachedUserIds = from cu in gi.Value.Users select cu.UserId;
                 var guildUserIds = from gu in guild.Users select gu.Id;
                 var existingCachedIds = cachedUserIds.Intersect(guildUserIds);
+                updateList[gi.Key] = new List<ulong>(existingCachedIds);
             }
 
             using (var db = await BotInstance.Config.DatabaseSettings.OpenConnectionAsync())
@@ -47,6 +45,9 @@ namespace BirthdayBot.BackgroundServices
                 var pUpdateGU_u = cUpdateGuildUser.Parameters.Add("@Uid", NpgsqlDbType.Bigint);
                 cUpdateGuildUser.Prepare();
 
+                int updatedGuilds = 0;
+                int updatedUsers = 0;
+
                 // Do actual updates
                 foreach (var item in updateList)
                 {
@@ -54,15 +55,16 @@ namespace BirthdayBot.BackgroundServices
                     var userlist = item.Value;
 
                     pUpdateG.Value = (long)guild;
-                    cUpdateGuild.ExecuteNonQuery();
+                    updatedGuilds += cUpdateGuild.ExecuteNonQuery();
 
                     pUpdateGU_g.Value = (long)guild;
                     foreach (var userid in userlist)
                     {
                         pUpdateGU_u.Value = (long)userid;
-                        cUpdateGuildUser.ExecuteNonQuery();
+                        updatedUsers += cUpdateGuildUser.ExecuteNonQuery();
                     }
                 }
+                Log($"Updated last-seen records: {updatedGuilds} guilds, {updatedUsers} users");
 
                 // Delete all old values - expects referencing tables to have 'on delete cascade'
                 using (var t = db.BeginTransaction())
