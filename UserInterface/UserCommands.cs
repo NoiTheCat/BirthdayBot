@@ -1,7 +1,7 @@
-﻿using Discord.WebSocket;
+﻿using BirthdayBot.Data;
+using Discord.WebSocket;
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
@@ -111,7 +111,7 @@ namespace BirthdayBot.UserInterface
             new CommandDocumentation(new string[] { "remove" }, "Removes your birthday information from this bot.", null);
         #endregion
 
-        private async Task CmdSet(string[] param, SocketTextChannel reqChannel, SocketGuildUser reqUser)
+        private async Task CmdSet(string[] param, GuildConfiguration gconf, SocketTextChannel reqChannel, SocketGuildUser reqUser)
         {
             // Requires one parameter. Optionally two.
             if (param.Length < 2 || param.Length > 3)
@@ -140,9 +140,9 @@ namespace BirthdayBot.UserInterface
             bool known; // Extra detail: Bot's response changes if the user was previously unknown.
             try
             {
-                var user = Instance.GuildCache[reqChannel.Guild.Id].GetUser(reqUser.Id);
+                var user = await GuildUserConfiguration.LoadAsync(gconf.GuildId, reqUser.Id);
                 known = user.IsKnown;
-                await user.UpdateAsync(bmonth, bday, btz, BotConfig.DatabaseSettings);
+                await user.UpdateAsync(bmonth, bday, btz);
             }
             catch (Exception ex)
             {
@@ -161,7 +161,7 @@ namespace BirthdayBot.UserInterface
             }
         }
 
-        private async Task CmdZone(string[] param, SocketTextChannel reqChannel, SocketGuildUser reqUser)
+        private async Task CmdZone(string[] param, GuildConfiguration gconf, SocketTextChannel reqChannel, SocketGuildUser reqUser)
         {
             if (param.Length != 2)
             {
@@ -169,7 +169,7 @@ namespace BirthdayBot.UserInterface
                 return;
             }
 
-            var user = Instance.GuildCache[reqChannel.Guild.Id].GetUser(reqUser.Id);
+            var user = await GuildUserConfiguration.LoadAsync(gconf.GuildId, reqUser.Id);
             if (!user.IsKnown)
             {
                 await reqChannel.SendMessageAsync(":x: You may only update your time zone when you have a birthday registered."
@@ -187,12 +187,12 @@ namespace BirthdayBot.UserInterface
                 reqChannel.SendMessageAsync(ex.Message, embed: DocZone.UsageEmbed).Wait();
                 return;
             }
-            await user.UpdateAsync(user.BirthMonth, user.BirthDay, btz, BotConfig.DatabaseSettings);
+            await user.UpdateAsync(user.BirthMonth, user.BirthDay, btz);
 
             await reqChannel.SendMessageAsync($":white_check_mark: Your time zone has been updated to **{btz}**.");
         }
 
-        private async Task CmdRemove(string[] param, SocketTextChannel reqChannel, SocketGuildUser reqUser)
+        private async Task CmdRemove(string[] param, GuildConfiguration gconf, SocketTextChannel reqChannel, SocketGuildUser reqUser)
         {
             // Parameter count check
             if (param.Length != 1)
@@ -203,10 +203,9 @@ namespace BirthdayBot.UserInterface
 
             // Extra detail: Send a notification if the user isn't actually known by the bot.
             bool known;
-            var g = Instance.GuildCache[reqChannel.Guild.Id];
-            known = g.GetUser(reqUser.Id).IsKnown;
-            // Delete database and cache entry
-            await g.DeleteUserAsync(reqUser.Id);
+            var u = await GuildUserConfiguration.LoadAsync(gconf.GuildId, reqUser.Id);
+            known = u.IsKnown;
+            await u.DeleteAsync();
             if (!known)
             {
                 await reqChannel.SendMessageAsync(":white_check_mark: This bot already does not contain your information.");
