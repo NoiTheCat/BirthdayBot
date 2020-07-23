@@ -16,7 +16,7 @@ namespace BirthdayBot
         const int Interval = 8 * 60;
 
         // Amount of time between start and first round of processing, in seconds.
-        const int StartDelay = 60;
+        const int StartDelay = 3 * 60; // 3 minutes
 #else
         const int Interval = 10;
         const int StartDelay = 15;
