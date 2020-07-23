@@ -40,6 +40,7 @@ namespace BirthdayBot.BackgroundServices
                 {
                     Log($"{exs.InnerExceptions.Count} exception(s) during bulk processing!");
                     // TODO needs major improvements. output to file?
+                    foreach (var iex in exs.InnerExceptions) Log(iex.Message);
                 }
                 else
                 {
@@ -66,7 +67,9 @@ namespace BirthdayBot.BackgroundServices
         {
             var diag = new PGDiagnostic();
 
-            var gc = await GuildConfiguration.LoadAsync(guild.Id);
+            // Load guild information - stop if there is none (bot never previously used in guild)
+            var gc = await GuildConfiguration.LoadAsync(guild.Id, true);
+            if (gc == null) return diag;
 
             // Check if role settings are correct before continuing with further processing
             SocketRole role = null;
@@ -75,6 +78,7 @@ namespace BirthdayBot.BackgroundServices
             if (diag.RoleCheck != null) return diag;
 
             // Determine who's currently having a birthday
+            await guild.DownloadUsersAsync();
             var users = await GuildUserConfiguration.LoadAllAsync(guild.Id);
             var tz = gc.TimeZone;
             var birthdays = GetGuildCurrentBirthdays(users, tz);

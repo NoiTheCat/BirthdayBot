@@ -117,7 +117,7 @@ namespace BirthdayBot
                 if (!_dispatchCommands.TryGetValue(csplit[0].Substring(CommandPrefix.Length), out CommandHandler command)) return;
 
                 // Load guild information here
-                var gconf = await GuildConfiguration.LoadAsync(channel.Guild.Id);
+                var gconf = await GuildConfiguration.LoadAsync(channel.Guild.Id, false);
 
                 // Ban check
                 if (!gconf.IsBotModerator(author)) // skip check if user is a moderator

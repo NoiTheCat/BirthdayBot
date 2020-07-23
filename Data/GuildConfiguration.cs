@@ -173,7 +173,11 @@ namespace BirthdayBot.Data
         /// <summary>
         /// Fetches guild settings from the database. If no corresponding entry exists, it will be created.
         /// </summary>
-        public static async Task<GuildConfiguration> LoadAsync(ulong guildId)
+        /// <param name="nullIfUnknown">
+        /// If true, this method shall not create a new entry and will return null if the guild does
+        /// not exist in the database.
+        /// </param>
+        public static async Task<GuildConfiguration> LoadAsync(ulong guildId, bool nullIfUnknown)
         {
             using (var db = await Database.OpenConnectionAsync())
             {
@@ -188,6 +192,7 @@ namespace BirthdayBot.Data
                     using var r = await c.ExecuteReaderAsync();
                     if (await r.ReadAsync()) return new GuildConfiguration(r);
                 }
+                if (nullIfUnknown) return null;
 
                 // If we got here, no row exists. Create it with default values.
                 using (var c = db.CreateCommand())
@@ -199,7 +204,7 @@ namespace BirthdayBot.Data
                 }
             }
             // With a new row created, try this again
-            return await LoadAsync(guildId);
+            return await LoadAsync(guildId, nullIfUnknown);
         }
 
         /// <summary>
