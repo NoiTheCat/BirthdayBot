@@ -46,23 +46,21 @@ namespace BirthdayBot.BackgroundServices
             cUpdateGuildUser.Prepare();
 
             // Do actual updates
-            var updates = new List<Task>();
             foreach (var item in updateList)
             {
                 var guild = item.Key;
                 var userlist = item.Value;
 
                 pUpdateG.Value = (long)guild;
-                updates.Add(cUpdateGuild.ExecuteNonQueryAsync());
+                await cUpdateGuild.ExecuteNonQueryAsync();
 
                 pUpdateGU_g.Value = (long)guild;
                 foreach (var userid in userlist)
                 {
                     pUpdateGU_u.Value = (long)userid;
-                    updates.Add(cUpdateGuildUser.ExecuteNonQueryAsync());
+                    await cUpdateGuildUser.ExecuteNonQueryAsync();
                 }
             }
-            await Task.WhenAll(updates);
 
             // Delete all old values - expects referencing tables to have 'on delete cascade'
             using var t = db.BeginTransaction();
