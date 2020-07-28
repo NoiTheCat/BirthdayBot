@@ -21,6 +21,7 @@ namespace BirthdayBot
 
             var dc = new DiscordSocketConfig()
             {
+                AlwaysDownloadUsers = true,
                 DefaultRetryMode = RetryMode.RetryRatelimit,
                 MessageCacheSize = 0,
                 TotalShards = cfg.ShardCount,

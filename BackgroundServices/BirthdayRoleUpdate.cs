@@ -23,9 +23,11 @@ namespace BirthdayBot.BackgroundServices
         public override async Task OnTick()
         {
             var tasks = new List<Task>();
-            foreach (var guild in BotInstance.DiscordClient.Guilds)
+
+            // Work on each shard concurrently; guilds within each shard synchronously
+            foreach (var shard in BotInstance.DiscordClient.Shards)
             {
-                tasks.Add(ProcessGuildAsync(guild));
+                tasks.Add(ProcessShardAsync(shard));
             }
             var alltasks = Task.WhenAll(tasks);
 
@@ -61,6 +63,39 @@ namespace BirthdayBot.BackgroundServices
         public async Task<string> SingleProcessGuildAsync(SocketGuild guild) => (await ProcessGuildAsync(guild)).Export();
 
         /// <summary>
+        /// Called by <see cref="OnTick"/>, processes all guilds within a shard synchronously.
+        /// </summary>
+        private async Task ProcessShardAsync(DiscordSocketClient shard)
+        {
+            if (shard.ConnectionState != Discord.ConnectionState.Connected)
+            {
+                Log($"Shard {shard.ShardId} (with {shard.Guilds.Count} guilds) processing stopped - shard disconnected.");
+                return;
+            }
+            var exs = new List<Exception>();
+            foreach (var guild in shard.Guilds)
+            {
+                try
+                {
+                    // Check if shard remains available
+                    if (shard.ConnectionState != Discord.ConnectionState.Connected)
+                    {
+                        Log($"Shard {shard.ShardId} (with {shard.Guilds.Count} guilds) processing interrupted.");
+                        return;
+                    }
+                    await ProcessGuildAsync(guild);
+                }
+                catch (Exception ex)
+                {
+                    // Catch all exceptions per-guild but continue processing, throw at end
+                    exs.Add(ex);
+                }
+            }
+            Log($"Shard {shard.ShardId} (with {shard.Guilds.Count} guilds) processing completed.");
+            if (exs.Count != 0) throw new AggregateException(exs);
+        }
+
+        /// <summary>
         /// Main method where actual guild processing occurs.
         /// </summary>
         private async Task<PGDiagnostic> ProcessGuildAsync(SocketGuild guild)
@@ -78,7 +113,7 @@ namespace BirthdayBot.BackgroundServices
             if (diag.RoleCheck != null) return diag;
 
             // Determine who's currently having a birthday
-            await guild.DownloadUsersAsync();
+            //await guild.DownloadUsersAsync();
             var users = await GuildUserConfiguration.LoadAllAsync(guild.Id);
             var tz = gc.TimeZone;
             var birthdays = GetGuildCurrentBirthdays(users, tz);
