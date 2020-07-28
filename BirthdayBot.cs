@@ -6,7 +6,6 @@ using Discord.Webhook;
 using Discord.WebSocket;
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Threading.Tasks;
 using static BirthdayBot.UserInterface.CommandsCommon;
 
@@ -113,7 +112,6 @@ namespace BirthdayBot
             if (csplit.Length > 0 && csplit[0].StartsWith(CommandPrefix, StringComparison.OrdinalIgnoreCase))
             {
                 // Determine if it's something we're listening for.
-                // Doing this first before the block check because a block check triggers a database query.
                 if (!_dispatchCommands.TryGetValue(csplit[0].Substring(CommandPrefix.Length), out CommandHandler command)) return;
 
                 // Load guild information here
