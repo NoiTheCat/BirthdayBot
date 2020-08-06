@@ -14,8 +14,7 @@ namespace BirthdayBot.BackgroundServices
         public async override Task OnTick()
         {
             var count = BotInstance.DiscordClient.Guilds.Count;
-            var cacheCount = BotInstance.GuildCache.Count;
-            Log($"Currently in {count} guilds. Cached guild settings: {cacheCount}.");
+            Log($"Currently in {count} guilds.");
             await SendExternalStatistics(count);
         }
 

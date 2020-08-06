@@ -14,7 +14,6 @@ namespace BirthdayBot
         public string BotToken { get; }
         public string LogWebhook { get; }
         public string DBotsToken { get; }
-        public Database DatabaseSettings { get; }
         public int ShardCount { get; }
 
         public Configuration()
@@ -52,7 +51,7 @@ namespace BirthdayBot
             var sqlcs = jc["SqlConnectionString"]?.Value<string>();
             if (string.IsNullOrWhiteSpace(sqlcs))
                 throw new Exception("'SqlConnectionString' must be specified.");
-            DatabaseSettings = new Database(sqlcs);
+            Database.DBConnectionString = sqlcs;
 
             int? sc = jc["ShardCount"]?.Value<int>();
             if (!sc.HasValue) ShardCount = 1;

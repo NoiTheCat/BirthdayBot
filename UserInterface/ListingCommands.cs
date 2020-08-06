@@ -35,7 +35,7 @@ namespace BirthdayBot.UserInterface
             new CommandDocumentation(new string[] { "when" }, "Displays the given user's birthday information.", null);
         #endregion
 
-        private async Task CmdWhen(string[] param, SocketTextChannel reqChannel, SocketGuildUser reqUser)
+        private async Task CmdWhen(string[] param, GuildConfiguration gconf, SocketTextChannel reqChannel, SocketGuildUser reqUser)
         {
             // Requires a parameter
             if (param.Length == 1)
@@ -53,8 +53,7 @@ namespace BirthdayBot.UserInterface
 
             SocketGuildUser searchTarget = null;
 
-            ulong searchId = 0;
-            if (!TryGetUserId(search, out searchId)) // ID lookup
+            if (!TryGetUserId(search, out ulong searchId)) // ID lookup
             {
                 // name lookup without discriminator
                 foreach (var searchuser in reqChannel.Guild.Users)
@@ -76,9 +75,8 @@ namespace BirthdayBot.UserInterface
                 return;
             }
 
-            var users = Instance.GuildCache[reqChannel.Guild.Id].Users;
-            var searchTargetData = users.FirstOrDefault(u => u.UserId == searchTarget.Id);
-            if (searchTargetData == null)
+            var searchTargetData = await GuildUserConfiguration.LoadAsync(reqChannel.Guild.Id, searchId);
+            if (!searchTargetData.IsKnown)
             {
                 await reqChannel.SendMessageAsync("I do not have birthday information for that user.");
                 return;
@@ -93,10 +91,10 @@ namespace BirthdayBot.UserInterface
         }
 
         // Creates a file with all birthdays.
-        private async Task CmdList(string[] param, SocketTextChannel reqChannel, SocketGuildUser reqUser)
+        private async Task CmdList(string[] param, GuildConfiguration gconf, SocketTextChannel reqChannel, SocketGuildUser reqUser)
         {
             // For now, we're restricting this command to moderators only. This may turn into an option later.
-            if (!Instance.GuildCache[reqChannel.Guild.Id].IsUserModerator(reqUser))
+            if (!gconf.IsBotModerator(reqUser))
             {
                 // Do not add detailed usage information to this error message.
                 await reqChannel.SendMessageAsync(":x: Only bot moderators may use this command.");
@@ -120,7 +118,7 @@ namespace BirthdayBot.UserInterface
                 return;
             }
 
-            var bdlist = await LoadList(reqChannel.Guild, false);
+            var bdlist = await GetSortedUsersAsync(reqChannel.Guild);
 
             var filepath = Path.GetTempPath() + "birthdaybot-" + reqChannel.Guild.Id;
             string fileoutput;
@@ -158,13 +156,13 @@ namespace BirthdayBot.UserInterface
 
         // "Recent and upcoming birthdays"
         // The 'recent' bit removes time zone ambiguity and spares us from extra time zone processing here
-        private async Task CmdUpcoming(string[] param, SocketTextChannel reqChannel, SocketGuildUser reqUser)
+        private async Task CmdUpcoming(string[] param, GuildConfiguration gconf, SocketTextChannel reqChannel, SocketGuildUser reqUser)
         {
             var now = DateTimeOffset.UtcNow;
             var search = DateIndex(now.Month, now.Day) - 8; // begin search 8 days prior to current date UTC
             if (search <= 0) search = 366 - Math.Abs(search);
 
-            var query = await LoadList(reqChannel.Guild, true);
+            var query = await GetSortedUsersAsync(reqChannel.Guild);
 
             var output = new StringBuilder();
             var resultCount = 0;
@@ -219,43 +217,35 @@ namespace BirthdayBot.UserInterface
         /// Fetches all guild birthdays and places them into an easily usable structure.
         /// Users currently not in the guild are not included in the result.
         /// </summary>
-        private async Task<List<ListItem>> LoadList(SocketGuild guild, bool escapeFormat)
+        private async Task<List<ListItem>> GetSortedUsersAsync(SocketGuild guild)
         {
-            var ping = Instance.GuildCache[guild.Id].AnnouncePing;
-
-            using (var db = await BotConfig.DatabaseSettings.OpenConnectionAsync())
+            using var db = await Database.OpenConnectionAsync();
+            using var c = db.CreateCommand();
+            c.CommandText = "select user_id, birth_month, birth_day from " + GuildUserConfiguration.BackingTable
+                + " where guild_id = @Gid order by birth_month, birth_day";
+            c.Parameters.Add("@Gid", NpgsqlTypes.NpgsqlDbType.Bigint).Value = (long)guild.Id;
+            c.Prepare();
+            using var r = await c.ExecuteReaderAsync();
+            var result = new List<ListItem>();
+            while (await r.ReadAsync())
             {
-                using (var c = db.CreateCommand())
+                var id = (ulong)r.GetInt64(0);
+                var month = r.GetInt32(1);
+                var day = r.GetInt32(2);
+
+                var guildUser = guild.GetUser(id);
+                if (guildUser == null) continue; // Skip user not in guild
+
+                result.Add(new ListItem()
                 {
-                    c.CommandText = "select user_id, birth_month, birth_day from " + GuildUserSettings.BackingTable
-                        + " where guild_id = @Gid order by birth_month, birth_day";
-                    c.Parameters.Add("@Gid", NpgsqlTypes.NpgsqlDbType.Bigint).Value = (long)guild.Id;
-                    c.Prepare();
-                    using (var r = await c.ExecuteReaderAsync())
-                    {
-                        var result = new List<ListItem>();
-                        while (await r.ReadAsync())
-                        {
-                            var id = (ulong)r.GetInt64(0);
-                            var month = r.GetInt32(1);
-                            var day = r.GetInt32(2);
-
-                            var guildUser = guild.GetUser(id);
-                            if (guildUser == null) continue; // Skip users not in guild
-
-                            result.Add(new ListItem()
-                            {
-                                BirthMonth = month,
-                                BirthDay = day,
-                                DateIndex = DateIndex(month, day),
-                                UserId = guildUser.Id,
-                                DisplayName = Common.FormatName(guildUser, false)
-                            });
-                        }
-                        return result;
-                    }
-                }
+                    BirthMonth = month,
+                    BirthDay = day,
+                    DateIndex = DateIndex(month, day),
+                    UserId = guildUser.Id,
+                    DisplayName = Common.FormatName(guildUser, false)
+                });
             }
+            return result;
         }
 
         private string ListExportNormal(SocketGuildChannel channel, IEnumerable<ListItem> list)
@@ -295,7 +285,7 @@ namespace BirthdayBot.UserInterface
                 result.Append(',');
                 if (user.Nickname != null) result.Append(user.Nickname);
                 result.Append(',');
-                result.Append($"{Common.MonthNames[item.BirthMonth]}-{item.BirthDay.ToString("00")}");
+                result.Append($"{Common.MonthNames[item.BirthMonth]}-{item.BirthDay:00}");
                 result.Append(',');
                 result.Append(item.BirthMonth);
                 result.Append(',');

@@ -1,4 +1,5 @@
-﻿using Discord.WebSocket;
+﻿using BirthdayBot.Data;
+using Discord.WebSocket;
 using NodaTime;
 using System;
 using System.Collections.Generic;
@@ -22,7 +23,7 @@ namespace BirthdayBot.UserInterface
         public const string NoParameterError = ":x: This command does not accept any parameters.";
         public const string InternalError = ":x: An internal bot error occurred. The bot maintainer has been notified of the issue.";
 
-        public delegate Task CommandHandler(string[] param, SocketTextChannel reqChannel, SocketGuildUser reqUser);
+        public delegate Task CommandHandler(string[] param, GuildConfiguration gconf, SocketTextChannel reqChannel, SocketGuildUser reqUser);
 
         protected static Dictionary<string, string> TzNameMap {
             get {

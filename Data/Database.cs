@@ -1,42 +1,36 @@
 ﻿using Npgsql;
+using System;
 using System.Threading.Tasks;
 
 namespace BirthdayBot.Data
 {
     /// <summary>
-    /// Some database abstractions.
+    /// Database access and some abstractions.
     /// </summary>
-    class Database
+    internal static class Database
     {
-        /*
-         * Database storage in this project, explained:
-         * Each guild gets a row in the settings table. This table is referred to when doing most things.
-         * Within each guild, each known user gets a row in the users table with specific information specified.
-         * Users can override certain settings in global, such as time zone.
-         */
-
-        private string DBConnectionString { get; }
-
-        public Database(string connString)
+        private static string _connString;
+        public static string DBConnectionString
         {
-            DBConnectionString = connString;
-
-            // Database initialization happens here as well.
-            SetupTables();
+            get => _connString;
+            set => _connString = "Minimum Pool Size=5;Maximum Pool Size=50;Connection Idle Lifetime=30;" + value;
         }
 
-        public async Task<NpgsqlConnection> OpenConnectionAsync()
+        public static async Task<NpgsqlConnection> OpenConnectionAsync()
         {
+            if (DBConnectionString == null) throw new Exception("Database connection string not set");
             var db = new NpgsqlConnection(DBConnectionString);
             await db.OpenAsync();
             return db;
         }
 
-        private void SetupTables()
+        public static async Task DoInitialDatabaseSetupAsync()
         {
-            using var db = OpenConnectionAsync().GetAwaiter().GetResult();
-            GuildStateInformation.SetUpDatabaseTable(db); // Note: Call this first. (Foreign reference constraints.)
-            GuildUserSettings.SetUpDatabaseTable(db);
+            using var db = await OpenConnectionAsync();
+
+            // Refer to the methods being called for information on how the database is set up.
+            await GuildConfiguration.DatabaseSetupAsync(db); // Note: Call this first. (Foreign reference constraints.)
+            await GuildUserConfiguration.DatabaseSetupAsync(db);
         }
     }
 }

@@ -23,9 +23,11 @@ namespace BirthdayBot.BackgroundServices
         public override async Task OnTick()
         {
             var tasks = new List<Task>();
-            foreach (var guild in BotInstance.DiscordClient.Guilds)
+
+            // Work on each shard concurrently; guilds within each shard synchronously
+            foreach (var shard in BotInstance.DiscordClient.Shards)
             {
-                tasks.Add(ProcessGuildAsync(guild));
+                tasks.Add(ProcessShardAsync(shard));
             }
             var alltasks = Task.WhenAll(tasks);
 
@@ -40,6 +42,7 @@ namespace BirthdayBot.BackgroundServices
                 {
                     Log($"{exs.InnerExceptions.Count} exception(s) during bulk processing!");
                     // TODO needs major improvements. output to file?
+                    foreach (var iex in exs.InnerExceptions) Log(iex.Message);
                 }
                 else
                 {
@@ -60,29 +63,59 @@ namespace BirthdayBot.BackgroundServices
         public async Task<string> SingleProcessGuildAsync(SocketGuild guild) => (await ProcessGuildAsync(guild)).Export();
 
         /// <summary>
+        /// Called by <see cref="OnTick"/>, processes all guilds within a shard synchronously.
+        /// </summary>
+        private async Task ProcessShardAsync(DiscordSocketClient shard)
+        {
+            if (shard.ConnectionState != Discord.ConnectionState.Connected)
+            {
+                Log($"Shard {shard.ShardId} (with {shard.Guilds.Count} guilds) processing stopped - shard disconnected.");
+                return;
+            }
+            var exs = new List<Exception>();
+            foreach (var guild in shard.Guilds)
+            {
+                try
+                {
+                    // Check if shard remains available
+                    if (shard.ConnectionState != Discord.ConnectionState.Connected)
+                    {
+                        Log($"Shard {shard.ShardId} (with {shard.Guilds.Count} guilds) processing interrupted.");
+                        return;
+                    }
+                    await ProcessGuildAsync(guild);
+                }
+                catch (Exception ex)
+                {
+                    // Catch all exceptions per-guild but continue processing, throw at end
+                    exs.Add(ex);
+                }
+            }
+            Log($"Shard {shard.ShardId} (with {shard.Guilds.Count} guilds) processing completed.");
+            if (exs.Count != 0) throw new AggregateException(exs);
+        }
+
+        /// <summary>
         /// Main method where actual guild processing occurs.
         /// </summary>
         private async Task<PGDiagnostic> ProcessGuildAsync(SocketGuild guild)
         {
             var diag = new PGDiagnostic();
 
-            // Skip processing of guild if local info has not yet been loaded
-            if (!BotInstance.GuildCache.TryGetValue(guild.Id, out var gs))
-            {
-                diag.FetchCachedGuild = "Server information not yet loaded by the bot. Try again later.";
-                return diag;
-            }
-            diag.FetchCachedGuild = null;
+            // Load guild information - stop if there is none (bot never previously used in guild)
+            var gc = await GuildConfiguration.LoadAsync(guild.Id, true);
+            if (gc == null) return diag;
 
             // Check if role settings are correct before continuing with further processing
             SocketRole role = null;
-            if (gs.RoleId.HasValue) role = guild.GetRole(gs.RoleId.Value);
+            if (gc.RoleId.HasValue) role = guild.GetRole(gc.RoleId.Value);
             diag.RoleCheck = CheckCorrectRoleSettings(guild, role);
             if (diag.RoleCheck != null) return diag;
 
             // Determine who's currently having a birthday
-            var users = gs.Users;
-            var tz = gs.TimeZone;
+            //await guild.DownloadUsersAsync();
+            var users = await GuildUserConfiguration.LoadAllAsync(guild.Id);
+            var tz = gc.TimeZone;
             var birthdays = GetGuildCurrentBirthdays(users, tz);
             // Note: Don't quit here if zero people are having birthdays. Roles may still need to be removed by BirthdayApply.
             diag.CurrentBirthdays = birthdays.Count.ToString();
@@ -103,10 +136,10 @@ namespace BirthdayBot.BackgroundServices
             diag.RoleApply = null;
 
             // Birthday announcement
-            var announce = gs.AnnounceMessages;
-            var announceping = gs.AnnouncePing;
+            var announce = gc.AnnounceMessages;
+            var announceping = gc.AnnouncePing;
             SocketTextChannel channel = null;
-            if (gs.AnnounceChannelId.HasValue) channel = guild.GetTextChannel(gs.AnnounceChannelId.Value);
+            if (gc.AnnounceChannelId.HasValue) channel = guild.GetTextChannel(gc.AnnounceChannelId.Value);
             if (announcementList.Count() != 0)
             {
                 var announceResult = await AnnounceBirthdaysAsync(announce, announceping, channel, announcementList);
@@ -145,7 +178,7 @@ namespace BirthdayBot.BackgroundServices
         /// Gets all known users from the given guild and returns a list including only those who are
         /// currently experiencing a birthday in the respective time zone.
         /// </summary>
-        private HashSet<ulong> GetGuildCurrentBirthdays(IEnumerable<GuildUserSettings> guildUsers, string defaultTzStr)
+        private HashSet<ulong> GetGuildCurrentBirthdays(IEnumerable<GuildUserConfiguration> guildUsers, string defaultTzStr)
         {
             var birthdayUsers = new HashSet<ulong>();
 
@@ -271,7 +304,6 @@ namespace BirthdayBot.BackgroundServices
         {
             const string DefaultValue = "--";
 
-            public string FetchCachedGuild = DefaultValue;
             public string RoleCheck = DefaultValue;
             public string CurrentBirthdays = DefaultValue;
             public string RoleApply = DefaultValue;
@@ -282,7 +314,6 @@ namespace BirthdayBot.BackgroundServices
             {
                 var result = new StringBuilder();
                 result.AppendLine("Test result:");
-                result.AppendLine("Fetch guild information: " + (FetchCachedGuild ?? ":white_check_mark:"));
                 result.AppendLine("Check role permissions: " + (RoleCheck ?? ":white_check_mark:"));
                 result.AppendLine("Number of known users currently with a birthday: " + CurrentBirthdays);
                 result.AppendLine("Role application process: " + (RoleApply ?? ":white_check_mark:"));

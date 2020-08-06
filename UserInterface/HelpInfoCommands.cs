@@ -1,4 +1,5 @@
-﻿using Discord;
+﻿using BirthdayBot.Data;
+using Discord;
 using Discord.WebSocket;
 using System.Collections.Generic;
 using System.Text;
@@ -89,13 +90,13 @@ namespace BirthdayBot.UserInterface
             return (helpRegular.Build(), helpConfig.Build());
         }
 
-        private async Task CmdHelp(string[] param, SocketTextChannel reqChannel, SocketGuildUser reqUser)
+        private async Task CmdHelp(string[] param, GuildConfiguration gconf, SocketTextChannel reqChannel, SocketGuildUser reqUser)
             => await reqChannel.SendMessageAsync(embed: _helpEmbed);
 
-        private async Task CmdHelpConfig(string[] param, SocketTextChannel reqChannel, SocketGuildUser reqUser)
+        private async Task CmdHelpConfig(string[] param, GuildConfiguration gconf, SocketTextChannel reqChannel, SocketGuildUser reqUser)
             => await reqChannel.SendMessageAsync(embed: _helpConfigEmbed);
 
-        private async Task CmdHelpTzdata(string[] param, SocketTextChannel reqChannel, SocketGuildUser reqUser)
+        private async Task CmdHelpTzdata(string[] param, GuildConfiguration gconf, SocketTextChannel reqChannel, SocketGuildUser reqUser)
         {
             const string tzhelp = "You may specify a time zone in order to have your birthday recognized with respect to your local time. "
                 + "This bot only accepts zone names from the IANA Time Zone Database (a.k.a. Olson Database).\n\n"
@@ -110,7 +111,7 @@ namespace BirthdayBot.UserInterface
             await reqChannel.SendMessageAsync(embed: embed.Build());
         }
 
-        private async Task CmdHelpMessage(string[] param, SocketTextChannel reqChannel, SocketGuildUser reqUser)
+        private async Task CmdHelpMessage(string[] param, GuildConfiguration gconf, SocketTextChannel reqChannel, SocketGuildUser reqUser)
         {
             const string msghelp = "The `message` and `messagepl` subcommands allow for editing the message sent into the announcement "
                 + "channel (defined with `{0}config channel`). This feature is separated across two commands:\n"
@@ -136,7 +137,7 @@ namespace BirthdayBot.UserInterface
             await reqChannel.SendMessageAsync(embed: embed.Build());
         }
 
-        private async Task CmdInfo(string[] param, SocketTextChannel reqChannel, SocketGuildUser reqUser)
+        private async Task CmdInfo(string[] param, GuildConfiguration gconf, SocketTextChannel reqChannel, SocketGuildUser reqUser)
         {
             var strStats = new StringBuilder();
             var asmnm = System.Reflection.Assembly.GetExecutingAssembly().GetName();

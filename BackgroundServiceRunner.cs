@@ -12,14 +12,15 @@ namespace BirthdayBot
     class BackgroundServiceRunner
     {
 #if !DEBUG
-        // Amount of idle time between each round of task execution, in seconds.
-        const int Interval = 8 * 60;
-
         // Amount of time between start and first round of processing, in seconds.
-        const int StartDelay = 60;
+        const int StartDelay = 3 * 60; // 3 minutes        
+
+        // Amount of idle time between each round of task execution, in seconds.
+        const int Interval = 5 * 60; // 5 minutes
 #else
-        const int Interval = 10;
-        const int StartDelay = 15;
+        // Short intervals for testing
+        const int StartDelay = 20;
+        const int Interval = 20;
 #endif
 
         const string LogName = nameof(BackgroundServiceRunner);
