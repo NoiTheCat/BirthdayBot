@@ -100,8 +100,9 @@ namespace BirthdayBot.UserInterface
         {
             const string tzhelp = "You may specify a time zone in order to have your birthday recognized with respect to your local time. "
                 + "This bot only accepts zone names from the IANA Time Zone Database (a.k.a. Olson Database).\n\n"
-                + "These names can be found at the following link, under the 'TZ database name' column: " +
-            "https://en.wikipedia.org/wiki/List_of_tz_database_time_zones";
+                + "To find your zone: https://xske.github.io/tz/" + "\n"
+                + "Interactive map: https://kevinnovak.github.io/Time-Zone-Picker/" + "\n"
+                + "Complete list: https://en.wikipedia.org/wiki/List_of_tz_database_time_zones";
             var embed = new EmbedBuilder();
             embed.AddField(new EmbedFieldBuilder()
             {
