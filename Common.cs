@@ -19,7 +19,7 @@ namespace BirthdayBot
                 var result = new StringBuilder();
                 foreach (var c in input)
                 {
-                    if (c == '\\' || c == '_' || c == '~' || c == '*')
+                    if (c == '\\' || c == '_' || c == '~' || c == '*' || c == '@')
                     {
                         result.Append('\\');
                     }
