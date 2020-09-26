@@ -61,6 +61,7 @@ namespace BirthdayBot.BackgroundServices
                     updatedUsers += await cUpdateGuildUser.ExecuteNonQueryAsync();
                 }
             }
+            Log($"Updated last-seen records: {updatedGuilds} guilds, {updatedUsers} users");
 
             // Delete all old values - expects referencing tables to have 'on delete cascade'
             using var t = db.BeginTransaction();
