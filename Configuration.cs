@@ -1,5 +1,6 @@
 ﻿using BirthdayBot.Data;
 using Newtonsoft.Json.Linq;
+using Npgsql;
 using System;
 using System.IO;
 using System.Reflection;
@@ -48,10 +49,23 @@ namespace BirthdayBot
                 DBotsToken = null;
             }
 
-            var sqlcs = jc["SqlConnectionString"]?.Value<string>();
-            if (string.IsNullOrWhiteSpace(sqlcs))
-                throw new Exception("'SqlConnectionString' must be specified.");
-            Database.DBConnectionString = sqlcs;
+            var sqlhost = jc["SqlHost"]?.Value<string>() ?? "localhost"; // Default to localhost
+            var sqluser = jc["SqlUsername"]?.Value<string>();
+            var sqlpass = jc["SqlPassword"]?.Value<string>();
+            if (string.IsNullOrWhiteSpace(sqluser) || string.IsNullOrWhiteSpace(sqlpass))
+                throw new Exception("'SqlUsername', 'SqlPassword' must be specified.");
+            var csb = new NpgsqlConnectionStringBuilder()
+            {
+                Host = sqlhost,
+                Username = sqluser,
+                Password = sqlpass,
+                // Note: Npgsql connection pooling settings are defined (hardcoded) here.
+                MinPoolSize = 3,
+                MaxPoolSize = 20
+            };
+            var sqldb = jc["SqlDatabase"]?.Value<string>();
+            if (sqldb != null) csb.Database = sqldb; // Optional database setting
+            Database.DBConnectionString = csb.ToString();
 
             int? sc = jc["ShardCount"]?.Value<int>();
             if (!sc.HasValue) ShardCount = 1;

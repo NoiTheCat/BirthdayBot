@@ -9,12 +9,7 @@ namespace BirthdayBot.Data
     /// </summary>
     internal static class Database
     {
-        private static string _connString;
-        public static string DBConnectionString
-        {
-            get => _connString;
-            set => _connString = "Minimum Pool Size=5;Maximum Pool Size=50;Connection Idle Lifetime=30;" + value;
-        }
+        public static string DBConnectionString { get; set; }
 
         public static async Task<NpgsqlConnection> OpenConnectionAsync()
         {
