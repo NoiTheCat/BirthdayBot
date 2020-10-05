@@ -101,12 +101,13 @@ namespace BirthdayBot
                 case "Connected":
                 case "Ready":
                 case "Failed to resume previous session":
+                case "Resumed previous session":
                 case "Disconnecting":
                 case "Disconnected":
                     return Task.CompletedTask;
             }
 
-            if (arg.Severity <= LogSeverity.Info) Log("Discord.Net", $"{arg.Severity}: {arg.Message}");
+            Log("Discord.Net", $"{arg.Severity}: {arg.Message}");
             if (arg.Exception != null) Log("Discord.Net", arg.Exception.ToString());
 
             return Task.CompletedTask;
