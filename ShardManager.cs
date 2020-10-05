@@ -108,13 +108,14 @@ namespace BirthdayBot
 
                 var clientConf = new DiscordSocketConfig()
                 {
-                    LogLevel = LogSeverity.Debug, // TODO adjust after testing
-                    AlwaysDownloadUsers = true, // TODO set to false when more stable to do so
-                    DefaultRetryMode = Discord.RetryMode.RetryRatelimit,
-                    MessageCacheSize = 0,
                     ShardId = shardId,
                     TotalShards = Config.ShardCount,
-                    ExclusiveBulkDelete = true // we don't use these, but it's best to configure here
+                    LogLevel = LogSeverity.Info,
+                    DefaultRetryMode = RetryMode.RetryRatelimit,
+                    MessageCacheSize = 0, // not needed at all
+                    ExclusiveBulkDelete = true, // not relevant, but this is configured to skip the warning
+                    AlwaysDownloadUsers = true, // TODO set to false when more stable to do so
+                    GatewayIntents = GatewayIntents.Guilds | GatewayIntents.GuildMembers | GatewayIntents.GuildMessages
                 };
                 var newClient = new DiscordSocketClient(clientConf);
                 newInstance = new ShardInstance(this, newClient, _dispatchCommands);
