@@ -14,7 +14,7 @@ namespace BirthdayBot.UserInterface
     /// </summary>
     internal class ListingCommands : CommandsCommon
     {
-        public ListingCommands(BirthdayBot inst, Configuration db) : base(inst, db) { }
+        public ListingCommands(Configuration db) : base(db) { }
 
         public override IEnumerable<(string, CommandHandler)> Commands
             => new List<(string, CommandHandler)>()
@@ -35,7 +35,8 @@ namespace BirthdayBot.UserInterface
             new CommandDocumentation(new string[] { "when" }, "Displays the given user's birthday information.", null);
         #endregion
 
-        private async Task CmdWhen(string[] param, GuildConfiguration gconf, SocketTextChannel reqChannel, SocketGuildUser reqUser)
+        private async Task CmdWhen(ShardInstance instance, GuildConfiguration gconf,
+                                   string[] param, SocketTextChannel reqChannel, SocketGuildUser reqUser)
         {
             // Requires a parameter
             if (param.Length == 1)
@@ -91,7 +92,8 @@ namespace BirthdayBot.UserInterface
         }
 
         // Creates a file with all birthdays.
-        private async Task CmdList(string[] param, GuildConfiguration gconf, SocketTextChannel reqChannel, SocketGuildUser reqUser)
+        private async Task CmdList(ShardInstance instance, GuildConfiguration gconf,
+                                   string[] param, SocketTextChannel reqChannel, SocketGuildUser reqUser)
         {
             // For now, we're restricting this command to moderators only. This may turn into an option later.
             if (!gconf.IsBotModerator(reqUser))
@@ -156,7 +158,8 @@ namespace BirthdayBot.UserInterface
 
         // "Recent and upcoming birthdays"
         // The 'recent' bit removes time zone ambiguity and spares us from extra time zone processing here
-        private async Task CmdUpcoming(string[] param, GuildConfiguration gconf, SocketTextChannel reqChannel, SocketGuildUser reqUser)
+        private async Task CmdUpcoming(ShardInstance instance, GuildConfiguration gconf,
+                                       string[] param, SocketTextChannel reqChannel, SocketGuildUser reqUser)
         {
             var now = DateTimeOffset.UtcNow;
             var search = DateIndex(now.Month, now.Day) - 8; // begin search 8 days prior to current date UTC

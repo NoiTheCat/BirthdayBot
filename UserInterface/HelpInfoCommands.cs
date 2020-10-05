@@ -12,7 +12,7 @@ namespace BirthdayBot.UserInterface
         private readonly Embed _helpEmbed;
         private readonly Embed _helpConfigEmbed;
 
-        public HelpInfoCommands(BirthdayBot inst, Configuration db) : base(inst, db)
+        public HelpInfoCommands(Configuration cfg) : base(cfg)
         {
             var embeds = BuildHelpEmbeds();
             _helpEmbed = embeds.Item1;
@@ -90,13 +90,16 @@ namespace BirthdayBot.UserInterface
             return (helpRegular.Build(), helpConfig.Build());
         }
 
-        private async Task CmdHelp(string[] param, GuildConfiguration gconf, SocketTextChannel reqChannel, SocketGuildUser reqUser)
+        private async Task CmdHelp(ShardInstance instance, GuildConfiguration gconf,
+                                   string[] param, SocketTextChannel reqChannel, SocketGuildUser reqUser)
             => await reqChannel.SendMessageAsync(embed: _helpEmbed);
 
-        private async Task CmdHelpConfig(string[] param, GuildConfiguration gconf, SocketTextChannel reqChannel, SocketGuildUser reqUser)
+        private async Task CmdHelpConfig(ShardInstance instance, GuildConfiguration gconf,
+                                         string[] param, SocketTextChannel reqChannel, SocketGuildUser reqUser)
             => await reqChannel.SendMessageAsync(embed: _helpConfigEmbed);
 
-        private async Task CmdHelpTzdata(string[] param, GuildConfiguration gconf, SocketTextChannel reqChannel, SocketGuildUser reqUser)
+        private async Task CmdHelpTzdata(ShardInstance instance, GuildConfiguration gconf,
+                                         string[] param, SocketTextChannel reqChannel, SocketGuildUser reqUser)
         {
             const string tzhelp = "You may specify a time zone in order to have your birthday recognized with respect to your local time. "
                 + "This bot only accepts zone names from the IANA Time Zone Database (a.k.a. Olson Database).\n\n"
@@ -112,7 +115,8 @@ namespace BirthdayBot.UserInterface
             await reqChannel.SendMessageAsync(embed: embed.Build());
         }
 
-        private async Task CmdHelpMessage(string[] param, GuildConfiguration gconf, SocketTextChannel reqChannel, SocketGuildUser reqUser)
+        private async Task CmdHelpMessage(ShardInstance instance, GuildConfiguration gconf,
+                                          string[] param, SocketTextChannel reqChannel, SocketGuildUser reqUser)
         {
             const string msghelp = "The `message` and `messagepl` subcommands allow for editing the message sent into the announcement "
                 + "channel (defined with `{0}config channel`). This feature is separated across two commands:\n"
@@ -138,13 +142,15 @@ namespace BirthdayBot.UserInterface
             await reqChannel.SendMessageAsync(embed: embed.Build());
         }
 
-        private async Task CmdInfo(string[] param, GuildConfiguration gconf, SocketTextChannel reqChannel, SocketGuildUser reqUser)
+        private async Task CmdInfo(ShardInstance instance, GuildConfiguration gconf,
+                                   string[] param, SocketTextChannel reqChannel, SocketGuildUser reqUser)
         {
             var strStats = new StringBuilder();
             var asmnm = System.Reflection.Assembly.GetExecutingAssembly().GetName();
             strStats.AppendLine("BirthdayBot v" + asmnm.Version.ToString(3));
-            strStats.AppendLine("Server count: " + Discord.Guilds.Count.ToString());
-            strStats.AppendLine("Shard #" + Discord.GetShardIdFor(reqChannel.Guild).ToString());
+            //strStats.AppendLine("Server count: " + Discord.Guilds.Count.ToString());
+            // TODO restore this statistic
+            strStats.AppendLine("Shard #" + instance.ShardId.ToString("00"));
             strStats.AppendLine("Uptime: " + Common.BotUptime);
 
             // TODO fun stats
@@ -155,7 +161,7 @@ namespace BirthdayBot.UserInterface
                 Author = new EmbedAuthorBuilder()
                 {
                     Name = "Thank you for using Birthday Bot!",
-                    IconUrl = Discord.CurrentUser.GetAvatarUrl()
+                    IconUrl = instance.DiscordClient.CurrentUser.GetAvatarUrl()
                 },
                 // TODO this message needs an overhaul
                 Description = "For more information regarding support, data retention, privacy, and other details, please refer to: "

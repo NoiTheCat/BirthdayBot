@@ -1,41 +1,22 @@
-﻿using Discord;
-using Discord.WebSocket;
-using System;
+﻿using System;
 using System.Threading.Tasks;
 
 namespace BirthdayBot
 {
     class Program
     {
-        private static BirthdayBot _bot;
-
+        private static ShardManager _bot;
         public static DateTimeOffset BotStartTime { get; private set; }
 
-        static void Main()
+        static async Task Main()
         {
-            var ver = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version;
-            Log("Birthday Bot", $"Version {ver.ToString(3)} is starting.");
-
             BotStartTime = DateTimeOffset.UtcNow;
             var cfg = new Configuration();
 
-            var dc = new DiscordSocketConfig()
-            {
-                AlwaysDownloadUsers = true,
-                DefaultRetryMode = RetryMode.RetryRatelimit,
-                MessageCacheSize = 0,
-                TotalShards = cfg.ShardCount,
-                ExclusiveBulkDelete = true
-            };
-
-            var client = new DiscordShardedClient(dc);
-            client.Log += DNetLog;
-
-            _bot = new BirthdayBot(cfg, client);
-
             Console.CancelKeyPress += OnCancelKeyPressed;
+            _bot = new ShardManager(cfg);
 
-            _bot.Start().Wait();
+            await Task.Delay(-1);
         }
 
         /// <summary>
@@ -49,32 +30,16 @@ namespace BirthdayBot
                 Console.WriteLine($"{ts:u} [{source}] {item}");
         }
 
-        private static Task DNetLog(LogMessage arg)
-        {
-            // Suppress 'Unknown Dispatch' messages
-            if (arg.Message.StartsWith("Unknown Dispatch ")) return Task.CompletedTask;
-
-            if (arg.Severity <= LogSeverity.Info)
-            {
-                Log("Discord.Net", $"{arg.Severity}: {arg.Message}");
-            }
-
-            if (arg.Exception != null)
-            {
-                Log("Discord.Net", arg.Exception.ToString());
-            }
-
-            return Task.CompletedTask;
-        }
-
+        private static bool _dispose = false;
         private static void OnCancelKeyPressed(object sender, ConsoleCancelEventArgs e)
         {
             e.Cancel = true;
-            Log("Shutdown", "Caught cancel key. Will shut down...");
-            var hang = !_bot.Shutdown().Wait(10000);
-            if (hang)
+            if (_dispose) return;
+            _dispose = true;
+            var dispose = Task.Run(_bot.Dispose);
+            if (!dispose.Wait(90000))
             {
-                Log("Shutdown", "Normal shutdown has not concluded after 10 seconds. Will force quit.");
+                Log("Shutdown", "Normal shutdown has not concluded after 90 seconds. Will force quit.");
             }
             Environment.Exit(0);
         }

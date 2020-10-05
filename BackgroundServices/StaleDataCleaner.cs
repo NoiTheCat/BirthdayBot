@@ -2,6 +2,7 @@
 using NpgsqlTypes;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace BirthdayBot.BackgroundServices
@@ -11,13 +12,21 @@ namespace BirthdayBot.BackgroundServices
     /// </summary>
     class StaleDataCleaner : BackgroundService
     {
-        public StaleDataCleaner(BirthdayBot instance) : base(instance) { }
+        private int _tickCount = 0;
 
-        public override async Task OnTick()
+        public StaleDataCleaner(ShardInstance instance) : base(instance) { }
+
+        public override async Task OnTick(CancellationToken token)
         {
+            if (++_tickCount % 20 != 0)
+            {
+                // Do not process on every tick.
+                return;
+            }
+
             // Build a list of all values to update
             var updateList = new Dictionary<ulong, List<ulong>>();
-            foreach (var g in BotInstance.DiscordClient.Guilds)
+            foreach (var g in ShardInstance.DiscordClient.Guilds)
             {
                 // Get list of IDs for all users who exist in the database and currently exist in the guild
                 var savedUserIds = from cu in await GuildUserConfiguration.LoadAllAsync(g.Id) select cu.UserId;
@@ -52,13 +61,13 @@ namespace BirthdayBot.BackgroundServices
                 var userlist = item.Value;
 
                 pUpdateG.Value = (long)guild;
-                updatedGuilds += await cUpdateGuild.ExecuteNonQueryAsync();
+                updatedGuilds += await cUpdateGuild.ExecuteNonQueryAsync(token);
 
                 pUpdateGU_g.Value = (long)guild;
                 foreach (var userid in userlist)
                 {
                     pUpdateGU_u.Value = (long)userid;
-                    updatedUsers += await cUpdateGuildUser.ExecuteNonQueryAsync();
+                    updatedUsers += await cUpdateGuildUser.ExecuteNonQueryAsync(token);
                 }
             }
             Log($"Updated last-seen records: {updatedGuilds} guilds, {updatedUsers} users");

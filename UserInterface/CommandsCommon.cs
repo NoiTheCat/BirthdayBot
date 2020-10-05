@@ -23,7 +23,8 @@ namespace BirthdayBot.UserInterface
         public const string NoParameterError = ":x: This command does not accept any parameters.";
         public const string InternalError = ":x: An internal bot error occurred. The bot maintainer has been notified of the issue.";
 
-        public delegate Task CommandHandler(string[] param, GuildConfiguration gconf, SocketTextChannel reqChannel, SocketGuildUser reqUser);
+        public delegate Task CommandHandler(ShardInstance instance, GuildConfiguration gconf,
+                                            string[] param, SocketTextChannel reqChannel, SocketGuildUser reqUser);
 
         protected static Dictionary<string, string> TzNameMap {
             get {
@@ -42,15 +43,11 @@ namespace BirthdayBot.UserInterface
         protected static Regex UserMention { get; } = new Regex(@"\!?(\d+)>");
         private static Dictionary<string, string> _tzNameMap; // Value set by getter property on first read
 
-        protected BirthdayBot Instance { get; }
         protected Configuration BotConfig { get; }
-        protected DiscordShardedClient Discord { get; }
 
-        protected CommandsCommon(BirthdayBot inst, Configuration db)
+        protected CommandsCommon(Configuration db)
         {
-            Instance = inst;
             BotConfig = db;
-            Discord = inst.DiscordClient;
         }
 
         /// <summary>

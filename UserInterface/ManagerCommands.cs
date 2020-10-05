@@ -16,11 +16,8 @@ namespace BirthdayBot.UserInterface
 
         private readonly Dictionary<string, ConfigSubcommand> _subcommands;
         private readonly Dictionary<string, CommandHandler> _usercommands;
-        private readonly Func<SocketGuild, Task<string>> _bRoleUpdAccess;
 
-        public ManagerCommands(BirthdayBot inst, Configuration db,
-            IEnumerable<(string, CommandHandler)> userCommands, Func<SocketGuild, Task<string>> brsingleupdate)
-            : base(inst, db)
+        public ManagerCommands(Configuration db, IEnumerable<(string, CommandHandler)> userCommands) : base(db)
         {
             _subcommands = new Dictionary<string, ConfigSubcommand>(StringComparer.OrdinalIgnoreCase)
             {
@@ -39,9 +36,6 @@ namespace BirthdayBot.UserInterface
             // Set up local copy of all user commands accessible by the override command
             _usercommands = new Dictionary<string, CommandHandler>(StringComparer.OrdinalIgnoreCase);
             foreach (var item in userCommands) _usercommands.Add(item.Item1, item.Item2);
-
-            // and access to the otherwise automated guild update function
-            _bRoleUpdAccess = brsingleupdate;
         }
 
         public override IEnumerable<(string, CommandHandler)> Commands
@@ -58,7 +52,8 @@ namespace BirthdayBot.UserInterface
                 "Perform certain commands on behalf of another user.", null);
         #endregion
 
-        private async Task CmdConfigDispatch(string[] param, GuildConfiguration gconf, SocketTextChannel reqChannel, SocketGuildUser reqUser)
+        private async Task CmdConfigDispatch(ShardInstance instance, GuildConfiguration gconf,
+                                            string[] param, SocketTextChannel reqChannel, SocketGuildUser reqUser)
         {
             // Ignore those without the proper permissions.
             if (!gconf.IsBotModerator(reqUser))
@@ -378,7 +373,8 @@ namespace BirthdayBot.UserInterface
         #endregion
 
         // Execute command as another user
-        private async Task CmdOverride(string[] param, GuildConfiguration gconf, SocketTextChannel reqChannel, SocketGuildUser reqUser)
+        private async Task CmdOverride(ShardInstance instance, GuildConfiguration gconf,
+                                       string[] param, SocketTextChannel reqChannel, SocketGuildUser reqUser)
         {
             // Moderators only. As with config, silently drop if this check fails.
             if (!gconf.IsBotModerator(reqUser)) return;
@@ -424,11 +420,12 @@ namespace BirthdayBot.UserInterface
 
             // Preparations complete. Run the command.
             await reqChannel.SendMessageAsync($"Executing `{cmdsearch.ToLower()}` on behalf of {overuser.Nickname ?? overuser.Username}:");
-            await action.Invoke(overparam, gconf, reqChannel, overuser);
+            await action.Invoke(instance, gconf, overparam, reqChannel, overuser);
         }
 
         // Publicly available command that immediately processes the current guild, 
-        private async Task CmdTest(string[] param, GuildConfiguration gconf, SocketTextChannel reqChannel, SocketGuildUser reqUser)
+        private async Task CmdTest(ShardInstance instance, GuildConfiguration gconf,
+                                   string[] param, SocketTextChannel reqChannel, SocketGuildUser reqUser)
         {
             // Moderators only. As with config, silently drop if this check fails.
             if (!gconf.IsBotModerator(reqUser)) return;
@@ -447,7 +444,7 @@ namespace BirthdayBot.UserInterface
 
             try
             {
-                var result = await _bRoleUpdAccess(reqChannel.Guild);
+                var result = await instance.ForceBirthdayUpdateAsync(reqChannel.Guild);
                 await reqChannel.SendMessageAsync(result);
             }
             catch (Exception ex)

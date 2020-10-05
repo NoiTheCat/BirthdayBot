@@ -9,7 +9,7 @@ namespace BirthdayBot.UserInterface
 {
     internal class UserCommands : CommandsCommon
     {
-        public UserCommands(BirthdayBot inst, Configuration db) : base(inst, db) { }
+        public UserCommands(Configuration db) : base(db) { }
 
         public override IEnumerable<(string, CommandHandler)> Commands
             => new List<(string, CommandHandler)>()
@@ -111,7 +111,8 @@ namespace BirthdayBot.UserInterface
             new CommandDocumentation(new string[] { "remove" }, "Removes your birthday information from this bot.", null);
         #endregion
 
-        private async Task CmdSet(string[] param, GuildConfiguration gconf, SocketTextChannel reqChannel, SocketGuildUser reqUser)
+        private async Task CmdSet(ShardInstance instance, GuildConfiguration gconf,
+                                  string[] param, SocketTextChannel reqChannel, SocketGuildUser reqUser)
         {
             // Requires one parameter. Optionally two.
             if (param.Length < 2 || param.Length > 3)
@@ -161,7 +162,8 @@ namespace BirthdayBot.UserInterface
             }
         }
 
-        private async Task CmdZone(string[] param, GuildConfiguration gconf, SocketTextChannel reqChannel, SocketGuildUser reqUser)
+        private async Task CmdZone(ShardInstance instance, GuildConfiguration gconf,
+                                   string[] param, SocketTextChannel reqChannel, SocketGuildUser reqUser)
         {
             if (param.Length != 2)
             {
@@ -192,7 +194,8 @@ namespace BirthdayBot.UserInterface
             await reqChannel.SendMessageAsync($":white_check_mark: Your time zone has been updated to **{btz}**.");
         }
 
-        private async Task CmdRemove(string[] param, GuildConfiguration gconf, SocketTextChannel reqChannel, SocketGuildUser reqUser)
+        private async Task CmdRemove(ShardInstance instance, GuildConfiguration gconf,
+                                     string[] param, SocketTextChannel reqChannel, SocketGuildUser reqUser)
         {
             // Parameter count check
             if (param.Length != 1)

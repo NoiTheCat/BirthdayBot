@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace BirthdayBot.BackgroundServices
@@ -15,45 +16,33 @@ namespace BirthdayBot.BackgroundServices
     /// </summary>
     class BirthdayRoleUpdate : BackgroundService
     {
-        public BirthdayRoleUpdate(BirthdayBot instance) : base(instance) { }
+        public BirthdayRoleUpdate(ShardInstance instance) : base(instance) { }
 
         /// <summary>
-        /// Does processing on all available guilds at once.
+        /// Processes birthday updates for all available guilds synchronously
+        /// (to avoid database connection pool bottlenecks).
         /// </summary>
-        public override async Task OnTick()
+        public override async Task OnTick(CancellationToken token)
         {
-            var tasks = new List<Task>();
-
-            // Work on each shard concurrently; guilds within each shard synchronously
-            foreach (var shard in BotInstance.DiscordClient.Shards)
+            var exs = new List<Exception>();
+            foreach (var guild in ShardInstance.DiscordClient.Guilds)
             {
-                tasks.Add(ProcessShardAsync(shard));
-            }
-            var alltasks = Task.WhenAll(tasks);
-
-            try
-            {
-                await alltasks;
-            }
-            catch (Exception ex)
-            {
-                var exs = alltasks.Exception;
-                if (exs != null)
+                if (token.IsCancellationRequested) throw new TaskCanceledException();
+                try
                 {
-                    Log($"{exs.InnerExceptions.Count} exception(s) during bulk processing!");
-                    // TODO needs major improvements. output to file?
-                    foreach (var iex in exs.InnerExceptions) Log(iex.Message);
+                    await ProcessGuildAsync(guild);
                 }
-                else
+                catch (Exception ex)
                 {
-                    Log(ex.ToString());
+                    if (ex is TaskCanceledException) throw;
+                    // Catch all exceptions per-guild but continue processing, throw at end
+                    exs.Add(ex);
                 }
             }
+            //Log($"Completed processing {ShardInstance.DiscordClient.Guilds.Count} guilds.");
+            if (exs.Count != 0) throw new AggregateException(exs);
 
             // TODO metrics for role sets, unsets, announcements - and how to do that for singles too?
-
-            // Running GC now. Many long-lasting items have likely been discarded by now.
-            GC.Collect();
         }
 
         /// <summary>
@@ -61,39 +50,6 @@ namespace BirthdayBot.BackgroundServices
         /// </summary>
         /// <returns>Diagnostic data in string form.</returns>
         public async Task<string> SingleProcessGuildAsync(SocketGuild guild) => (await ProcessGuildAsync(guild)).Export();
-
-        /// <summary>
-        /// Called by <see cref="OnTick"/>, processes all guilds within a shard synchronously.
-        /// </summary>
-        private async Task ProcessShardAsync(DiscordSocketClient shard)
-        {
-            if (shard.ConnectionState != Discord.ConnectionState.Connected)
-            {
-                Log($"Shard {shard.ShardId} (with {shard.Guilds.Count} guilds) processing stopped - shard disconnected.");
-                return;
-            }
-            var exs = new List<Exception>();
-            foreach (var guild in shard.Guilds)
-            {
-                try
-                {
-                    // Check if shard remains available
-                    if (shard.ConnectionState != Discord.ConnectionState.Connected)
-                    {
-                        Log($"Shard {shard.ShardId} (with {shard.Guilds.Count} guilds) processing interrupted.");
-                        return;
-                    }
-                    await ProcessGuildAsync(guild);
-                }
-                catch (Exception ex)
-                {
-                    // Catch all exceptions per-guild but continue processing, throw at end
-                    exs.Add(ex);
-                }
-            }
-            Log($"Shard {shard.ShardId} (with {shard.Guilds.Count} guilds) processing completed.");
-            if (exs.Count != 0) throw new AggregateException(exs);
-        }
 
         /// <summary>
         /// Main method where actual guild processing occurs.
