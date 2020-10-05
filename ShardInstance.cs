@@ -72,14 +72,24 @@ namespace BirthdayBot
             _background.Dispose();
             try
             {
-                var logout = DiscordClient.LogoutAsync();
-                logout.Wait(15000);
-                if (!logout.IsCompleted) Log("Instance", "Warning: Client has not yet logged out. Forcing its disposal.");
+                if (!DiscordClient.LogoutAsync().Wait(15000))
+                    Log("Instance", "Warning: Client has not yet logged out. Continuing cleanup.");
             }
-            finally
+            catch (Exception ex)
             {
-                DiscordClient.Dispose();
+                Log("Instance", "Warning: Client threw an exception when logging out: " + ex.Message);
             }
+            try
+            {
+                if (!DiscordClient.StopAsync().Wait(5000))
+                    Log("Instance", "Warning: Client has not yet stopped. Continuing cleanup.");
+            }
+            catch (Exception ex)
+            {
+                Log("Instance", "Warning: Client threw an exception when stopping: " + ex.Message);
+            }
+
+            DiscordClient.Dispose();
         }
 
         public void Log(string source, string message) => Program.Log($"Shard {ShardId:00}] [{source}", message);
