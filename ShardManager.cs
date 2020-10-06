@@ -184,21 +184,27 @@ namespace BirthdayBot
         /// </summary>
         private async Task SendExternalStatistics(int count, ulong botId, CancellationToken token)
         {
-            // TODO protect against exceptions
             var dbotsToken = Config.DBotsToken;
             if (dbotsToken != null)
             {
-                const string dBotsApiUrl = "https://discord.bots.gg/api/v1/bots/{0}/stats";
-                const string Body = "{{ \"guildCount\": {0} }}";
-                var uri = new Uri(string.Format(dBotsApiUrl, botId));
+                try
+                {
+                    const string dBotsApiUrl = "https://discord.bots.gg/api/v1/bots/{0}/stats";
+                    const string Body = "{{ \"guildCount\": {0} }}";
+                    var uri = new Uri(string.Format(dBotsApiUrl, botId));
 
-                var post = new HttpRequestMessage(HttpMethod.Post, uri);
-                post.Headers.Add("Authorization", dbotsToken);
-                post.Content = new StringContent(string.Format(Body, count), Encoding.UTF8, "application/json");
+                    var post = new HttpRequestMessage(HttpMethod.Post, uri);
+                    post.Headers.Add("Authorization", dbotsToken);
+                    post.Content = new StringContent(string.Format(Body, count), Encoding.UTF8, "application/json");
 
-                await Task.Delay(80); // Discord Bots rate limit for this endpoint is 20 per second
-                await _httpClient.SendAsync(post, token);
-                Log("Discord Bots: Count sent successfully.");
+                    await Task.Delay(80); // Discord Bots rate limit for this endpoint is 20 per second
+                    await _httpClient.SendAsync(post, token);
+                    Log("Discord Bots: Update successful.");
+                }
+                catch (Exception ex)
+                {
+                    Log("Discord Bots: Exception encountered during update: " + ex.Message);
+                }
             }
         }
         #endregion
