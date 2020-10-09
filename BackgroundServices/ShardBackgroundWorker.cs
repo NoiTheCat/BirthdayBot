@@ -54,7 +54,8 @@ namespace BirthdayBot.BackgroundServices
         }
 
         /// <summary>
-        /// *The* background task. Executes service tasks and handles errors.
+        /// *The* background task for the shard.
+        /// Executes service tasks and handles errors.
         /// </summary>
         private async Task WorkerLoop()
         {
@@ -65,17 +66,14 @@ namespace BirthdayBot.BackgroundServices
                 {
                     await Task.Delay(Interval * 1000, _workerCanceller.Token);
 
-                    // Wait a while for a stable connection, the threshold for which is defined within ConnectionStatus.
+                    // ConnectionStatus will always run. Its result determines if remaining tasks also this time.
                     await ConnStatus.OnTick(_workerCanceller.Token);
                     if (!ConnStatus.Stable) continue;
 
                     // Execute tasks sequentially
                     foreach (var service in _workers)
                     {
-                        try
-                        {
-                            await service.OnTick(_workerCanceller.Token);
-                        }
+                        try { await service.OnTick(_workerCanceller.Token); }
                         catch (Exception ex)
                         {
                             var svcname = service.GetType().Name;

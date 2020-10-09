@@ -20,13 +20,14 @@ namespace BirthdayBot.BackgroundServices
 
         /// <summary>
         /// Processes birthday updates for all available guilds synchronously
-        /// (to avoid database connection pool bottlenecks).
+        /// (to avoid database connection pool bottlenecks and rate limiting).
         /// </summary>
         public override async Task OnTick(CancellationToken token)
         {
             var exs = new List<Exception>();
             foreach (var guild in ShardInstance.DiscordClient.Guilds)
             {
+                // Single guilds are fully processed and are not interrupted by task cancellation.
                 if (token.IsCancellationRequested) throw new TaskCanceledException();
                 try
                 {
@@ -34,12 +35,10 @@ namespace BirthdayBot.BackgroundServices
                 }
                 catch (Exception ex)
                 {
-                    if (ex is TaskCanceledException) throw;
                     // Catch all exceptions per-guild but continue processing, throw at end
                     exs.Add(ex);
                 }
             }
-            //Log($"Completed processing {ShardInstance.DiscordClient.Guilds.Count} guilds.");
             if (exs.Count != 0) throw new AggregateException(exs);
 
             // TODO metrics for role sets, unsets, announcements - and how to do that for singles too?
@@ -69,7 +68,9 @@ namespace BirthdayBot.BackgroundServices
             if (diag.RoleCheck != null) return diag;
 
             // Determine who's currently having a birthday
-            //await guild.DownloadUsersAsync();
+            // Note: This is where we'd call DownloadUsersAsync, but this method is capable of blocking indefinitely
+            // and making the task completely unresponsive. Must investigate further before calling it here and disabling
+            // AlwaysDownloadUsers in client settings.
             var users = await GuildUserConfiguration.LoadAllAsync(guild.Id);
             var tz = gc.TimeZone;
             var birthdays = GetGuildCurrentBirthdays(users, tz);
