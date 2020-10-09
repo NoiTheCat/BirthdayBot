@@ -13,7 +13,7 @@ namespace BirthdayBot.BackgroundServices
         /// <summary>
         /// The interval, in seconds, in which background tasks are attempted to be run within a shard.
         /// </summary>
-        public const int Interval = 20;
+        public const int Interval = 40;
 
         private readonly Task _workerTask;
         private readonly CancellationTokenSource _workerCanceller;
@@ -39,8 +39,7 @@ namespace BirthdayBot.BackgroundServices
                 {new StaleDataCleaner(instance)}
             };
 
-            _workerTask = Task.Factory.StartNew(WorkerLoop, _workerCanceller.Token,
-                                                TaskCreationOptions.LongRunning, TaskScheduler.Default);
+            _workerTask = Task.Factory.StartNew(WorkerLoop, _workerCanceller.Token);
         }
 
         public void Dispose()
