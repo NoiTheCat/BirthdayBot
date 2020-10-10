@@ -36,7 +36,7 @@ namespace BirthdayBot.BackgroundServices
             _workers = new List<BackgroundService>()
             {
                 {BirthdayUpdater},
-                {new StaleDataCleaner(instance)}
+                {new DataRetention(instance)}
             };
 
             _workerTask = Task.Factory.StartNew(WorkerLoop, _workerCanceller.Token);
