@@ -41,7 +41,7 @@ namespace BirthdayBot.UserInterface
             // Requires a parameter
             if (param.Length == 1)
             {
-                await reqChannel.SendMessageAsync(ParameterError, embed: DocWhen.UsageEmbed);
+                await reqChannel.SendMessageAsync(ParameterError, embed: DocWhen.UsageEmbed).ConfigureAwait(false);
                 return;
             }
 
@@ -72,14 +72,14 @@ namespace BirthdayBot.UserInterface
             }
             if (searchTarget == null)
             {
-                await reqChannel.SendMessageAsync(BadUserError, embed: DocWhen.UsageEmbed);
+                await reqChannel.SendMessageAsync(BadUserError, embed: DocWhen.UsageEmbed).ConfigureAwait(false);
                 return;
             }
 
-            var searchTargetData = await GuildUserConfiguration.LoadAsync(reqChannel.Guild.Id, searchId);
+            var searchTargetData = await GuildUserConfiguration.LoadAsync(reqChannel.Guild.Id, searchId).ConfigureAwait(false);
             if (!searchTargetData.IsKnown)
             {
-                await reqChannel.SendMessageAsync("I do not have birthday information for that user.");
+                await reqChannel.SendMessageAsync("I do not have birthday information for that user.").ConfigureAwait(false);
                 return;
             }
 
@@ -88,7 +88,7 @@ namespace BirthdayBot.UserInterface
             result += $"`{searchTargetData.BirthDay:00}-{Common.MonthNames[searchTargetData.BirthMonth]}`";
             result += searchTargetData.TimeZone == null ? "" : $" - `{searchTargetData.TimeZone}`";
 
-            await reqChannel.SendMessageAsync(result);
+            await reqChannel.SendMessageAsync(result).ConfigureAwait(false);
         }
 
         // Creates a file with all birthdays.
@@ -99,7 +99,7 @@ namespace BirthdayBot.UserInterface
             if (!gconf.IsBotModerator(reqUser))
             {
                 // Do not add detailed usage information to this error message.
-                await reqChannel.SendMessageAsync(":x: Only bot moderators may use this command.");
+                await reqChannel.SendMessageAsync(":x: Only bot moderators may use this command.").ConfigureAwait(false);
                 return;
             }
 
@@ -110,17 +110,18 @@ namespace BirthdayBot.UserInterface
                 if (param[1].ToLower() == "csv") useCsv = true;
                 else
                 {
-                    await reqChannel.SendMessageAsync(":x: That is not available as an export format.", embed: DocList.UsageEmbed);
+                    await reqChannel.SendMessageAsync(":x: That is not available as an export format.", embed: DocList.UsageEmbed)
+                        .ConfigureAwait(false);
                     return;
                 }
             }
             else if (param.Length > 2)
             {
-                await reqChannel.SendMessageAsync(ParameterError, embed: DocList.UsageEmbed);
+                await reqChannel.SendMessageAsync(ParameterError, embed: DocList.UsageEmbed).ConfigureAwait(false);
                 return;
             }
 
-            var bdlist = await GetSortedUsersAsync(reqChannel.Guild);
+            var bdlist = await GetSortedUsersAsync(reqChannel.Guild).ConfigureAwait(false);
 
             var filepath = Path.GetTempPath() + "birthdaybot-" + reqChannel.Guild.Id;
             string fileoutput;
@@ -134,11 +135,11 @@ namespace BirthdayBot.UserInterface
                 fileoutput = ListExportNormal(reqChannel, bdlist);
                 filepath += ".txt.";
             }
-            await File.WriteAllTextAsync(filepath, fileoutput, Encoding.UTF8);
+            await File.WriteAllTextAsync(filepath, fileoutput, Encoding.UTF8).ConfigureAwait(false);
 
             try
             {
-                await reqChannel.SendFileAsync(filepath, $"Exported {bdlist.Count} birthdays to file.");
+                await reqChannel.SendFileAsync(filepath, $"Exported {bdlist.Count} birthdays to file.").ConfigureAwait(false);
             }
             catch (Discord.Net.HttpException)
             {
@@ -165,7 +166,7 @@ namespace BirthdayBot.UserInterface
             var search = DateIndex(now.Month, now.Day) - 8; // begin search 8 days prior to current date UTC
             if (search <= 0) search = 366 - Math.Abs(search);
 
-            var query = await GetSortedUsersAsync(reqChannel.Guild);
+            var query = await GetSortedUsersAsync(reqChannel.Guild).ConfigureAwait(false);
 
             var output = new StringBuilder();
             var resultCount = 0;
@@ -201,7 +202,7 @@ namespace BirthdayBot.UserInterface
                     output.Append(item);
 
                     // If the output is starting to fill up, back out early and prepare to show the result as-is
-                    if (output.Length > 970) goto listfull;
+                    if (output.Length > 930) goto listfull;
                 }
                 continue;
 
@@ -211,9 +212,11 @@ namespace BirthdayBot.UserInterface
             }
 
             if (resultCount == 0)
-                await reqChannel.SendMessageAsync("There are no recent or upcoming birthdays (within the last 3 days and/or next 7 days).");
+                await reqChannel.SendMessageAsync(
+                    "There are no recent or upcoming birthdays (within the last 3 days and/or next 7 days).")
+                    .ConfigureAwait(false);
             else
-                await reqChannel.SendMessageAsync(output.ToString());
+                await reqChannel.SendMessageAsync(output.ToString()).ConfigureAwait(false);
         }
 
         /// <summary>

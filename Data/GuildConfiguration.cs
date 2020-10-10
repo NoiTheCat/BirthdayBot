@@ -84,16 +84,16 @@ namespace BirthdayBot.Data
         {
             if (IsModerated) return true;
 
-            using var db = await Database.OpenConnectionAsync();
+            using var db = await Database.OpenConnectionAsync().ConfigureAwait(false);
             using var c = db.CreateCommand();
             c.CommandText = $"select * from {BackingTableBans} "
                 + "where guild_id = @Gid and user_id = @Uid";
             c.Parameters.Add("@Gid", NpgsqlDbType.Bigint).Value = (long)GuildId;
             c.Parameters.Add("@Uid", NpgsqlDbType.Bigint).Value = (long)userId;
             c.Prepare();
-            using var r = await c.ExecuteReaderAsync();
-            if (await r.ReadAsync()) return true;
-            return false;
+            using var r = await c.ExecuteReaderAsync().ConfigureAwait(false);
+            if (!await r.ReadAsync().ConfigureAwait(false)) return false;
+            return true;
         }
 
         /// <summary>
@@ -101,7 +101,7 @@ namespace BirthdayBot.Data
         /// </summary>
         public async Task BlockUserAsync(ulong userId)
         {
-            using var db = await Database.OpenConnectionAsync();
+            using var db = await Database.OpenConnectionAsync().ConfigureAwait(false);
             using var c = db.CreateCommand();
             c.CommandText = $"insert into {BackingTableBans} (guild_id, user_id) "
                 + "values (@Gid, @Uid) "
@@ -110,7 +110,7 @@ namespace BirthdayBot.Data
             c.Parameters.Add("@Gid", NpgsqlDbType.Bigint).Value = (long)GuildId;
             c.Parameters.Add("@Uid", NpgsqlDbType.Bigint).Value = (long)userId;
             c.Prepare();
-            await c.ExecuteNonQueryAsync();
+            await c.ExecuteNonQueryAsync().ConfigureAwait(false);
         }
 
         /// <summary>
@@ -119,14 +119,14 @@ namespace BirthdayBot.Data
         /// <returns>True if a user has been removed, false if the requested user was not in this list.</returns>
         public async Task<bool> UnblockUserAsync(ulong userId)
         {
-            using var db = await Database.OpenConnectionAsync();
+            using var db = await Database.OpenConnectionAsync().ConfigureAwait(false);
             using var c = db.CreateCommand();
             c.CommandText = $"delete from {BackingTableBans} where "
                 + "guild_id = @Gid and user_id = @Uid";
             c.Parameters.Add("@Gid", NpgsqlDbType.Bigint).Value = (long)GuildId;
             c.Parameters.Add("@Uid", NpgsqlDbType.Bigint).Value = (long)userId;
             c.Prepare();
-            var result = await c.ExecuteNonQueryAsync();
+            var result = await c.ExecuteNonQueryAsync().ConfigureAwait(false);
             return result != 0;
         }
 
@@ -157,7 +157,7 @@ namespace BirthdayBot.Data
                     + "announce_ping boolean not null default FALSE, "
                     + "last_seen timestamptz not null default NOW()"
                     + ")";
-                await c.ExecuteNonQueryAsync();
+                await c.ExecuteNonQueryAsync().ConfigureAwait(false);
             }
             using (var c = db.CreateCommand())
             {
@@ -166,7 +166,7 @@ namespace BirthdayBot.Data
                     + "user_id bigint not null, "
                     + "PRIMARY KEY (guild_id, user_id)"
                     + ")";
-                await c.ExecuteNonQueryAsync();
+                await c.ExecuteNonQueryAsync().ConfigureAwait(false);
             }
         }
 
@@ -179,7 +179,7 @@ namespace BirthdayBot.Data
         /// </param>
         public static async Task<GuildConfiguration> LoadAsync(ulong guildId, bool nullIfUnknown)
         {
-            using (var db = await Database.OpenConnectionAsync())
+            using (var db = await Database.OpenConnectionAsync().ConfigureAwait(false))
             {
                 using (var c = db.CreateCommand())
                 {
@@ -189,8 +189,8 @@ namespace BirthdayBot.Data
                         + $"from {BackingTable} where guild_id = @Gid";
                     c.Parameters.Add("@Gid", NpgsqlDbType.Bigint).Value = (long)guildId;
                     c.Prepare();
-                    using var r = await c.ExecuteReaderAsync();
-                    if (await r.ReadAsync()) return new GuildConfiguration(r);
+                    using var r = await c.ExecuteReaderAsync().ConfigureAwait(false);
+                    if (await r.ReadAsync().ConfigureAwait(false)) return new GuildConfiguration(r);
                 }
                 if (nullIfUnknown) return null;
 
@@ -200,11 +200,11 @@ namespace BirthdayBot.Data
                     c.CommandText = $"insert into {BackingTable} (guild_id) values (@Gid)";
                     c.Parameters.Add("@Gid", NpgsqlDbType.Bigint).Value = (long)guildId;
                     c.Prepare();
-                    await c.ExecuteNonQueryAsync();
+                    await c.ExecuteNonQueryAsync().ConfigureAwait(false);
                 }
             }
             // With a new row created, try this again
-            return await LoadAsync(guildId, nullIfUnknown);
+            return await LoadAsync(guildId, nullIfUnknown).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -212,7 +212,7 @@ namespace BirthdayBot.Data
         /// </summary>
         public async Task UpdateAsync()
         {
-            using var db = await Database.OpenConnectionAsync();
+            using var db = await Database.OpenConnectionAsync().ConfigureAwait(false);
             using var c = db.CreateCommand();
             c.CommandText = $"update {BackingTable} set "
                 + "role_id = @RoleId, "

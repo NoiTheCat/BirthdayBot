@@ -58,20 +58,22 @@ namespace BirthdayBot.UserInterface
             // Ignore those without the proper permissions.
             if (!gconf.IsBotModerator(reqUser))
             {
-                await reqChannel.SendMessageAsync(":x: This command may only be used by bot moderators.");
+                await reqChannel.SendMessageAsync(":x: This command may only be used by bot moderators.").ConfigureAwait(false);
                 return;
             }
 
             if (param.Length < 2)
             {
-                await reqChannel.SendMessageAsync($":x: See `{CommandPrefix}help-config` for information on how to use this command.");
+                await reqChannel.SendMessageAsync($":x: See `{CommandPrefix}help-config` for information on how to use this command.")
+                    .ConfigureAwait(false);
                 return;
             }
 
             // Special case: Restrict 'modrole' to only guild managers, not mods
             if (string.Equals(param[1], "modrole", StringComparison.OrdinalIgnoreCase) && !reqUser.GuildPermissions.ManageGuild)
             {
-                await reqChannel.SendMessageAsync(":x: This command may only be used by those with the `Manage Server` permission.");
+                await reqChannel.SendMessageAsync(":x: This command may only be used by those with the `Manage Server` permission.")
+                    .ConfigureAwait(false);
                 return;
             }
 
@@ -81,7 +83,7 @@ namespace BirthdayBot.UserInterface
 
             if (_subcommands.TryGetValue(confparam[0], out ConfigSubcommand h))
             {
-                await h(confparam, gconf, reqChannel);
+                await h(confparam, gconf, reqChannel).ConfigureAwait(false);
             }
         }
 
@@ -91,7 +93,8 @@ namespace BirthdayBot.UserInterface
         {
             if (param.Length != 2)
             {
-                await reqChannel.SendMessageAsync(":x: A role name, role mention, or ID value must be specified.");
+                await reqChannel.SendMessageAsync(":x: A role name, role mention, or ID value must be specified.")
+                    .ConfigureAwait(false);
                 return;
             }
             var guild = reqChannel.Guild;
@@ -99,17 +102,18 @@ namespace BirthdayBot.UserInterface
 
             if (role == null)
             {
-                await reqChannel.SendMessageAsync(RoleInputError);
+                await reqChannel.SendMessageAsync(RoleInputError).ConfigureAwait(false);
             }
             else if (role.Id == reqChannel.Guild.EveryoneRole.Id)
             {
-                await reqChannel.SendMessageAsync(":x: You cannot set that as the birthday role.");
+                await reqChannel.SendMessageAsync(":x: You cannot set that as the birthday role.").ConfigureAwait(false);
             }
             else
             {
                 gconf.RoleId = role.Id;
-                await gconf.UpdateAsync();
-                await reqChannel.SendMessageAsync($":white_check_mark: The birthday role has been set as **{role.Name}**.");
+                await gconf.UpdateAsync().ConfigureAwait(false);
+                await reqChannel.SendMessageAsync($":white_check_mark: The birthday role has been set as **{role.Name}**.")
+                    .ConfigureAwait(false);
             }
         }
 
@@ -119,7 +123,7 @@ namespace BirthdayBot.UserInterface
             const string InputErr = ":x: You must specify either `off` or `on` in this setting.";
             if (param.Length != 2)
             {
-                await reqChannel.SendMessageAsync(InputErr);
+                await reqChannel.SendMessageAsync(InputErr).ConfigureAwait(false);
                 return;
             }
 
@@ -138,13 +142,13 @@ namespace BirthdayBot.UserInterface
             }
             else
             {
-                await reqChannel.SendMessageAsync(InputErr);
+                await reqChannel.SendMessageAsync(InputErr).ConfigureAwait(false);
                 return;
             }
 
             gconf.AnnouncePing = setting;
-            await gconf.UpdateAsync();
-            await reqChannel.SendMessageAsync(result);
+            await gconf.UpdateAsync().ConfigureAwait(false);
+            await reqChannel.SendMessageAsync(result).ConfigureAwait(false);
         }
 
         // Announcement channel set
@@ -155,13 +159,15 @@ namespace BirthdayBot.UserInterface
                 // Extra detail: Show a unique message if a channel hadn't been set prior.
                 if (!gconf.AnnounceChannelId.HasValue)
                 {
-                    await reqChannel.SendMessageAsync(":x: There is no announcement channel set. Nothing to unset.");
+                    await reqChannel.SendMessageAsync(":x: There is no announcement channel set. Nothing to unset.")
+                        .ConfigureAwait(false);
                     return;
                 }
 
                 gconf.AnnounceChannelId = null;
                 await gconf.UpdateAsync();
-                await reqChannel.SendMessageAsync(":white_check_mark: The announcement channel has been unset.");
+                await reqChannel.SendMessageAsync(":white_check_mark: The announcement channel has been unset.")
+                    .ConfigureAwait(false);
             }
             else
             {
@@ -194,16 +200,17 @@ namespace BirthdayBot.UserInterface
                 if (chId != 0) chTt = reqChannel.Guild.GetTextChannel(chId);
                 if (chTt == null)
                 {
-                    await reqChannel.SendMessageAsync(":x: Unable to find the specified channel.");
+                    await reqChannel.SendMessageAsync(":x: Unable to find the specified channel.").ConfigureAwait(false);
                     return;
                 }
 
                 // Update the value
                 gconf.AnnounceChannelId = chId;
-                await gconf.UpdateAsync();
+                await gconf.UpdateAsync().ConfigureAwait(false);
 
                 // Report the success
-                await reqChannel.SendMessageAsync($":white_check_mark: The announcement channel is now set to <#{chId}>.");
+                await reqChannel.SendMessageAsync($":white_check_mark: The announcement channel is now set to <#{chId}>.")
+                    .ConfigureAwait(false);
             }
         }
 
@@ -212,7 +219,8 @@ namespace BirthdayBot.UserInterface
         {
             if (param.Length != 2)
             {
-                await reqChannel.SendMessageAsync(":x: A role name, role mention, or ID value must be specified.");
+                await reqChannel.SendMessageAsync(":x: A role name, role mention, or ID value must be specified.")
+                    .ConfigureAwait(false);
                 return;
             }
             var guild = reqChannel.Guild;
@@ -220,13 +228,14 @@ namespace BirthdayBot.UserInterface
 
             if (role == null)
             {
-                await reqChannel.SendMessageAsync(RoleInputError);
+                await reqChannel.SendMessageAsync(RoleInputError).ConfigureAwait(false);
             }
             else
             {
                 gconf.ModeratorRole = role.Id;
-                await gconf.UpdateAsync();
-                await reqChannel.SendMessageAsync($":white_check_mark: The moderator role is now **{role.Name}**.");
+                await gconf.UpdateAsync().ConfigureAwait(false);
+                await reqChannel.SendMessageAsync($":white_check_mark: The moderator role is now **{role.Name}**.")
+                    .ConfigureAwait(false);
             }
         }
 
@@ -238,13 +247,14 @@ namespace BirthdayBot.UserInterface
                 // Extra detail: Show a unique message if there is no set zone.
                 if (!gconf.AnnounceChannelId.HasValue)
                 {
-                    await reqChannel.SendMessageAsync(":x: A default zone is not set. Nothing to unset.");
+                    await reqChannel.SendMessageAsync(":x: A default zone is not set. Nothing to unset.").ConfigureAwait(false);
                     return;
                 }
 
                 gconf.TimeZone = null;
-                await gconf.UpdateAsync();
-                await reqChannel.SendMessageAsync(":white_check_mark: The default time zone preference has been removed.");
+                await gconf.UpdateAsync().ConfigureAwait(false);
+                await reqChannel.SendMessageAsync(":white_check_mark: The default time zone preference has been removed.")
+                    .ConfigureAwait(false);
             }
             else
             {
@@ -262,10 +272,11 @@ namespace BirthdayBot.UserInterface
 
                 // Update value
                 gconf.TimeZone = zone;
-                await gconf.UpdateAsync();
+                await gconf.UpdateAsync().ConfigureAwait(false);
 
                 // Report the success
-                await reqChannel.SendMessageAsync($":white_check_mark: The server's time zone has been set to **{zone}**.");
+                await reqChannel.SendMessageAsync($":white_check_mark: The server's time zone has been set to **{zone}**.")
+                    .ConfigureAwait(false);
             }
         }
 
@@ -274,7 +285,7 @@ namespace BirthdayBot.UserInterface
         {
             if (param.Length != 2)
             {
-                await reqChannel.SendMessageAsync(ParameterError + ConfErrorPostfix);
+                await reqChannel.SendMessageAsync(ParameterError + ConfErrorPostfix).ConfigureAwait(false);
                 return;
             }
 
@@ -282,33 +293,33 @@ namespace BirthdayBot.UserInterface
 
             if (!TryGetUserId(param[1], out ulong inputId))
             {
-                await reqChannel.SendMessageAsync(BadUserError);
+                await reqChannel.SendMessageAsync(BadUserError).ConfigureAwait(false);
                 return;
             }
 
-            var isBanned = await gconf.IsUserBlockedAsync(inputId);
+            var isBanned = await gconf.IsUserBlockedAsync(inputId).ConfigureAwait(false);
             if (doBan)
             {
                 if (!isBanned)
                 {
-                    await gconf.BlockUserAsync(inputId);
-                    await reqChannel.SendMessageAsync(":white_check_mark: User has been blocked.");
+                    await gconf.BlockUserAsync(inputId).ConfigureAwait(false);
+                    await reqChannel.SendMessageAsync(":white_check_mark: User has been blocked.").ConfigureAwait(false);
                 }
                 else
                 {
                     // TODO bug: this is incorrectly always displayed when in moderated mode
-                    await reqChannel.SendMessageAsync(":white_check_mark: User is already blocked.");
+                    await reqChannel.SendMessageAsync(":white_check_mark: User is already blocked.").ConfigureAwait(false);
                 }
             }
             else
             {
-                if (await gconf.UnblockUserAsync(inputId))
+                if (await gconf.UnblockUserAsync(inputId).ConfigureAwait(false))
                 {
-                    await reqChannel.SendMessageAsync(":white_check_mark: User is now unblocked.");
+                    await reqChannel.SendMessageAsync(":white_check_mark: User is now unblocked.").ConfigureAwait(false);
                 }
                 else
                 {
-                    await reqChannel.SendMessageAsync(":white_check_mark: The specified user is not blocked.");
+                    await reqChannel.SendMessageAsync(":white_check_mark: The specified user is not blocked.").ConfigureAwait(false);
                 }
             }
         }
@@ -318,7 +329,7 @@ namespace BirthdayBot.UserInterface
         {
             if (param.Length != 2)
             {
-                await reqChannel.SendMessageAsync(ParameterError + ConfErrorPostfix);
+                await reqChannel.SendMessageAsync(ParameterError + ConfErrorPostfix).ConfigureAwait(false);
                 return;
             }
 
@@ -328,19 +339,22 @@ namespace BirthdayBot.UserInterface
             else if (parameter == "off") modSet = false;
             else
             {
-                await reqChannel.SendMessageAsync(":x: Expecting `on` or `off` as a parameter." + ConfErrorPostfix);
+                await reqChannel.SendMessageAsync(":x: Expecting `on` or `off` as a parameter." + ConfErrorPostfix)
+                    .ConfigureAwait(false);
                 return;
             }
 
             if (gconf.IsModerated == modSet)
             {
-                await reqChannel.SendMessageAsync($":white_check_mark: Moderated mode is already {parameter}.");
+                await reqChannel.SendMessageAsync($":white_check_mark: Moderated mode is already {parameter}.")
+                    .ConfigureAwait(false);
             }
             else
             {
                 gconf.IsModerated = modSet;
-                await gconf.UpdateAsync();
-                await reqChannel.SendMessageAsync($":white_check_mark: Moderated mode has been turned {parameter}.");
+                await gconf.UpdateAsync().ConfigureAwait(false);
+                await reqChannel.SendMessageAsync($":white_check_mark: Moderated mode has been turned {parameter}.")
+                    .ConfigureAwait(false);
             }
         }
 
@@ -366,9 +380,9 @@ namespace BirthdayBot.UserInterface
             if (!plural) update = (newmsg, gconf.AnnounceMessages.Item2);
             else update = (gconf.AnnounceMessages.Item1, newmsg);
             gconf.AnnounceMessages = update;
-            await gconf.UpdateAsync();
+            await gconf.UpdateAsync().ConfigureAwait(false);
             await reqChannel.SendMessageAsync(string.Format(":white_check_mark: The {0} birthday announcement message has been {1}.",
-                plural ? "plural" : "singular", clear ? "reset" : "updated"));
+                plural ? "plural" : "singular", clear ? "reset" : "updated")).ConfigureAwait(false);
         }
         #endregion
 
@@ -381,20 +395,20 @@ namespace BirthdayBot.UserInterface
 
             if (param.Length != 3)
             {
-                await reqChannel.SendMessageAsync(ParameterError, embed: DocOverride.UsageEmbed);
+                await reqChannel.SendMessageAsync(ParameterError, embed: DocOverride.UsageEmbed).ConfigureAwait(false);
                 return;
             }
 
             // Second parameter: determine the user to act as
             if (!TryGetUserId(param[1], out ulong user))
             {
-                await reqChannel.SendMessageAsync(BadUserError, embed: DocOverride.UsageEmbed);
+                await reqChannel.SendMessageAsync(BadUserError, embed: DocOverride.UsageEmbed).ConfigureAwait(false);
                 return;
             }
             var overuser = reqChannel.Guild.GetUser(user);
             if (overuser == null)
             {
-                await reqChannel.SendMessageAsync(BadUserError, embed: DocOverride.UsageEmbed);
+                await reqChannel.SendMessageAsync(BadUserError, embed: DocOverride.UsageEmbed).ConfigureAwait(false);
                 return;
             }
 
@@ -414,13 +428,17 @@ namespace BirthdayBot.UserInterface
             }
             if (!_usercommands.TryGetValue(cmdsearch, out CommandHandler action))
             {
-                await reqChannel.SendMessageAsync($":x: `{cmdsearch}` is not an overridable command.", embed: DocOverride.UsageEmbed);
+                await reqChannel.SendMessageAsync(
+                    $":x: `{cmdsearch}` is not an overridable command.", embed: DocOverride.UsageEmbed)
+                    .ConfigureAwait(false);
                 return;
             }
 
             // Preparations complete. Run the command.
-            await reqChannel.SendMessageAsync($"Executing `{cmdsearch.ToLower()}` on behalf of {overuser.Nickname ?? overuser.Username}:");
-            await action.Invoke(instance, gconf, overparam, reqChannel, overuser);
+            await reqChannel.SendMessageAsync(
+                $"Executing `{cmdsearch.ToLower()}` on behalf of {overuser.Nickname ?? overuser.Username}:")
+                .ConfigureAwait(false);
+            await action.Invoke(instance, gconf, overparam, reqChannel, overuser).ConfigureAwait(false);
         }
 
         // Publicly available command that immediately processes the current guild, 
@@ -434,7 +452,7 @@ namespace BirthdayBot.UserInterface
             {
                 // Too many parameters
                 // Note: Non-standard error display
-                await reqChannel.SendMessageAsync(NoParameterError);
+                await reqChannel.SendMessageAsync(NoParameterError).ConfigureAwait(false);
                 return;
             }
 
@@ -444,8 +462,8 @@ namespace BirthdayBot.UserInterface
 
             try
             {
-                var result = await instance.ForceBirthdayUpdateAsync(reqChannel.Guild);
-                await reqChannel.SendMessageAsync(result);
+                var result = await instance.ForceBirthdayUpdateAsync(reqChannel.Guild).ConfigureAwait(false);
+                await reqChannel.SendMessageAsync(result).ConfigureAwait(false);
             }
             catch (Exception ex)
             {

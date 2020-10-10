@@ -63,16 +63,16 @@ namespace BirthdayBot.BackgroundServices
             {
                 while (!_workerCanceller.IsCancellationRequested)
                 {
-                    await Task.Delay(Interval * 1000, _workerCanceller.Token);
+                    await Task.Delay(Interval * 1000, _workerCanceller.Token).ConfigureAwait(false);
 
                     // ConnectionStatus will always run. Its result determines if remaining tasks also this time.
-                    await ConnStatus.OnTick(_workerCanceller.Token);
+                    await ConnStatus.OnTick(_workerCanceller.Token).ConfigureAwait(false);
                     if (!ConnStatus.Stable) continue;
 
                     // Execute tasks sequentially
                     foreach (var service in _workers)
                     {
-                        try { await service.OnTick(_workerCanceller.Token); }
+                        try { await service.OnTick(_workerCanceller.Token).ConfigureAwait(false); }
                         catch (Exception ex)
                         {
                             var svcname = service.GetType().Name;

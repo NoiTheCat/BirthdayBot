@@ -52,7 +52,7 @@ namespace BirthdayBot.Data
         /// </summary>
         public async Task UpdateAsync(int month, int day, string newtz)
         {
-            using (var db = await Database.OpenConnectionAsync())
+            using (var db = await Database.OpenConnectionAsync().ConfigureAwait(false))
             {
                 using var c = db.CreateCommand();
                 c.CommandText = $"insert into {BackingTable} "
@@ -68,7 +68,7 @@ namespace BirthdayBot.Data
                 if (newtz != null) tzp.Value = newtz;
                 else tzp.Value = DBNull.Value;
                 c.Prepare();
-                await c.ExecuteNonQueryAsync();
+                await c.ExecuteNonQueryAsync().ConfigureAwait(false);
             }
 
             // Database update succeeded; update instance values
@@ -83,14 +83,14 @@ namespace BirthdayBot.Data
         /// </summary>
         public async Task DeleteAsync()
         {
-            using var db = await Database.OpenConnectionAsync();
+            using var db = await Database.OpenConnectionAsync().ConfigureAwait(false);
             using var c = db.CreateCommand();
             c.CommandText = $"delete from {BackingTable} "
                 + "where guild_id = @Gid and user_id = @Uid";
             c.Parameters.Add("@Gid", NpgsqlDbType.Bigint).Value = (long)GuildId;
             c.Parameters.Add("@Uid", NpgsqlDbType.Bigint).Value = (long)UserId;
             c.Prepare();
-            await c.ExecuteNonQueryAsync();
+            await c.ExecuteNonQueryAsync().ConfigureAwait(false);
         }
 
         #region Database
@@ -110,7 +110,7 @@ namespace BirthdayBot.Data
                 + "last_seen timestamptz not null default NOW(), "
                 + "PRIMARY KEY (guild_id, user_id)" // index automatically created with this
                 + ")";
-            await c.ExecuteNonQueryAsync();
+            await c.ExecuteNonQueryAsync().ConfigureAwait(false);
         }
 
         /// <summary>
@@ -118,7 +118,7 @@ namespace BirthdayBot.Data
         /// </summary>
         public static async Task<GuildUserConfiguration> LoadAsync(ulong guildId, ulong userId)
         {
-            using var db = await Database.OpenConnectionAsync();
+            using var db = await Database.OpenConnectionAsync().ConfigureAwait(false);
             using var c = db.CreateCommand();
             c.CommandText = $"select {SelectFields} from {BackingTable} where guild_id = @Gid and user_id = @Uid";
             c.Parameters.Add("@Gid", NpgsqlDbType.Bigint).Value = (long)guildId;
@@ -126,7 +126,7 @@ namespace BirthdayBot.Data
             c.Prepare();
 
             using var r = c.ExecuteReader();
-            if (await r.ReadAsync()) return new GuildUserConfiguration(r);
+            if (await r.ReadAsync().ConfigureAwait(false)) return new GuildUserConfiguration(r);
             else return new GuildUserConfiguration(guildId, userId);
         }
 
@@ -135,15 +135,15 @@ namespace BirthdayBot.Data
         /// </summary>
         public static async Task<IEnumerable<GuildUserConfiguration>> LoadAllAsync(ulong guildId)
         {
-            using var db = await Database.OpenConnectionAsync();
+            using var db = await Database.OpenConnectionAsync().ConfigureAwait(false);
             using var c = db.CreateCommand();
             c.CommandText = $"select {SelectFields} from {BackingTable} where guild_id = @Gid";
             c.Parameters.Add("@Gid", NpgsqlDbType.Bigint).Value = (long)guildId;
             c.Prepare();
 
-            using var r = await c.ExecuteReaderAsync();
+            using var r = await c.ExecuteReaderAsync().ConfigureAwait(false);
             var result = new List<GuildUserConfiguration>();
-            while (await r.ReadAsync()) result.Add(new GuildUserConfiguration(r));
+            while (await r.ReadAsync().ConfigureAwait(false)) result.Add(new GuildUserConfiguration(r));
             return result;
         }
         #endregion

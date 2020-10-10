@@ -117,7 +117,7 @@ namespace BirthdayBot.UserInterface
             // Requires one parameter. Optionally two.
             if (param.Length < 2 || param.Length > 3)
             {
-                await reqChannel.SendMessageAsync(ParameterError, embed: DocSet.UsageEmbed);
+                await reqChannel.SendMessageAsync(ParameterError, embed: DocSet.UsageEmbed).ConfigureAwait(false);
                 return;
             }
 
@@ -141,9 +141,9 @@ namespace BirthdayBot.UserInterface
             bool known; // Extra detail: Bot's response changes if the user was previously unknown.
             try
             {
-                var user = await GuildUserConfiguration.LoadAsync(gconf.GuildId, reqUser.Id);
+                var user = await GuildUserConfiguration.LoadAsync(gconf.GuildId, reqUser.Id).ConfigureAwait(false);
                 known = user.IsKnown;
-                await user.UpdateAsync(bmonth, bday, btz);
+                await user.UpdateAsync(bmonth, bday, btz).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -154,11 +154,13 @@ namespace BirthdayBot.UserInterface
             }
             if (known)
             {
-                await reqChannel.SendMessageAsync(":white_check_mark: Your information has been updated.");
+                await reqChannel.SendMessageAsync(":white_check_mark: Your information has been updated.")
+                    .ConfigureAwait(false);
             }
             else
             {
-                await reqChannel.SendMessageAsync(":white_check_mark: Your birthday has been recorded.");
+                await reqChannel.SendMessageAsync(":white_check_mark: Your birthday has been recorded.")
+                    .ConfigureAwait(false);
             }
         }
 
@@ -167,15 +169,16 @@ namespace BirthdayBot.UserInterface
         {
             if (param.Length != 2)
             {
-                await reqChannel.SendMessageAsync(ParameterError, embed: DocZone.UsageEmbed);
+                await reqChannel.SendMessageAsync(ParameterError, embed: DocZone.UsageEmbed).ConfigureAwait(false);
                 return;
             }
 
-            var user = await GuildUserConfiguration.LoadAsync(gconf.GuildId, reqUser.Id);
+            var user = await GuildUserConfiguration.LoadAsync(gconf.GuildId, reqUser.Id).ConfigureAwait(false);
             if (!user.IsKnown)
             {
                 await reqChannel.SendMessageAsync(":x: You may only update your time zone when you have a birthday registered."
-                    + $" Refer to the `{CommandPrefix}set` command.", embed: DocZone.UsageEmbed);
+                    + $" Refer to the `{CommandPrefix}set` command.", embed: DocZone.UsageEmbed)
+                    .ConfigureAwait(false);
                 return;
             }
 
@@ -189,9 +192,10 @@ namespace BirthdayBot.UserInterface
                 reqChannel.SendMessageAsync(ex.Message, embed: DocZone.UsageEmbed).Wait();
                 return;
             }
-            await user.UpdateAsync(user.BirthMonth, user.BirthDay, btz);
+            await user.UpdateAsync(user.BirthMonth, user.BirthDay, btz).ConfigureAwait(false);
 
-            await reqChannel.SendMessageAsync($":white_check_mark: Your time zone has been updated to **{btz}**.");
+            await reqChannel.SendMessageAsync($":white_check_mark: Your time zone has been updated to **{btz}**.")
+                .ConfigureAwait(false);
         }
 
         private async Task CmdRemove(ShardInstance instance, GuildConfiguration gconf,
@@ -200,22 +204,24 @@ namespace BirthdayBot.UserInterface
             // Parameter count check
             if (param.Length != 1)
             {
-                await reqChannel.SendMessageAsync(NoParameterError, embed: DocRemove.UsageEmbed);
+                await reqChannel.SendMessageAsync(NoParameterError, embed: DocRemove.UsageEmbed).ConfigureAwait(false);
                 return;
             }
 
             // Extra detail: Send a notification if the user isn't actually known by the bot.
             bool known;
-            var u = await GuildUserConfiguration.LoadAsync(gconf.GuildId, reqUser.Id);
+            var u = await GuildUserConfiguration.LoadAsync(gconf.GuildId, reqUser.Id).ConfigureAwait(false);
             known = u.IsKnown;
-            await u.DeleteAsync();
+            await u.DeleteAsync().ConfigureAwait(false);
             if (!known)
             {
-                await reqChannel.SendMessageAsync(":white_check_mark: This bot already does not contain your information.");
+                await reqChannel.SendMessageAsync(":white_check_mark: This bot already does not contain your information.")
+                    .ConfigureAwait(false);
             }
             else
             {
-                await reqChannel.SendMessageAsync(":white_check_mark: Your information has been removed.");
+                await reqChannel.SendMessageAsync(":white_check_mark: Your information has been removed.")
+                    .ConfigureAwait(false);
             }
         }
     }

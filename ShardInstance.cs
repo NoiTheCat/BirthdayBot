@@ -53,7 +53,7 @@ namespace BirthdayBot
         /// <summary>
         /// Starts up this shard's connection to Discord and background task handling associated with it.
         /// </summary>
-        public async Task Start()
+        public async Task StartAsync()
         {
             await Database.DoInitialDatabaseSetupAsync();
 

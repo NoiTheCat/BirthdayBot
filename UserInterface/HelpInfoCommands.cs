@@ -92,11 +92,11 @@ namespace BirthdayBot.UserInterface
 
         private async Task CmdHelp(ShardInstance instance, GuildConfiguration gconf,
                                    string[] param, SocketTextChannel reqChannel, SocketGuildUser reqUser)
-            => await reqChannel.SendMessageAsync(embed: _helpEmbed);
+            => await reqChannel.SendMessageAsync(embed: _helpEmbed).ConfigureAwait(false);
 
         private async Task CmdHelpConfig(ShardInstance instance, GuildConfiguration gconf,
                                          string[] param, SocketTextChannel reqChannel, SocketGuildUser reqUser)
-            => await reqChannel.SendMessageAsync(embed: _helpConfigEmbed);
+            => await reqChannel.SendMessageAsync(embed: _helpConfigEmbed).ConfigureAwait(false);
 
         private async Task CmdHelpTzdata(ShardInstance instance, GuildConfiguration gconf,
                                          string[] param, SocketTextChannel reqChannel, SocketGuildUser reqUser)
@@ -112,7 +112,7 @@ namespace BirthdayBot.UserInterface
                 Name = "Time Zone Support",
                 Value = tzhelp
             });
-            await reqChannel.SendMessageAsync(embed: embed.Build());
+            await reqChannel.SendMessageAsync(embed: embed.Build()).ConfigureAwait(false);
         }
 
         private async Task CmdHelpMessage(ShardInstance instance, GuildConfiguration gconf,
@@ -139,7 +139,7 @@ namespace BirthdayBot.UserInterface
                 Value = string.Format(msghelp2,
                     BackgroundServices.BirthdayRoleUpdate.DefaultAnnounce, BackgroundServices.BirthdayRoleUpdate.DefaultAnnouncePl)
             });
-            await reqChannel.SendMessageAsync(embed: embed.Build());
+            await reqChannel.SendMessageAsync(embed: embed.Build()).ConfigureAwait(false);
         }
 
         private async Task CmdInfo(ShardInstance instance, GuildConfiguration gconf,
@@ -174,7 +174,7 @@ namespace BirthdayBot.UserInterface
                 Name = "Statistics",
                 Value = strStats.ToString()
             });
-            await reqChannel.SendMessageAsync(embed: embed.Build());
+            await reqChannel.SendMessageAsync(embed: embed.Build()).ConfigureAwait(false);
         }
     }
 }

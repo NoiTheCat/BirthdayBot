@@ -123,7 +123,7 @@ namespace BirthdayBot
                 disposeOldShard.Wait();
                 _shards[shardId] = newInstance;
             }
-            await newInstance.Start();
+            await newInstance.StartAsync().ConfigureAwait(false);
         }
 
         private async Task WatchdogLoop()
@@ -170,7 +170,7 @@ namespace BirthdayBot
                     }
 
                     // 120 second delay
-                    await Task.Delay(120 * 1000, _watchdogCancel.Token);
+                    await Task.Delay(120 * 1000, _watchdogCancel.Token).ConfigureAwait(false);
                 }
             }
             catch (TaskCanceledException) { }
@@ -197,7 +197,6 @@ namespace BirthdayBot
                     post.Headers.Add("Authorization", dbotsToken);
                     post.Content = new StringContent(string.Format(Body, count), Encoding.UTF8, "application/json");
 
-                    await Task.Delay(80); // Discord Bots rate limit for this endpoint is 20 per second
                     await _httpClient.SendAsync(post, token);
                     Log("Discord Bots: Update successful.");
                 }

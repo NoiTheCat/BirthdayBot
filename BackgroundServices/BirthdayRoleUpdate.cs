@@ -31,7 +31,7 @@ namespace BirthdayBot.BackgroundServices
                 if (token.IsCancellationRequested) throw new TaskCanceledException();
                 try
                 {
-                    await ProcessGuildAsync(guild);
+                    await ProcessGuildAsync(guild).ConfigureAwait(false);
                 }
                 catch (Exception ex)
                 {
@@ -48,7 +48,7 @@ namespace BirthdayBot.BackgroundServices
         /// Access to <see cref="ProcessGuildAsync(SocketGuild)"/> for the testing command.
         /// </summary>
         /// <returns>Diagnostic data in string form.</returns>
-        public async Task<string> SingleProcessGuildAsync(SocketGuild guild) => (await ProcessGuildAsync(guild)).Export();
+        public async Task<string> SingleProcessGuildAsync(SocketGuild guild) => (await ProcessGuildAsync(guild).ConfigureAwait(false)).Export();
 
         /// <summary>
         /// Main method where actual guild processing occurs.
@@ -58,7 +58,7 @@ namespace BirthdayBot.BackgroundServices
             var diag = new PGDiagnostic();
 
             // Load guild information - stop if there is none (bot never previously used in guild)
-            var gc = await GuildConfiguration.LoadAsync(guild.Id, true);
+            var gc = await GuildConfiguration.LoadAsync(guild.Id, true).ConfigureAwait(false);
             if (gc == null) return diag;
 
             // Check if role settings are correct before continuing with further processing
@@ -71,7 +71,7 @@ namespace BirthdayBot.BackgroundServices
             // Note: This is where we'd call DownloadUsersAsync, but this method is capable of blocking indefinitely
             // and making the task completely unresponsive. Must investigate further before calling it here and disabling
             // AlwaysDownloadUsers in client settings.
-            var users = await GuildUserConfiguration.LoadAllAsync(guild.Id);
+            var users = await GuildUserConfiguration.LoadAllAsync(guild.Id).ConfigureAwait(false);
             var tz = gc.TimeZone;
             var birthdays = GetGuildCurrentBirthdays(users, tz);
             // Note: Don't quit here if zero people are having birthdays. Roles may still need to be removed by BirthdayApply.
@@ -81,7 +81,7 @@ namespace BirthdayBot.BackgroundServices
             // Update roles as appropriate
             try
             {
-                var updateResult = await UpdateGuildBirthdayRoles(guild, role, birthdays);
+                var updateResult = await UpdateGuildBirthdayRoles(guild, role, birthdays).ConfigureAwait(false);
                 announcementList = updateResult.Item1;
                 diag.RoleApplyResult = updateResult.Item2; // statistics
             }
@@ -99,7 +99,8 @@ namespace BirthdayBot.BackgroundServices
             if (gc.AnnounceChannelId.HasValue) channel = guild.GetTextChannel(gc.AnnounceChannelId.Value);
             if (announcementList.Count() != 0)
             {
-                var announceResult = await AnnounceBirthdaysAsync(announce, announceping, channel, announcementList);
+                var announceResult =
+                    await AnnounceBirthdaysAsync(announce, announceping, channel, announcementList).ConfigureAwait(false);
                 diag.Announcement = announceResult;
             }
             else
@@ -195,7 +196,7 @@ namespace BirthdayBot.BackgroundServices
             // TODO Can we remove during the iteration instead of after? investigate later...
             foreach (var user in roleRemoves)
             {
-                await user.RemoveRoleAsync(r);
+                await user.RemoveRoleAsync(r).ConfigureAwait(false);
             }
 
             // Apply role to members not already having it. Prepare announcement list.
@@ -205,7 +206,7 @@ namespace BirthdayBot.BackgroundServices
                 var member = g.GetUser(target);
                 if (member == null) continue;
                 if (roleKeeps.Contains(member.Id)) continue; // already has role - do nothing
-                await member.AddRoleAsync(r);
+                await member.AddRoleAsync(r).ConfigureAwait(false);
                 newBirthdays.Add(member);
             }
 
@@ -247,7 +248,7 @@ namespace BirthdayBot.BackgroundServices
 
             try
             {
-                await c.SendMessageAsync(announceMsg.Replace("%n", namedisplay.ToString()));
+                await c.SendMessageAsync(announceMsg.Replace("%n", namedisplay.ToString())).ConfigureAwait(false);
                 return null;
             }
             catch (Discord.Net.HttpException ex)

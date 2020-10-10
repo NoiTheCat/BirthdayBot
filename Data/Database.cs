@@ -15,17 +15,18 @@ namespace BirthdayBot.Data
         {
             if (DBConnectionString == null) throw new Exception("Database connection string not set");
             var db = new NpgsqlConnection(DBConnectionString);
-            await db.OpenAsync();
+            await db.OpenAsync().ConfigureAwait(false);
             return db;
         }
 
         public static async Task DoInitialDatabaseSetupAsync()
         {
-            using var db = await OpenConnectionAsync();
+            using var db = await OpenConnectionAsync().ConfigureAwait(false);
 
             // Refer to the methods being called for information on how the database is set up.
-            await GuildConfiguration.DatabaseSetupAsync(db); // Note: Call this first. (Foreign reference constraints.)
-            await GuildUserConfiguration.DatabaseSetupAsync(db);
+            // Note: The order these are called is important. (Foreign reference constraints.)
+            await GuildConfiguration.DatabaseSetupAsync(db).ConfigureAwait(false);
+            await GuildUserConfiguration.DatabaseSetupAsync(db).ConfigureAwait(false);
         }
     }
 }
