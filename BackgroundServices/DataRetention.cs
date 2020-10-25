@@ -1,5 +1,6 @@
 ﻿using BirthdayBot.Data;
 using NpgsqlTypes;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -28,9 +29,17 @@ namespace BirthdayBot.BackgroundServices
                 return;
             }
 
-            // A semaphore is used to restrict this work being done concurrently on other shards
-            // to avoid putting pressure on the SQL connection pool. Updating this is a low priority.
-            await _updateLock.WaitAsync(token).ConfigureAwait(false);
+            try
+            {
+                // A semaphore is used to restrict this work being done concurrently on other shards
+                // to avoid putting pressure on the SQL connection pool. Updating this is a low priority.
+                await _updateLock.WaitAsync(token).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+                // Calling thread does not expect the exception that SemaphoreSlim throws...
+                throw new TaskCanceledException();
+            }
             try
             {
                 // Build a list of all values to update
