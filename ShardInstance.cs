@@ -47,7 +47,7 @@ namespace BirthdayBot
 
             // Background task constructor begins background processing immediately.
             _background = new ShardBackgroundWorker(this);
-            DiscordClient.Disconnected += DiscordClient_Disconnected;
+            DiscordClient.Disconnected += Client_Disconnected;
         }
         
         /// <summary>
@@ -55,17 +55,23 @@ namespace BirthdayBot
         /// </summary>
         public async Task StartAsync()
         {
-            await DiscordClient.LoginAsync(TokenType.Bot, Config.BotToken);
-            await DiscordClient.StartAsync();
+            await DiscordClient.LoginAsync(TokenType.Bot, Config.BotToken).ConfigureAwait(false);
+            await DiscordClient.StartAsync().ConfigureAwait(false);
         }
 
         /// <summary>
         /// Does all necessary steps to stop this shard. This method may block for a few seconds as it waits
-        /// for the process to finish, but will force its disposal after at most 15 seconds.
+        /// for the process to finish, but will force its disposal after at most 30 seconds.
         /// </summary>
         public void Dispose()
         {
             Log("Instance", "Cleaning up...");
+
+            // Unsubscribe from own events
+            DiscordClient.Log -= Client_Log;
+            DiscordClient.Ready -= Client_Ready;
+            DiscordClient.MessageReceived -= Client_MessageReceived;
+            DiscordClient.Disconnected -= Client_Disconnected;
 
             _background.Dispose();
             try
@@ -87,7 +93,10 @@ namespace BirthdayBot
                 Log("Instance", "Warning: Client threw an exception when stopping: " + ex.Message);
             }
 
-            DiscordClient.Dispose();
+            var clientDispose = Task.Run(DiscordClient.Dispose);
+            if (!clientDispose.Wait(10000))
+                Log("Instance", "Warning: Client hanging on dispose.");
+            Log("Instance", "Shard instance disposed.");
         }
 
         public void Log(string source, string message) => Program.Log($"Shard {ShardId:00}] [{source}", message);
@@ -129,7 +138,7 @@ namespace BirthdayBot
         /// <summary>
         /// Notify ConnectionStatus of a disconnect.
         /// </summary>
-        private Task DiscordClient_Disconnected(Exception arg)
+        private Task Client_Disconnected(Exception arg)
         {
             _background.ConnStatus.Disconnected();
             return Task.CompletedTask;
