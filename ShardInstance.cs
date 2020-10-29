@@ -55,8 +55,6 @@ namespace BirthdayBot
         /// </summary>
         public async Task StartAsync()
         {
-            await Database.DoInitialDatabaseSetupAsync();
-
             await DiscordClient.LoginAsync(TokenType.Bot, Config.BotToken);
             await DiscordClient.StartAsync();
         }

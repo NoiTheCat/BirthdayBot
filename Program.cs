@@ -1,4 +1,5 @@
-﻿using System;
+﻿using BirthdayBot.Data;
+using System;
 using System.Threading.Tasks;
 
 namespace BirthdayBot
@@ -12,6 +13,8 @@ namespace BirthdayBot
         {
             BotStartTime = DateTimeOffset.UtcNow;
             var cfg = new Configuration();
+
+            await Database.DoInitialDatabaseSetupAsync();
 
             Console.CancelKeyPress += OnCancelKeyPressed;
             _bot = new ShardManager(cfg);
