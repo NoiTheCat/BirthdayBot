@@ -111,20 +111,31 @@ namespace BirthdayBot
         private Task Client_Log(LogMessage arg)
         {
             // Suppress certain messages
-            if (arg.Message.StartsWith("Unknown Dispatch ")) return Task.CompletedTask;
-            switch (arg.Message) // Connection status messages replaced by ShardManager's output
+            if (arg.Message != null)
             {
-                case "Connecting":
-                case "Connected":
-                case "Ready":
-                case "Failed to resume previous session":
-                case "Resumed previous session":
-                case "Disconnecting":
-                case "Disconnected":
+                if (arg.Message.StartsWith("Unknown Dispatch ")) return Task.CompletedTask;
+                switch (arg.Message) // Connection status messages replaced by ShardManager's output
+                {
+                    case "Connecting":
+                    case "Connected":
+                    case "Ready":
+                    case "Failed to resume previous session":
+                    case "Resumed previous session":
+                    case "Disconnecting":
+                    case "Disconnected":
+                    case "WebSocket connection was closed":
+                        return Task.CompletedTask;
+                }
+                if (arg.Message == "Heartbeat Errored")
+                {
+                    // Replace this with a custom message; do not show stack trace
+                    Log("Discord.Net", $"{arg.Severity}: {arg.Message} - {arg.Exception.Message}");
                     return Task.CompletedTask;
+                }
+
+                Log("Discord.Net", $"{arg.Severity}: {arg.Message}");
             }
 
-            Log("Discord.Net", $"{arg.Severity}: {arg.Message}");
             if (arg.Exception != null) Log("Discord.Net", arg.Exception.ToString());
 
             return Task.CompletedTask;
