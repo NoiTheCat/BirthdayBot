@@ -21,9 +21,17 @@ namespace BirthdayBot
     class ShardManager : IDisposable
     {
         /// <summary>
-        /// Array indexes correspond to shard IDs. Lock on itself when modifying.
+        /// Number of seconds between each time the manager's watchdog task runs, in seconds.
         /// </summary>
-        private readonly ShardInstance[] _shards;
+        private const int WatchdogInterval = 90;
+
+        /// <summary>
+        /// A dictionary with shard IDs as its keys and shard instances as its values.
+        /// When initialized, all keys will be created as configured. If an instance is removed,
+        /// a key's corresponding value will temporarily become null instead of the key/value
+        /// pair being removed.
+        /// </summary>
+        private readonly Dictionary<int, ShardInstance> _shards;
 
         // Commonly used command handler instances
         private readonly Dictionary<string, CommandHandler> _dispatchCommands;
@@ -35,6 +43,7 @@ namespace BirthdayBot
         // Watchdog stuff
         private readonly Task _watchdogTask;
         private readonly CancellationTokenSource _watchdogCancel;
+        private int _destroyedShards = 0;
         
         internal Configuration Config { get; }
 
@@ -56,10 +65,12 @@ namespace BirthdayBot
             _cmdsMods = new ManagerCommands(cfg, _cmdsUser.Commands);
             foreach (var item in _cmdsMods.Commands) _dispatchCommands.Add(item.Item1, item.Item2);
 
-            // Start shards
-            _shards = new ShardInstance[Config.ShardCount];
-            for (int i = 0; i < _shards.Length; i++)
-                InitializeShard(i).Wait();
+            _shards = new Dictionary<int, ShardInstance>();
+            // TODO implement more flexible sharding configuration here
+            for (int i = 0; i < Config.ShardCount; i++)
+            {
+                _shards.Add(i, null);
+            }
 
             // Start watchdog
             _watchdogCancel = new CancellationTokenSource();
@@ -77,10 +88,10 @@ namespace BirthdayBot
 
             Log("Shutting down all shards...");
             var shardDisposes = new List<Task>();
-            foreach (var shard in _shards)
+            foreach (var item in _shards)
             {
-                if (shard == null) continue;
-                shardDisposes.Add(Task.Run(shard.Dispose));
+                if (item.Value == null) continue;
+                shardDisposes.Add(Task.Run(item.Value.Dispose));
             }
             if (!Task.WhenAll(shardDisposes).Wait(60000))
             {
@@ -95,28 +106,25 @@ namespace BirthdayBot
         /// <summary>
         /// Creates and sets up a new shard instance.
         /// </summary>
-        private async Task InitializeShard(int shardId)
+        private async Task<ShardInstance> InitializeShard(int shardId)
         {
             ShardInstance newInstance;
-            lock (_shards)
-            {
-                var clientConf = new DiscordSocketConfig()
-                {
-                    ShardId = shardId,
-                    TotalShards = Config.ShardCount,
-                    LogLevel = LogSeverity.Info,
-                    DefaultRetryMode = RetryMode.RetryRatelimit,
-                    MessageCacheSize = 0, // not needed at all
-                    ExclusiveBulkDelete = true, // not relevant, but this is configured to skip the warning
-                    AlwaysDownloadUsers = true, // TODO set to false when more stable to do so
-                    GatewayIntents = GatewayIntents.Guilds | GatewayIntents.GuildMembers | GatewayIntents.GuildMessages
-                };
-                var newClient = new DiscordSocketClient(clientConf);
-                newInstance = new ShardInstance(this, newClient, _dispatchCommands);
 
-                _shards[shardId] = newInstance;
-            }
+            var clientConf = new DiscordSocketConfig()
+            {
+                ShardId = shardId,
+                TotalShards = Config.ShardCount,
+                LogLevel = LogSeverity.Info,
+                DefaultRetryMode = RetryMode.RetryRatelimit,
+                MessageCacheSize = 0, // not needed at all
+                ExclusiveBulkDelete = true, // not relevant, but this is configured to skip the warning
+                GatewayIntents = GatewayIntents.Guilds | GatewayIntents.GuildMembers | GatewayIntents.GuildMessages
+            };
+            var newClient = new DiscordSocketClient(clientConf);
+            newInstance = new ShardInstance(this, newClient, _dispatchCommands);
             await newInstance.StartAsync().ConfigureAwait(false);
+
+            return newInstance;
         }
 
         private async Task WatchdogLoop()
@@ -127,59 +135,59 @@ namespace BirthdayBot
                 {
                     Log($"Bot uptime: {Common.BotUptime}");
 
-                    // Gather statistical information within the lock
-                    var guildInfo = new (int, int, TimeSpan)[_shards.Length]; // guild count, conn score, last run
+                    // Iterate through shard list, extract data
+                    var guildInfo = new Dictionary<int, (int, int, TimeSpan)>();
                     var now = DateTimeOffset.UtcNow;
                     ulong? botId = null;
-                    lock (_shards)
+                    var nullShards = new List<int>();
+                    foreach (var item in _shards)
                     {
-                        for (int i = 0; i < _shards.Length; i++)
+                        if (item.Value == null)
                         {
-                            var shard = _shards[i];
-                            botId ??= shard.DiscordClient.CurrentUser?.Id;
-
-                            var guildCount = shard.DiscordClient.Guilds.Count;
-                            var connScore = shard.ConnectionScore;
-                            var lastRun = now - shard.LastBackgroundRun;
-                            guildInfo[i] = (guildCount, connScore, lastRun);
+                            nullShards.Add(item.Key);
+                            continue;
                         }
+                        var shard = item.Value;
+                        botId ??= shard.DiscordClient.CurrentUser?.Id;
+
+                        var guildCount = shard.DiscordClient.Guilds.Count;
+                        var connScore = shard.ConnectionScore;
+                        var lastRun = now - shard.LastBackgroundRun;
+
+                        guildInfo[item.Key] = (guildCount, connScore, lastRun);
                     }
 
                     // Process info
-                    var guildCounts = guildInfo.Select(i => i.Item1);
+                    var guildCounts = guildInfo.Select(i => i.Value.Item1);
                     var guildTotal = guildCounts.Sum();
-                    var guildAverage = guildCounts.Average();
+                    var guildAverage = guildCounts.Any() ? guildCounts.Average() : 0;
                     Log($"Currently in {guildTotal} guilds. Average shard load: {guildAverage:0.0}.");
-                    if (botId.HasValue)
+                    if (nullShards.Count == 0 && botId.HasValue)
                         await SendExternalStatistics(guildTotal, botId.Value, _watchdogCancel.Token).ConfigureAwait(false);
 
                     // Health report
                     var goodShards = new List<int>();
-                    var badShards = new List<int>(); // shards with a low connection score / long time since last work
+                    var badShards = new List<int>(); // shards with low connection score OR long time since last work
                     var deadShards = new List<int>(); // shards to destroy and reinitialize
-                    for (int i = 0; i < guildInfo.Length; i++)
+                    foreach (var item in guildInfo)
                     {
-                        var connScore = guildInfo[i].Item2;
-                        var lastRun = guildInfo[i].Item3;
+                        var connScore = item.Value.Item2;
+                        var lastRun = item.Value.Item3;
 
-                        if (lastRun > new TimeSpan(0, 20, 0) || connScore < ConnectionStatus.StableScore)
+                        if (lastRun > new TimeSpan(0, 10, 0) || connScore < ConnectionStatus.StableScore)
                         {
-                            badShards.Add(i);
+                            badShards.Add(item.Key);
 
-                            // This is for now the only deciding factor on whether to discard a shard,
-                            // without regards to score.
-                            if (lastRun > new TimeSpan(1, 0, 0))
-                            {
-                                deadShards.Add(i);
-                            }
+                            // Consider a shard dead after a long span without background activity
+                            if (lastRun > new TimeSpan(0, 30, 0))
+                                deadShards.Add(item.Key);
                         }
                         else
                         {
-                            goodShards.Add(i);
+                            goodShards.Add(item.Key);
                         }
                     }
-
-                    string catNumbers(IEnumerable<int> list, bool detailedInfo)
+                    string statusDisplay(IEnumerable<int> list, bool detailedInfo)
                     {
                         if (!list.Any()) return "--";
                         var result = new StringBuilder();
@@ -193,20 +201,37 @@ namespace BirthdayBot
                                 result.Append($" {Math.Floor(guildInfo[item].Item3.TotalMinutes):00}m");
                                 result.Append($"{guildInfo[item].Item3.Seconds:00}s] ");
                             }
-                            
                         }
                         if (result.Length > 0) result.Remove(result.Length - 1, 1);
                         return result.ToString();
                     }
-                    Log("Stable shards: " + catNumbers(goodShards, false));
-                    if (badShards.Count > 0) Log("Unstable shards: " + catNumbers(badShards, true));
-                    if (deadShards.Count > 0) Log("Shards to be restarted: " + catNumbers(deadShards, false));
-                    {
+                    Log("Stable shards: " + statusDisplay(goodShards, false));
+                    if (badShards.Count > 0) Log("Unstable shards: " + statusDisplay(badShards, true));
+                    if (deadShards.Count > 0) Log("Shards to be restarted: " + statusDisplay(deadShards, false));
+                    if (nullShards.Count > 0) Log("Inactive shards: " + statusDisplay(nullShards, false));
 
+                    // Remove dead shards
+                    foreach (var dead in deadShards)
+                    {
+                        _shards[dead].Dispose();
+                        _shards[dead] = null;
                     }
 
-                    // 120 second delay
-                    await Task.Delay(120 * 1000, _watchdogCancel.Token).ConfigureAwait(false);
+                    // Start up any missing shards
+                    int startAllowance = 4;
+                    foreach (var id in nullShards)
+                    {
+                        // To avoid possible issues with resources strained over so many shards starting at once,
+                        // initialization is spread out by only starting a few at a time.
+                        if (startAllowance-- > 0)
+                        {
+                            _shards[id] = await InitializeShard(id).ConfigureAwait(false);
+                        }
+                        else break;
+                    }
+
+                    // All done for now
+                    await Task.Delay(WatchdogInterval * 1000, _watchdogCancel.Token).ConfigureAwait(false);
                 }
             }
             catch (TaskCanceledException) { }

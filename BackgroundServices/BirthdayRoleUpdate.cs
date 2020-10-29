@@ -27,6 +27,12 @@ namespace BirthdayBot.BackgroundServices
             var exs = new List<Exception>();
             foreach (var guild in ShardInstance.DiscordClient.Guilds)
             {
+                if (ShardInstance.DiscordClient.ConnectionState != Discord.ConnectionState.Connected)
+                {
+                    Log("Client is not connected. Stopping early.");
+                    return;
+                }
+
                 // Single guilds are fully processed and are not interrupted by task cancellation.
                 if (token.IsCancellationRequested) throw new TaskCanceledException();
                 try
@@ -68,9 +74,11 @@ namespace BirthdayBot.BackgroundServices
             if (diag.RoleCheck != null) return diag;
 
             // Determine who's currently having a birthday
-            // Note: This is where we'd call DownloadUsersAsync, but this method is capable of blocking indefinitely
-            // and making the task completely unresponsive. Must investigate further before calling it here and disabling
-            // AlwaysDownloadUsers in client settings.
+            if (!guild.HasAllMembers)
+            {
+                await guild.DownloadUsersAsync().ConfigureAwait(false);
+                await Task.Delay(500);
+            }
             var users = await GuildUserConfiguration.LoadAllAsync(guild.Id).ConfigureAwait(false);
             var tz = gc.TimeZone;
             var birthdays = GetGuildCurrentBirthdays(users, tz);
