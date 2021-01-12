@@ -49,51 +49,57 @@ namespace BirthdayBot.UserInterface
             var monthVal = m.Groups["month"].Value;
             int month;
             var dayUpper = 31; // upper day of month check
-            switch (monthVal.ToLower())
-            {
-                case "jan":
-                    month = 1;
-                    break;
-                case "feb":
-                    month = 2;
-                    dayUpper = 29;
-                    break;
-                case "mar":
-                    month = 3;
-                    break;
-                case "apr":
-                    month = 4;
-                    dayUpper = 30;
-                    break;
-                case "may":
-                    month = 5;
-                    break;
-                case "jun":
-                    month = 6;
-                    dayUpper = 30;
-                    break;
-                case "jul":
-                    month = 7;
-                    break;
-                case "aug":
-                    month = 8;
-                    break;
-                case "sep":
-                    month = 9;
-                    dayUpper = 30;
-                    break;
-                case "oct":
-                    month = 10;
-                    break;
-                case "nov":
-                    month = 11;
-                    dayUpper = 30;
-                    break;
-                case "dec":
-                    month = 12;
-                    break;
-                default:
-                    throw new FormatException(":x: Invalid month name. Use a three-letter month abbreviation.");
+            int n;
+            if (int.tryParse(monthVal, out int n) && 0 <= n <= 12) {
+              month = n;
+            }
+            else {
+              switch (monthVal.ToLower())
+              {
+                  case "jan":
+                      month = 1;
+                      break;
+                  case "feb":
+                      month = 2;
+                      dayUpper = 29;
+                      break;
+                  case "mar":
+                      month = 3;
+                      break;
+                  case "apr":
+                      month = 4;
+                      dayUpper = 30;
+                      break;
+                  case "may":
+                      month = 5;
+                      break;
+                  case "jun":
+                      month = 6;
+                      dayUpper = 30;
+                      break;
+                  case "jul":
+                      month = 7;
+                      break;
+                  case "aug":
+                      month = 8;
+                      break;
+                  case "sep":
+                      month = 9;
+                      dayUpper = 30;
+                      break;
+                  case "oct":
+                      month = 10;
+                      break;
+                  case "nov":
+                      month = 11;
+                      dayUpper = 30;
+                      break;
+                  case "dec":
+                      month = 12;
+                      break;
+                  default:
+                      throw new FormatException(":x: Invalid month name. Use a three-letter month abbreviation.");
+              }
             }
             if (day == 0 || day > dayUpper) throw new FormatException(":x: The date you specified is not a valid calendar date.");
 
