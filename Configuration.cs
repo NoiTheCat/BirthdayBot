@@ -58,10 +58,7 @@ namespace BirthdayBot
             {
                 Host = sqlhost,
                 Username = sqluser,
-                Password = sqlpass,
-                // Note: Npgsql connection pooling settings are defined (hardcoded) here.
-                MinPoolSize = 3,
-                MaxPoolSize = 20
+                Password = sqlpass
             };
             var sqldb = jc["SqlDatabase"]?.Value<string>();
             if (sqldb != null) csb.Database = sqldb; // Optional database setting

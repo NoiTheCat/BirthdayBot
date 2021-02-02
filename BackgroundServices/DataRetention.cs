@@ -15,7 +15,7 @@ namespace BirthdayBot.BackgroundServices
     /// </summary>
     class DataRetention : BackgroundService
     {
-        private static readonly SemaphoreSlim _updateLock = new SemaphoreSlim(1);
+        private static readonly SemaphoreSlim _updateLock = new SemaphoreSlim(2);
         const int ProcessInterval = 600 / ShardBackgroundWorker.Interval; // Process every ~10 minutes
         private int _tickCount = 0;
 
@@ -35,7 +35,7 @@ namespace BirthdayBot.BackgroundServices
                 // to avoid putting pressure on the SQL connection pool. Updating this is a low priority.
                 await _updateLock.WaitAsync(token).ConfigureAwait(false);
             }
-            catch (OperationCanceledException)
+            catch (Exception ex) when (ex is OperationCanceledException || ex is ObjectDisposedException)
             {
                 // Calling thread does not expect the exception that SemaphoreSlim throws...
                 throw new TaskCanceledException();
