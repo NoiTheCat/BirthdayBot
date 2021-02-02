@@ -9,8 +9,8 @@ namespace BirthdayBot.BackgroundServices
     /// </summary>
     class ConnectionStatus : BackgroundService
     {
-        // About 5 minutes
-        public const int StableScore = 300 / ShardBackgroundWorker.Interval;
+        // About 3 minutes
+        public const int StableScore = 180 / ShardBackgroundWorker.Interval;
 
         public bool Stable { get { return Score >= StableScore; } }
         public int Score { get; private set; }
