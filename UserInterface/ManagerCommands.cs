@@ -393,6 +393,13 @@ namespace BirthdayBot.UserInterface
             // Moderators only. As with config, silently drop if this check fails.
             if (!gconf.IsBotModerator(reqUser)) return;
 
+            if (!Common.HasMostMembersDownloaded(reqChannel.Guild))
+            {
+                instance.RequestDownloadUsers(reqChannel.Guild.Id);
+                await reqChannel.SendMessageAsync(UsersNotDownloadedError);
+                return;
+            }
+
             if (param.Length != 3)
             {
                 await reqChannel.SendMessageAsync(ParameterError, embed: DocOverride.UsageEmbed).ConfigureAwait(false);
@@ -462,7 +469,10 @@ namespace BirthdayBot.UserInterface
 
             try
             {
-                var result = await instance.ForceBirthdayUpdateAsync(reqChannel.Guild).ConfigureAwait(false);
+                var guild = reqChannel.Guild;
+                string result = $"\nServer ID: {guild.Id} | Bot shard ID: {instance.ShardId:00}";
+                result += $"\nLocally cached members: {guild.DownloadedMemberCount} out of {guild.MemberCount}";
+                result += "\n" + await instance.ForceBirthdayUpdateAsync(guild).ConfigureAwait(false);
                 await reqChannel.SendMessageAsync(result).ConfigureAwait(false);
             }
             catch (Exception ex)

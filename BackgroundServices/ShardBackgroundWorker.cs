@@ -23,6 +23,7 @@ namespace BirthdayBot.BackgroundServices
 
         public ConnectionStatus ConnStatus { get; }
         public BirthdayRoleUpdate BirthdayUpdater { get; }
+        public SelectiveAutoUserDownload UserDownloader { get; }
         public DateTimeOffset LastBackgroundRun { get; private set; }
         public int ConnectionScore => ConnStatus.Score;
 
@@ -33,8 +34,10 @@ namespace BirthdayBot.BackgroundServices
 
             ConnStatus = new ConnectionStatus(instance);
             BirthdayUpdater = new BirthdayRoleUpdate(instance);
+            UserDownloader = new SelectiveAutoUserDownload(instance);
             _workers = new List<BackgroundService>()
             {
+                {UserDownloader},
                 {BirthdayUpdater},
                 {new DataRetention(instance)}
             };

@@ -107,6 +107,8 @@ namespace BirthdayBot
         public Task<string> ForceBirthdayUpdateAsync(SocketGuild guild)
             => _background.BirthdayUpdater.SingleProcessGuildAsync(guild);
 
+        public void RequestDownloadUsers(ulong guildId) => _background.UserDownloader.RequestDownload(guildId);
+
         #region Event handling
         private Task Client_Log(LogMessage arg)
         {

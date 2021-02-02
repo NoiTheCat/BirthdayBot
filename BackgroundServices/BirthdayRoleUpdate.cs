@@ -74,11 +74,6 @@ namespace BirthdayBot.BackgroundServices
             if (diag.RoleCheck != null) return diag;
 
             // Determine who's currently having a birthday
-            if (!guild.HasAllMembers)
-            {
-                await guild.DownloadUsersAsync().ConfigureAwait(false);
-                await Task.Delay(500);
-            }
             var users = await GuildUserConfiguration.LoadAllAsync(guild.Id).ConfigureAwait(false);
             var tz = gc.TimeZone;
             var birthdays = GetGuildCurrentBirthdays(users, tz);

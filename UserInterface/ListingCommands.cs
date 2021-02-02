@@ -38,6 +38,13 @@ namespace BirthdayBot.UserInterface
         private async Task CmdWhen(ShardInstance instance, GuildConfiguration gconf,
                                    string[] param, SocketTextChannel reqChannel, SocketGuildUser reqUser)
         {
+            if (!Common.HasMostMembersDownloaded(reqChannel.Guild))
+            {
+                instance.RequestDownloadUsers(reqChannel.Guild.Id);
+                await reqChannel.SendMessageAsync(UsersNotDownloadedError);
+                return;
+            }
+
             // Requires a parameter
             if (param.Length == 1)
             {
@@ -103,6 +110,13 @@ namespace BirthdayBot.UserInterface
                 return;
             }
 
+            if (!Common.HasMostMembersDownloaded(reqChannel.Guild))
+            {
+                instance.RequestDownloadUsers(reqChannel.Guild.Id);
+                await reqChannel.SendMessageAsync(UsersNotDownloadedError);
+                return;
+            }
+
             bool useCsv = false;
             // Check for CSV option
             if (param.Length == 2)
@@ -162,6 +176,13 @@ namespace BirthdayBot.UserInterface
         private async Task CmdUpcoming(ShardInstance instance, GuildConfiguration gconf,
                                        string[] param, SocketTextChannel reqChannel, SocketGuildUser reqUser)
         {
+            if (!Common.HasMostMembersDownloaded(reqChannel.Guild))
+            {
+                instance.RequestDownloadUsers(reqChannel.Guild.Id);
+                await reqChannel.SendMessageAsync(UsersNotDownloadedError);
+                return;
+            }
+
             var now = DateTimeOffset.UtcNow;
             var search = DateIndex(now.Month, now.Day) - 8; // begin search 8 days prior to current date UTC
             if (search <= 0) search = 366 - Math.Abs(search);
