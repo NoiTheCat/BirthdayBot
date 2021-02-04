@@ -19,25 +19,32 @@ namespace BirthdayBot.UserInterface
                 ("remove", CmdRemove)
             };
 
+        #region Date parsing
+        const string FormatError = ":x: Unrecognized date format. The following formats are accepted, as examples: "
+                + "`15-jan`, `jan-15`, `15 jan`, `jan 15`, `15 January`, `January 15`.";
+
+        private static readonly Regex DateParse1 = new Regex(@"^(?<day>\d{1,2})[ -](?<month>[A-Za-z]+)$", RegexOptions.Compiled);
+        private static readonly Regex DateParse2 = new Regex(@"^(?<month>[A-Za-z]+)[ -](?<day>\d{1,2})$", RegexOptions.Compiled);
+
         /// <summary>
-        /// Parses date parameter. Strictly takes dd-MMM or MMM-dd only. Eliminates ambiguity over dd/mm vs mm/dd.
+        /// Parses a date input.
         /// </summary>
         /// <returns>Tuple: month, day</returns>
-        /// <exception cref="FormatException">Thrown for any parsing issue. Reason is expected to be sent to Discord as-is.</exception>
+        /// <exception cref="FormatException">
+        /// Thrown for any parsing issue. Reason is expected to be sent to Discord as-is.
+        /// </exception>
         private (int, int) ParseDate(string dateInput)
         {
-            const string FormatError = ":x: Incorrect date format. Use a three-letter abbreviation and a number separated by "
-                + "hyphen to specify a date. Examples: `jan-15` `23-aug` `may-12` `5-jun`";
-            // Not doing DateTime.Parse. Setting it up is rather complicated, and it's probably case sensitive.
-            // Admittedly, doing it the way it's being done here probably isn't any better.
-            var m = Regex.Match(dateInput, @"^(?<day>\d{1,2})-(?<month>[A-Za-z]{3})$");
+            var m = DateParse1.Match(dateInput);
             if (!m.Success)
             {
                 // Flip the fields around, try again
-                m = Regex.Match(dateInput, @"^(?<month>[A-Za-z]{3})-(?<day>\d{1,2})$");
+                m = DateParse2.Match(dateInput);
                 if (!m.Success) throw new FormatException(FormatError);
             }
-            int day;
+
+            int day, month;
+            string monthVal;
             try
             {
                 day = int.Parse(m.Groups["day"].Value);
@@ -46,59 +53,68 @@ namespace BirthdayBot.UserInterface
             {
                 throw new Exception(FormatError);
             }
-            var monthVal = m.Groups["month"].Value;
-            int month;
-            var dayUpper = 31; // upper day of month check
-            switch (monthVal.ToLower())
-            {
-                case "jan":
-                    month = 1;
-                    break;
-                case "feb":
-                    month = 2;
-                    dayUpper = 29;
-                    break;
-                case "mar":
-                    month = 3;
-                    break;
-                case "apr":
-                    month = 4;
-                    dayUpper = 30;
-                    break;
-                case "may":
-                    month = 5;
-                    break;
-                case "jun":
-                    month = 6;
-                    dayUpper = 30;
-                    break;
-                case "jul":
-                    month = 7;
-                    break;
-                case "aug":
-                    month = 8;
-                    break;
-                case "sep":
-                    month = 9;
-                    dayUpper = 30;
-                    break;
-                case "oct":
-                    month = 10;
-                    break;
-                case "nov":
-                    month = 11;
-                    dayUpper = 30;
-                    break;
-                case "dec":
-                    month = 12;
-                    break;
-                default:
-                    throw new FormatException(":x: Invalid month name. Use a three-letter month abbreviation.");
-            }
+            monthVal = m.Groups["month"].Value;
+
+            int dayUpper; // upper day of month check
+            (month, dayUpper) = GetMonth(monthVal);
+
             if (day == 0 || day > dayUpper) throw new FormatException(":x: The date you specified is not a valid calendar date.");
 
             return (month, day);
         }
+
+        /// <summary>
+        /// Returns information for a given month input.
+        /// </summary>
+        /// <param name="input"></param>
+        /// <returns>Tuple: Month value, upper limit of days in the month</returns>
+        /// <exception cref="FormatException">
+        /// Thrown on error. Send out to Discord as-is.
+        /// </exception>
+        private (int, int) GetMonth(string input)
+        {
+            switch (input.ToLower())
+            {
+                case "jan":
+                case "january":
+                    return (1, 31);
+                case "feb":
+                case "february":
+                    return (2, 29);
+                case "mar":
+                case "march":
+                    return (3, 31);
+                case "apr":
+                case "april":
+                    return (4, 30);
+                case "may":
+                    return (5, 31);
+                case "jun":
+                case "june":
+                    return (6, 30);
+                case "jul":
+                case "july":
+                    return (7, 31);
+                case "aug":
+                case "august":
+                    return (8, 31);
+                case "sep":
+                case "september":
+                    return (9, 30);
+                case "oct":
+                case "october":
+                    return (10, 31);
+                case "nov":
+                case "november":
+                    return (11, 30);
+                case "dec":
+                case "december":
+                    return (12, 31);
+                default:
+                    throw new FormatException($":x: Can't determine month name `{input}`. Check your spelling and try again.");
+            }
+        }
+        #endregion
 
         #region Documentation
         public static readonly CommandDocumentation DocSet =
@@ -114,25 +130,44 @@ namespace BirthdayBot.UserInterface
         private async Task CmdSet(ShardInstance instance, GuildConfiguration gconf,
                                   string[] param, SocketTextChannel reqChannel, SocketGuildUser reqUser)
         {
-            // Requires one parameter. Optionally two.
-            if (param.Length < 2 || param.Length > 3)
+            // Requires *some* parameter.
+            if (param.Length < 2)
             {
                 await reqChannel.SendMessageAsync(ParameterError, embed: DocSet.UsageEmbed).ConfigureAwait(false);
                 return;
             }
 
+            // Date format accepts spaces, and then we look for an additional parameter.
+            // This is weird. Gotta compensate.
+            var fullinput = "";
+            for (int i = 1; i < param.Length; i++)
+            {
+                fullinput += " " + param[i];
+            }
+            fullinput = fullinput[1..];
+            // Attempt to get last "parameter"; check if it's a time zone value
+            string timezone = null;
+            var fli = fullinput.LastIndexOf(' ');
+            if (fli != -1)
+            {
+                var tzstring = fullinput[(fli+1)..];
+                try
+                {
+                    timezone = ParseTimeZone(tzstring);
+                    // If we got here, last parameter was indeed a time zone. Trim it away for what comes next.
+                    fullinput = fullinput[0..fli];
+                }
+                catch (FormatException) { } // Was not a time zone name. Do nothing.
+            }
+
             int bmonth, bday;
-            string btz = null;
             try
             {
-                var res = ParseDate(param[1]);
-                bmonth = res.Item1;
-                bday = res.Item2;
-                if (param.Length == 3) btz = ParseTimeZone(param[2]);
+                (bmonth, bday) = ParseDate(fullinput);
             }
             catch (FormatException ex)
             {
-                // Our parse methods' FormatException has its message to send out to Discord.
+                // Our parse method's FormatException has its message to send out to Discord.
                 reqChannel.SendMessageAsync(ex.Message, embed: DocSet.UsageEmbed).Wait();
                 return;
             }
@@ -143,7 +178,7 @@ namespace BirthdayBot.UserInterface
             {
                 var user = await GuildUserConfiguration.LoadAsync(gconf.GuildId, reqUser.Id).ConfigureAwait(false);
                 known = user.IsKnown;
-                await user.UpdateAsync(bmonth, bday, btz).ConfigureAwait(false);
+                await user.UpdateAsync(bmonth, bday, timezone).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
