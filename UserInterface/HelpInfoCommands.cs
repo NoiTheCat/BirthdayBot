@@ -23,9 +23,14 @@ namespace BirthdayBot.UserInterface
             new List<(string, CommandHandler)>() {
                 ("help", CmdHelp),
                 ("help-config", CmdHelpConfig),
+                ("helpconfig", CmdHelpConfig),
                 ("help-tzdata", CmdHelpTzdata),
+                ("helptzdata", CmdHelpTzdata),
                 ("help-message", CmdHelpMessage),
-                ("info", CmdInfo)
+                ("helpmessage", CmdHelpMessage),
+                ("info", CmdInfo),
+                ("about", CmdInfo),
+                ("invite", CmdInfo)
             };
 
         private (Embed, Embed) BuildHelpEmbeds()
