@@ -5,7 +5,6 @@ using Discord.WebSocket;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Net.Http;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -167,8 +166,6 @@ namespace BirthdayBot
                     var guildTotal = guildCounts.Sum();
                     var guildAverage = guildCounts.Any() ? guildCounts.Average() : 0;
                     Log($"Currently in {guildTotal} guilds. Average shard load: {guildAverage:0.0}.");
-                    if (nullShards.Count == 0 && botId.HasValue)
-                        await SendExternalStatistics(guildTotal, botId.Value, _watchdogCancel.Token).ConfigureAwait(false);
 
                     // Health report
                     var goodShards = new List<int>();
@@ -243,37 +240,5 @@ namespace BirthdayBot
             }
             catch (TaskCanceledException) { }
         }
-
-        #region Statistical reporting
-        private static readonly HttpClient _httpClient = new HttpClient();
-
-        /// <summary>
-        /// Send statistical information to external services.
-        /// </summary>
-        private async Task SendExternalStatistics(int count, ulong botId, CancellationToken token)
-        {
-            var dbotsToken = Config.DBotsToken;
-            if (dbotsToken != null)
-            {
-                try
-                {
-                    const string dBotsApiUrl = "https://discord.bots.gg/api/v1/bots/{0}/stats";
-                    const string Body = "{{ \"guildCount\": {0} }}";
-                    var uri = new Uri(string.Format(dBotsApiUrl, botId));
-
-                    var post = new HttpRequestMessage(HttpMethod.Post, uri);
-                    post.Headers.Add("Authorization", dbotsToken);
-                    post.Content = new StringContent(string.Format(Body, count), Encoding.UTF8, "application/json");
-
-                    await _httpClient.SendAsync(post, token);
-                    Log("Discord Bots: Update successful.");
-                }
-                catch (Exception ex)
-                {
-                    Log("Discord Bots: Exception encountered during update: " + ex.Message);
-                }
-            }
-        }
-        #endregion
     }
 }

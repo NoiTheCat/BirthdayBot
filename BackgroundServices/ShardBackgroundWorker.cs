@@ -39,7 +39,8 @@ namespace BirthdayBot.BackgroundServices
             {
                 {UserDownloader},
                 {BirthdayUpdater},
-                {new DataRetention(instance)}
+                {new DataRetention(instance)},
+                {new ExternalStatisticsReporting(instance)}
             };
 
             _workerTask = Task.Factory.StartNew(WorkerLoop, _workerCanceller.Token);
