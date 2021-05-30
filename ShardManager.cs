@@ -26,6 +26,11 @@ namespace BirthdayBot
         private const int WatchdogInterval = 90;
 
         /// <summary>
+        /// Number of shards allowed to be destroyed before forcing the program to close.
+        /// </summary>
+        private const int MaxDestroyedShards = 5;
+
+        /// <summary>
         /// A dictionary with shard IDs as its keys and shard instances as its values.
         /// When initialized, all keys will be created as configured. If an instance is removed,
         /// a key's corresponding value will temporarily become null instead of the key/value
@@ -215,7 +220,9 @@ namespace BirthdayBot
                     {
                         _shards[dead].Dispose();
                         _shards[dead] = null;
+                        _destroyedShards++;
                     }
+                    if (_destroyedShards > MaxDestroyedShards) Program.ProgramStop();
 
                     // Start up any missing shards
                     int startAllowance = 4;

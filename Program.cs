@@ -33,12 +33,18 @@ namespace BirthdayBot
                 Console.WriteLine($"{ts:u} [{source}] {item}");
         }
 
-        private static bool _dispose = false;
         private static void OnCancelKeyPressed(object sender, ConsoleCancelEventArgs e)
         {
             e.Cancel = true;
-            if (_dispose) return;
-            _dispose = true;
+            ProgramStop();
+        }
+
+        private static bool _stopping = false;
+        public static void ProgramStop()
+        {
+            if (_stopping) return;
+            _stopping = true;
+
             var dispose = Task.Run(_bot.Dispose);
             if (!dispose.Wait(90000))
             {
