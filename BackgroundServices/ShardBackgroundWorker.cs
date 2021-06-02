@@ -76,7 +76,11 @@ namespace BirthdayBot.BackgroundServices
                     // Execute tasks sequentially
                     foreach (var service in _workers)
                     {
-                        try { await service.OnTick(_workerCanceller.Token).ConfigureAwait(false); }
+                        try
+                        {
+                            if (_workerCanceller.IsCancellationRequested) break;
+                            await service.OnTick(_workerCanceller.Token).ConfigureAwait(false);
+                        }
                         catch (Exception ex)
                         {
                             var svcname = service.GetType().Name;
