@@ -36,6 +36,7 @@ namespace BirthdayBot
         private static void OnCancelKeyPressed(object sender, ConsoleCancelEventArgs e)
         {
             e.Cancel = true;
+            Log("Shutdown", "Captured cancel key; sending shutdown.");
             ProgramStop();
         }
 
@@ -44,6 +45,7 @@ namespace BirthdayBot
         {
             if (_stopping) return;
             _stopping = true;
+            Log("Shutdown", "Commencing shutdown...");
 
             var dispose = Task.Run(_bot.Dispose);
             if (!dispose.Wait(90000))

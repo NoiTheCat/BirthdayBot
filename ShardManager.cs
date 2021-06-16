@@ -30,6 +30,12 @@ namespace BirthdayBot
         private const int MaxDestroyedShards = 5;
 
         /// <summary>
+        /// Amount of time without a completed background service run before a shard instance
+        /// is considered "dead" and tasked to be removed.
+        /// </summary>
+        private static readonly TimeSpan DeadShardThreshold = new TimeSpan(0, 20, 0);
+
+        /// <summary>
         /// A dictionary with shard IDs as its keys and shard instances as its values.
         /// When initialized, all keys will be created as configured. If an instance is removed,
         /// a key's corresponding value will temporarily become null instead of the key/value
@@ -70,8 +76,8 @@ namespace BirthdayBot
             foreach (var item in _cmdsMods.Commands) _dispatchCommands.Add(item.Item1, item.Item2);
 
             _shards = new Dictionary<int, ShardInstance>();
-            // TODO implement more flexible sharding configuration here
-            for (int i = 0; i < Config.ShardCount; i++)
+            // Create only the specified shards as needed by this instance
+            for (int i = Config.ShardStart; i < (Config.ShardStart + Config.ShardAmount); i++)
             {
                 _shards.Add(i, null);
             }
@@ -84,7 +90,6 @@ namespace BirthdayBot
 
         public void Dispose()
         {
-            Log("Captured cancel key. Shutting down shard status watcher...");
             _watchdogCancel.Cancel();
             _watchdogTask.Wait(5000);
             if (!_watchdogTask.IsCompleted)
@@ -117,7 +122,7 @@ namespace BirthdayBot
             var clientConf = new DiscordSocketConfig()
             {
                 ShardId = shardId,
-                TotalShards = Config.ShardCount,
+                TotalShards = Config.ShardTotal,
                 LogLevel = LogSeverity.Info,
                 DefaultRetryMode = RetryMode.RetryRatelimit,
                 MessageCacheSize = 0, // not needed at all
@@ -142,7 +147,6 @@ namespace BirthdayBot
                     // Iterate through shard list, extract data
                     var guildInfo = new Dictionary<int, (int, int, TimeSpan)>();
                     var now = DateTimeOffset.UtcNow;
-                    ulong? botId = null;
                     var nullShards = new List<int>();
                     foreach (var item in _shards)
                     {
@@ -152,7 +156,6 @@ namespace BirthdayBot
                             continue;
                         }
                         var shard = item.Value;
-                        botId ??= shard.DiscordClient.CurrentUser?.Id;
 
                         var guildCount = shard.DiscordClient.Guilds.Count;
                         var connScore = shard.ConnectionScore;
@@ -181,7 +184,7 @@ namespace BirthdayBot
                             badShards.Add(item.Key);
 
                             // Consider a shard dead after a long span without background activity
-                            if (lastRun > new TimeSpan(0, 30, 0))
+                            if (lastRun > DeadShardThreshold)
                                 deadShards.Add(item.Key);
                         }
                         else
@@ -199,9 +202,8 @@ namespace BirthdayBot
                             if (detailedInfo)
                             {
                                 result.Remove(result.Length - 1, 1);
-                                result.Append($"[{guildInfo[item].Item2:+000;-000}");
-                                result.Append($" {Math.Floor(guildInfo[item].Item3.TotalMinutes):00}m");
-                                result.Append($"{guildInfo[item].Item3.Seconds:00}s] ");
+                                result.Append($"[{guildInfo[item].Item2:+0;-0}");
+                                result.Append($" {Math.Floor(guildInfo[item].Item3.TotalSeconds):000}s] ");
                             }
                         }
                         if (result.Length > 0) result.Remove(result.Length - 1, 1);
@@ -213,25 +215,30 @@ namespace BirthdayBot
                     if (nullShards.Count > 0) Log("Inactive shards: " + statusDisplay(nullShards, false));
 
                     // Remove dead shards
-                    foreach (var dead in deadShards)
-                    {
+                    foreach (var dead in deadShards) {
+                        // TODO investigate - has this been hanging here?
                         _shards[dead].Dispose();
                         _shards[dead] = null;
                         _destroyedShards++;
                     }
-                    if (_destroyedShards > MaxDestroyedShards) Program.ProgramStop();
-
-                    // Start up any missing shards
-                    int startAllowance = 4;
-                    foreach (var id in nullShards)
+                    if (Config.QuitOnFails && _destroyedShards > MaxDestroyedShards)
                     {
-                        // To avoid possible issues with resources strained over so many shards starting at once,
-                        // initialization is spread out by only starting a few at a time.
-                        if (startAllowance-- > 0)
+                        Program.ProgramStop();
+                    }
+                    else
+                    {
+                        // Start up any missing shards
+                        int startAllowance = 4;
+                        foreach (var id in nullShards)
                         {
-                            _shards[id] = await InitializeShard(id).ConfigureAwait(false);
+                            // To avoid possible issues with resources strained over so many shards starting at once,
+                            // initialization is spread out by only starting a few at a time.
+                            if (startAllowance-- > 0)
+                            {
+                                _shards[id] = await InitializeShard(id).ConfigureAwait(false);
+                            }
+                            else break;
                         }
-                        else break;
                     }
 
                     // All done for now

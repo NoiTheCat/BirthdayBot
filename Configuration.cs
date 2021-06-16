@@ -4,6 +4,7 @@ using Npgsql;
 using System;
 using System.IO;
 using System.Reflection;
+using System.Text.RegularExpressions;
 
 namespace BirthdayBot
 {
@@ -15,7 +16,14 @@ namespace BirthdayBot
         public string BotToken { get; }
         public string LogWebhook { get; }
         public string DBotsToken { get; }
-        public int ShardCount { get; }
+
+        public const string ShardLenConfKey = "ShardRange";
+        public int ShardStart { get; }
+        public int ShardAmount { get; }
+
+        public int ShardTotal { get; }
+
+        public bool QuitOnFails { get; }
 
         public Configuration()
         {
@@ -31,15 +39,15 @@ namespace BirthdayBot
 
             var jc = JObject.Parse(File.ReadAllText(confPath));
 
-            BotToken = jc["BotToken"]?.Value<string>();
+            BotToken = jc[nameof(BotToken)]?.Value<string>();
             if (string.IsNullOrWhiteSpace(BotToken))
-                throw new Exception("'BotToken' must be specified.");
+                throw new Exception($"'{nameof(BotToken)}' must be specified.");
 
-            LogWebhook = jc["LogWebhook"]?.Value<string>();
+            LogWebhook = jc[nameof(LogWebhook)]?.Value<string>();
             if (string.IsNullOrWhiteSpace(LogWebhook))
-                throw new Exception("'LogWebhook' must be specified.");
+                throw new Exception($"'{nameof(LogWebhook)}' must be specified.");
 
-            var dbj = jc["DBotsToken"];
+            var dbj = jc[nameof(DBotsToken)];
             if (dbj != null)
             {
                 DBotsToken = dbj.Value<string>();
@@ -64,16 +72,41 @@ namespace BirthdayBot
             if (sqldb != null) csb.Database = sqldb; // Optional database setting
             Database.DBConnectionString = csb.ToString();
 
-            int? sc = jc["ShardCount"]?.Value<int>();
-            if (!sc.HasValue) ShardCount = 1;
+            int? sc = jc[nameof(ShardTotal)]?.Value<int>();
+            if (!sc.HasValue) ShardTotal = 1;
             else
             {
-                ShardCount = sc.Value;
-                if (ShardCount <= 0)
+                ShardTotal = sc.Value;
+                if (ShardTotal <= 0)
                 {
-                    throw new Exception("'ShardCount' must be a positive integer.");
+                    throw new Exception($"'{nameof(ShardTotal)}' must be a positive integer.");
                 }
             }
+
+            string srVal = jc[ShardLenConfKey]?.Value<string>();
+            if (!string.IsNullOrWhiteSpace(srVal))
+            {
+                Regex srPicker = new Regex(@"(?<low>\d{1,2})[-,]{1}(?<high>\d{1,2})");
+                var m = srPicker.Match(srVal);
+                if (m.Success)
+                {
+                    ShardStart = int.Parse(m.Groups["low"].Value);
+                    int high = int.Parse(m.Groups["high"].Value);
+                    ShardAmount = high - (ShardStart - 1);
+                }
+                else
+                {
+                    throw new Exception($"Shard range not properly formatted in '{ShardLenConfKey}'.");
+                }
+            }
+            else
+            {
+                // Default: this instance handles all shards from ShardTotal
+                ShardStart = 0;
+                ShardAmount = ShardTotal;
+            }
+
+            QuitOnFails = jc[nameof(QuitOnFails)]?.Value<bool>() ?? false;
         }
     }
 }
