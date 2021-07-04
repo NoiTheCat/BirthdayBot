@@ -218,23 +218,24 @@ namespace BirthdayBot.UserInterface
                 output.Append($"● `{Common.MonthNames[results.First().BirthMonth]}-{results.First().BirthDay:00}`: ");
                 foreach (var item in names)
                 {
+                    // If the output is starting to fill up, send out this message and prepare a new one.
+                    if (output.Length > 800)
+                    {
+                        await reqChannel.SendMessageAsync(output.ToString()).ConfigureAwait(false);
+                        output.Clear();
+                        first = true;
+                        output.Append($"● `{Common.MonthNames[results.First().BirthMonth]}-{results.First().BirthDay:00}`: ");
+                    }
+
                     if (first) first = false;
                     else output.Append(", ");
                     output.Append(item);
-
-                    // If the output is starting to fill up, back out early and prepare to show the result as-is
-                    if (output.Length > 930) goto listfull;
                 }
-                continue;
-
-            listfull:
-                output.AppendLine();
-                output.Append("Not all birthdays have been shown as there are too many to list.");
             }
 
             if (resultCount == 0)
                 await reqChannel.SendMessageAsync(
-                    "There are no recent or upcoming birthdays (within the last 3 days and/or next 7 days).")
+                    "There are no recent or upcoming birthdays (within the last 7 days and/or next 21 days).")
                     .ConfigureAwait(false);
             else
                 await reqChannel.SendMessageAsync(output.ToString()).ConfigureAwait(false);
