@@ -25,6 +25,7 @@ namespace BirthdayBot.BackgroundServices
         public BirthdayRoleUpdate BirthdayUpdater { get; }
         public SelectiveAutoUserDownload UserDownloader { get; }
         public DateTimeOffset LastBackgroundRun { get; private set; }
+        public string CurrentExecutingService { get; private set; }
         public int ConnectionScore => ConnStatus.Score;
 
         public ShardBackgroundWorker(ShardInstance instance)
@@ -76,6 +77,7 @@ namespace BirthdayBot.BackgroundServices
                     // Execute tasks sequentially
                     foreach (var service in _workers)
                     {
+                        CurrentExecutingService = service.GetType().Name;
                         try
                         {
                             if (_workerCanceller.IsCancellationRequested) break;
@@ -83,19 +85,20 @@ namespace BirthdayBot.BackgroundServices
                         }
                         catch (Exception ex)
                         {
-                            var svcname = service.GetType().Name;
+                            
                             if (ex is TaskCanceledException)
                             {
-                                Instance.Log(nameof(WorkerLoop), $"{svcname} was interrupted by a cancellation request.");
+                                Instance.Log(nameof(WorkerLoop), $"{CurrentExecutingService} was interrupted by a cancellation request.");
                                 throw;
                             }
                             else
                             {
                                 // TODO webhook log
-                                Instance.Log(nameof(WorkerLoop), $"{svcname} encountered an exception:\n" + ex.ToString());
+                                Instance.Log(nameof(WorkerLoop), $"{CurrentExecutingService} encountered an exception:\n" + ex.ToString());
                             }
                         }
                     }
+                    CurrentExecutingService = null;
                     LastBackgroundRun = DateTimeOffset.UtcNow;
                 }
             }

@@ -25,6 +25,10 @@ namespace BirthdayBot
         /// Returns a value showing the time in which the last background run successfully completed.
         /// </summary>
         public DateTimeOffset LastBackgroundRun => _background.LastBackgroundRun;
+        /// <summary>
+        /// Returns the name of the background service currently in execution.
+        /// </summary>
+        public string CurrentExecutingService => _background.CurrentExecutingService;
         public Configuration Config => _manager.Config;
         /// <summary>
         /// Returns this shard's connection score.

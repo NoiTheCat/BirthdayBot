@@ -27,7 +27,13 @@ namespace BirthdayBot
         /// <summary>
         /// Number of shards allowed to be destroyed before forcing the program to close.
         /// </summary>
-        private const int MaxDestroyedShards = 5;
+        private const int MaxDestroyedShards = 10; // TODO make configurable
+
+        /// <summary>
+        /// Number of concurrent shard startups to happen on each check.
+        /// This value is also used in <see cref="DataRetention"/>.
+        /// </summary>
+        public const int MaxConcurrentOperations = 5;
 
         /// <summary>
         /// Amount of time without a completed background service run before a shard instance
@@ -145,7 +151,7 @@ namespace BirthdayBot
                     Log($"Bot uptime: {Common.BotUptime}");
 
                     // Iterate through shard list, extract data
-                    var guildInfo = new Dictionary<int, (int, int, TimeSpan)>();
+                    var guildInfo = new Dictionary<int, (int, int, TimeSpan, string)>();
                     var now = DateTimeOffset.UtcNow;
                     var nullShards = new List<int>();
                     foreach (var item in _shards)
@@ -160,8 +166,9 @@ namespace BirthdayBot
                         var guildCount = shard.DiscordClient.Guilds.Count;
                         var connScore = shard.ConnectionScore;
                         var lastRun = now - shard.LastBackgroundRun;
+                        var lastExec = shard.CurrentExecutingService ?? "null";
 
-                        guildInfo[item.Key] = (guildCount, connScore, lastRun);
+                        guildInfo[item.Key] = (guildCount, connScore, lastRun, lastExec);
                     }
 
                     // Process info
@@ -203,7 +210,8 @@ namespace BirthdayBot
                             {
                                 result.Remove(result.Length - 1, 1);
                                 result.Append($"[{guildInfo[item].Item2:+0;-0}");
-                                result.Append($" {Math.Floor(guildInfo[item].Item3.TotalSeconds):000}s] ");
+                                result.Append($" {Math.Floor(guildInfo[item].Item3.TotalSeconds):000}s");
+                                result.Append($" {guildInfo[item].Item4}] ");
                             }
                         }
                         if (result.Length > 0) result.Remove(result.Length - 1, 1);
@@ -228,7 +236,7 @@ namespace BirthdayBot
                     else
                     {
                         // Start up any missing shards
-                        int startAllowance = 4;
+                        int startAllowance = MaxConcurrentOperations;
                         foreach (var id in nullShards)
                         {
                             // To avoid possible issues with resources strained over so many shards starting at once,

@@ -15,17 +15,18 @@ namespace BirthdayBot.BackgroundServices
     /// </summary>
     class DataRetention : BackgroundService
     {
-        private static readonly SemaphoreSlim _updateLock = new SemaphoreSlim(2);
-        const int ProcessInterval = 600 / ShardBackgroundWorker.Interval; // Process every ~10 minutes
-        private int _tickCount = 0;
+        private static readonly SemaphoreSlim _updateLock = new SemaphoreSlim(ShardManager.MaxConcurrentOperations);
+        const int ProcessInterval = 3600 / ShardBackgroundWorker.Interval; // Process about once per hour
+        private int _tickCount = -1;
 
         public DataRetention(ShardInstance instance) : base(instance) { }
 
         public override async Task OnTick(CancellationToken token)
         {
-            if (++_tickCount % ProcessInterval != 0)
+            if ((++_tickCount + ShardInstance.ShardId * 3) % ProcessInterval != 0)
             {
                 // Do not process on every tick.
+                // Stagger processing based on shard ID, to not choke the background processing task.
                 return;
             }
 
