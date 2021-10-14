@@ -64,6 +64,8 @@ namespace BirthdayBot.UserInterface
             string tz = null;
             if (tzinput != null)
             {
+                if (tzinput.Equals("Asia/Calcutta", StringComparison.OrdinalIgnoreCase)) tzinput = "Asia/Kolkata";
+
                 // Just check if the input exists in the map. Get the "true" value, or reject it altogether.
                 if (!TzNameMap.TryGetValue(tzinput, out tz))
                 {
