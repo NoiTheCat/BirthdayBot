@@ -171,9 +171,9 @@ namespace BirthdayBot.UserInterface
                 // TODO this message needs an overhaul
                 Description = "For more information regarding support, data retention, privacy, and other details, please refer to: "
                     + "https://github.com/NoiTheCat/BirthdayBot/blob/master/Readme.md" + "\n\n"
-                    + "This bot is provided for free, without any intention to add premium, pay-only features. "
-                    + "If you find this bot helpful, please consider contributing towards my operating costs "
-                    + "via Patreon: https://www.patreon.com/noibots."
+                    + "This bot is provided for free, without any paywalled 'premium' features. "
+                    + "If you've found this bot useful, please consider contributing via the "
+                    + "bot author's page on Ko-fi: https://ko-fi.com/noithecat."
             }.AddField(new EmbedFieldBuilder()
             {
                 Name = "Statistics",

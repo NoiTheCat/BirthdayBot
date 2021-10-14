@@ -118,8 +118,8 @@ namespace BirthdayBot.UserInterface
 
         #region Documentation
         public static readonly CommandDocumentation DocSet =
-            new CommandDocumentation(new string[] { "set (date) [zone]" }, "Registers your birth date. Time zone is optional.",
-                $"`{CommandPrefix}set jan-31`, `{CommandPrefix}set 15-aug America/Los_Angeles`.");
+            new CommandDocumentation(new string[] { "set (date)" }, "Registers your birth month and day.",
+                $"`{CommandPrefix}set jan-31`, `{CommandPrefix}set 15 may`.");
         public static readonly CommandDocumentation DocZone =
             new CommandDocumentation(new string[] { "zone (zone)" }, "Sets your local time zone. "
                 + $"See also `{CommandPrefix}help-tzdata`.", null);
@@ -130,35 +130,16 @@ namespace BirthdayBot.UserInterface
         private async Task CmdSet(ShardInstance instance, GuildConfiguration gconf,
                                   string[] param, SocketTextChannel reqChannel, SocketGuildUser reqUser)
         {
-            // Requires *some* parameter.
             if (param.Length < 2)
             {
                 await reqChannel.SendMessageAsync(ParameterError, embed: DocSet.UsageEmbed).ConfigureAwait(false);
                 return;
             }
 
-            // Date format accepts spaces, and then we look for an additional parameter.
-            // This is weird. Gotta compensate.
+            // Date format accepts spaces. Must coalesce parameters to a single string.
             var fullinput = "";
-            for (int i = 1; i < param.Length; i++)
-            {
-                fullinput += " " + param[i];
-            }
-            fullinput = fullinput[1..];
-            // Attempt to get last "parameter"; check if it's a time zone value
-            string timezone = null;
-            var fli = fullinput.LastIndexOf(' ');
-            if (fli != -1)
-            {
-                var tzstring = fullinput[(fli+1)..];
-                try
-                {
-                    timezone = ParseTimeZone(tzstring);
-                    // If we got here, last parameter was indeed a time zone. Trim it away for what comes next.
-                    fullinput = fullinput[0..fli];
-                }
-                catch (FormatException) { } // Was not a time zone name. Do nothing.
-            }
+            foreach (var p in param[1..]) fullinput += " " + p;
+            fullinput = fullinput[1..]; // trim leading space
 
             int bmonth, bday;
             try
@@ -178,7 +159,7 @@ namespace BirthdayBot.UserInterface
             {
                 var user = await GuildUserConfiguration.LoadAsync(gconf.GuildId, reqUser.Id).ConfigureAwait(false);
                 known = user.IsKnown;
-                await user.UpdateAsync(bmonth, bday, timezone).ConfigureAwait(false);
+                await user.UpdateAsync(bmonth, bday, user.TimeZone).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -187,16 +168,8 @@ namespace BirthdayBot.UserInterface
                 reqChannel.SendMessageAsync(InternalError).Wait();
                 return;
             }
-            if (known)
-            {
-                await reqChannel.SendMessageAsync(":white_check_mark: Your information has been updated.")
+            await reqChannel.SendMessageAsync($":white_check_mark: Your birthday has been { (known ? "updated" : "recorded") }.")
                     .ConfigureAwait(false);
-            }
-            else
-            {
-                await reqChannel.SendMessageAsync(":white_check_mark: Your birthday has been recorded.")
-                    .ConfigureAwait(false);
-            }
         }
 
         private async Task CmdZone(ShardInstance instance, GuildConfiguration gconf,
