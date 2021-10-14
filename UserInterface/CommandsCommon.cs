@@ -22,7 +22,7 @@ namespace BirthdayBot.UserInterface
         public const string ParameterError = ":x: Invalid usage. Refer to how to use the command and try again.";
         public const string NoParameterError = ":x: This command does not accept any parameters.";
         public const string InternalError = ":x: An internal bot error occurred. The bot maintainer has been notified of the issue.";
-        public const string UsersNotDownloadedError = ":x: Currently unavailable. Please try again in a few minutes.";
+        public const string UsersNotDownloadedError = ":eight_spoked_asterisk: Still catching up... Please try the command again in a few minutes.";
 
         public delegate Task CommandHandler(ShardInstance instance, GuildConfiguration gconf,
                                             string[] param, SocketTextChannel reqChannel, SocketGuildUser reqUser);
