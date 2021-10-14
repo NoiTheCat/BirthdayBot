@@ -86,7 +86,7 @@ namespace BirthdayBot
             string srVal = jc[ShardLenConfKey]?.Value<string>();
             if (!string.IsNullOrWhiteSpace(srVal))
             {
-                Regex srPicker = new Regex(@"(?<low>\d{1,2})[-,]{1}(?<high>\d{1,2})");
+                Regex srPicker = new(@"(?<low>\d{1,2})[-,]{1}(?<high>\d{1,2})");
                 var m = srPicker.Match(srVal);
                 if (m.Success)
                 {

@@ -14,9 +14,9 @@ namespace BirthdayBot.BackgroundServices
     /// </summary>
     class SelectiveAutoUserDownload : BackgroundService
     {
-        private static readonly SemaphoreSlim _updateLock = new SemaphoreSlim(2);
+        private static readonly SemaphoreSlim _updateLock = new(2);
 
-        private readonly HashSet<ulong> _fetchRequests = new HashSet<ulong>();
+        private readonly HashSet<ulong> _fetchRequests = new();
 
         public SelectiveAutoUserDownload(ShardInstance instance) : base(instance) { }
 
@@ -42,7 +42,7 @@ namespace BirthdayBot.BackgroundServices
                 if (requests.Contains(guild.Id) || await GuildUserAnyAsync(guild.Id, token).ConfigureAwait(false))
                 {
                     await guild.DownloadUsersAsync().ConfigureAwait(false);
-                    await Task.Delay(500).ConfigureAwait(false);
+                    await Task.Delay(500, CancellationToken.None).ConfigureAwait(false);
                 }
             }
         }
@@ -51,13 +51,13 @@ namespace BirthdayBot.BackgroundServices
         /// Determines if the user database contains any entries corresponding to this guild.
         /// </summary>
         /// <returns>True if any entries exist.</returns>
-        private async Task<bool> GuildUserAnyAsync(ulong guildId, CancellationToken token)
+        private static async Task<bool> GuildUserAnyAsync(ulong guildId, CancellationToken token)
         {
             try
             {
                 await _updateLock.WaitAsync(token).ConfigureAwait(false);
             }
-            catch (Exception ex) when (ex is OperationCanceledException || ex is ObjectDisposedException)
+            catch (Exception ex) when (ex is OperationCanceledException or ObjectDisposedException)
             {
                 // Calling thread does not expect the exception that SemaphoreSlim throws...
                 throw new TaskCanceledException();
@@ -68,7 +68,7 @@ namespace BirthdayBot.BackgroundServices
                 using var c = db.CreateCommand();
                 c.CommandText = $"select count(*) from {GuildUserConfiguration.BackingTable} where guild_id = @Gid";
                 c.Parameters.Add("@Gid", NpgsqlTypes.NpgsqlDbType.Bigint).Value = (long)guildId;
-                await c.PrepareAsync().ConfigureAwait(false);
+                await c.PrepareAsync(CancellationToken.None).ConfigureAwait(false);
                 var r = (long)await c.ExecuteScalarAsync(token).ConfigureAwait(false);
                 return r != 0;
             }

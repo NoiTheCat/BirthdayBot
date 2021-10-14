@@ -27,12 +27,12 @@ namespace BirthdayBot.UserInterface
 
         #region Documentation
         public static readonly CommandDocumentation DocList =
-            new CommandDocumentation(new string[] { "list" }, "Exports all birthdays to a file."
+            new(new string[] { "list" }, "Exports all birthdays to a file."
                 + " Accepts `csv` as an optional parameter.", null);
         public static readonly CommandDocumentation DocUpcoming =
-            new CommandDocumentation(new string[] { "recent", "upcoming" }, "Lists recent and upcoming birthdays.", null);
+            new(new string[] { "recent", "upcoming" }, "Lists recent and upcoming birthdays.", null);
         public static readonly CommandDocumentation DocWhen =
-            new CommandDocumentation(new string[] { "when" }, "Displays the given user's birthday information.", null);
+            new(new string[] { "when" }, "Displays the given user's birthday information.", null);
         #endregion
 
         private async Task CmdWhen(ShardInstance instance, GuildConfiguration gconf,
@@ -202,7 +202,7 @@ namespace BirthdayBot.UserInterface
                 search += 1;
                 if (search > 366) search = 1; // wrap to beginning of year
 
-                if (results.Count() == 0) continue; // back out early
+                if (!results.Any()) continue; // back out early
                 resultCount += results.Count();
 
                 // Build sorted name list
@@ -245,7 +245,7 @@ namespace BirthdayBot.UserInterface
         /// Fetches all guild birthdays and places them into an easily usable structure.
         /// Users currently not in the guild are not included in the result.
         /// </summary>
-        private async Task<List<ListItem>> GetSortedUsersAsync(SocketGuild guild)
+        private static async Task<List<ListItem>> GetSortedUsersAsync(SocketGuild guild)
         {
             using var db = await Database.OpenConnectionAsync();
             using var c = db.CreateCommand();
@@ -323,7 +323,7 @@ namespace BirthdayBot.UserInterface
             return result.ToString();
         }
 
-        private string CsvEscape(string input)
+        private static string CsvEscape(string input)
         {
             var result = new StringBuilder();
             result.Append('"');
@@ -336,7 +336,7 @@ namespace BirthdayBot.UserInterface
             return result.ToString();
         }
 
-        private int DateIndex(int month, int day)
+        private static int DateIndex(int month, int day)
         {
             var dateindex = 0;
             // Add month offsets

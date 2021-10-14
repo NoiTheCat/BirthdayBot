@@ -33,7 +33,7 @@ namespace BirthdayBot.UserInterface
                 ("invite", CmdInfo)
             };
 
-        private (Embed, Embed) BuildHelpEmbeds()
+        private static (Embed, Embed) BuildHelpEmbeds()
         {
             var cpfx = $"●`{CommandPrefix}";
 

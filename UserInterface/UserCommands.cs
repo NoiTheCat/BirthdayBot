@@ -23,8 +23,8 @@ namespace BirthdayBot.UserInterface
         const string FormatError = ":x: Unrecognized date format. The following formats are accepted, as examples: "
                 + "`15-jan`, `jan-15`, `15 jan`, `jan 15`, `15 January`, `January 15`.";
 
-        private static readonly Regex DateParse1 = new Regex(@"^(?<day>\d{1,2})[ -](?<month>[A-Za-z]+)$", RegexOptions.Compiled);
-        private static readonly Regex DateParse2 = new Regex(@"^(?<month>[A-Za-z]+)[ -](?<day>\d{1,2})$", RegexOptions.Compiled);
+        private static readonly Regex DateParse1 = new(@"^(?<day>\d{1,2})[ -](?<month>[A-Za-z]+)$", RegexOptions.Compiled);
+        private static readonly Regex DateParse2 = new(@"^(?<month>[A-Za-z]+)[ -](?<day>\d{1,2})$", RegexOptions.Compiled);
 
         /// <summary>
         /// Parses a date input.
@@ -33,7 +33,7 @@ namespace BirthdayBot.UserInterface
         /// <exception cref="FormatException">
         /// Thrown for any parsing issue. Reason is expected to be sent to Discord as-is.
         /// </exception>
-        private (int, int) ParseDate(string dateInput)
+        private static (int, int) ParseDate(string dateInput)
         {
             var m = DateParse1.Match(dateInput);
             if (!m.Success)
@@ -71,60 +71,35 @@ namespace BirthdayBot.UserInterface
         /// <exception cref="FormatException">
         /// Thrown on error. Send out to Discord as-is.
         /// </exception>
-        private (int, int) GetMonth(string input)
+        private static (int, int) GetMonth(string input)
         {
-            switch (input.ToLower())
-            {
-                case "jan":
-                case "january":
-                    return (1, 31);
-                case "feb":
-                case "february":
-                    return (2, 29);
-                case "mar":
-                case "march":
-                    return (3, 31);
-                case "apr":
-                case "april":
-                    return (4, 30);
-                case "may":
-                    return (5, 31);
-                case "jun":
-                case "june":
-                    return (6, 30);
-                case "jul":
-                case "july":
-                    return (7, 31);
-                case "aug":
-                case "august":
-                    return (8, 31);
-                case "sep":
-                case "september":
-                    return (9, 30);
-                case "oct":
-                case "october":
-                    return (10, 31);
-                case "nov":
-                case "november":
-                    return (11, 30);
-                case "dec":
-                case "december":
-                    return (12, 31);
-                default:
-                    throw new FormatException($":x: Can't determine month name `{input}`. Check your spelling and try again.");
-            }
+            return input.ToLower() switch {
+                "jan" or "january" => (1, 31),
+                "feb" or "february" => (2, 29),
+                "mar" or "march" => (3, 31),
+                "apr" or "april" => (4, 30),
+                "may" => (5, 31),
+                "jun" or "june" => (6, 30),
+                "jul" or "july" => (7, 31),
+                "aug" or "august" => (8, 31),
+                "sep" or "september" => (9, 30),
+                "oct" or "october" => (10, 31),
+                "nov" or "november" => (11, 30),
+                "dec" or "december" => (12, 31),
+                _ => throw new FormatException($":x: Can't determine month name `{input}`. Check your spelling and try again."),
+            };
         }
         #endregion
 
         #region Documentation
         public static readonly CommandDocumentation DocSet =
-            new CommandDocumentation(new string[] { "set (date)" }, "Registers your birth month and day.",
+            new(new string[] { "set (date)" }, "Registers your birth month and day.",
                 $"`{CommandPrefix}set jan-31`, `{CommandPrefix}set 15 may`.");
         public static readonly CommandDocumentation DocZone =
-            new CommandDocumentation(new string[] { "zone (zone)" }, "Sets your local time zone. "
+            new(new string[] { "zone (zone)" }, "Sets your local time zone. "
                 + $"See also `{CommandPrefix}help-tzdata`.", null);
         public static readonly CommandDocumentation DocRemove =
-            new CommandDocumentation(new string[] { "remove" }, "Removes your birthday information from this bot.", null);
+            new(new string[] { "remove" }, "Removes your birthday information from this bot.", null);
         #endregion
 
         private async Task CmdSet(ShardInstance instance, GuildConfiguration gconf,

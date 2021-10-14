@@ -15,9 +15,9 @@ namespace BirthdayBot.UserInterface
         {
             var cmds = new List<string>();
             foreach (var item in commands) cmds.Add(CommandsCommon.CommandPrefix + item);
-            if (cmds.Count == 0) throw new ArgumentException(nameof(commands));
+            if (cmds.Count == 0) throw new ArgumentException(null, nameof(commands));
             Commands = cmds.ToArray();
-            Usage = usage ?? throw new ArgumentException(nameof(usage));
+            Usage = usage ?? throw new ArgumentException(null, nameof(usage));
             Examples = examples;
         }
 

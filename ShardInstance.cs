@@ -108,8 +108,8 @@ namespace BirthdayBot
         /// <summary>
         /// Direct access to invoke the background task of updating birthdays in a guild, for use by the testing command.
         /// </summary>
-        public Task<string> ForceBirthdayUpdateAsync(SocketGuild guild)
-            => _background.BirthdayUpdater.SingleProcessGuildAsync(guild);
+        public static Task<string> ForceBirthdayUpdateAsync(SocketGuild guild)
+            => BirthdayRoleUpdate.SingleProcessGuildAsync(guild);
 
         public void RequestDownloadUsers(ulong guildId) => _background.UserDownloader.RequestDownload(guildId);
 
@@ -166,7 +166,7 @@ namespace BirthdayBot
         /// </summary>
         private async Task Client_MessageReceived(SocketMessage msg)
         {
-            if (!(msg.Channel is SocketTextChannel channel)) return;
+            if (msg.Channel is not SocketTextChannel channel) return;
             if (msg.Author.IsBot || msg.Author.IsWebhook) return;
             if (((IMessage)msg).Type != MessageType.Default) return;
             var author = (SocketGuildUser)msg.Author;
@@ -178,7 +178,7 @@ namespace BirthdayBot
             if (csplit.Length > 0 && csplit[0].StartsWith(CommandPrefix, StringComparison.OrdinalIgnoreCase))
             {
                 // Determine if it's something we're listening for.
-                if (!_dispatchCommands.TryGetValue(csplit[0].Substring(CommandPrefix.Length), out CommandHandler command)) return;
+                if (!_dispatchCommands.TryGetValue(csplit[0][CommandPrefix.Length..], out CommandHandler command)) return;
 
                 // Load guild information here
                 var gconf = await GuildConfiguration.LoadAsync(channel.Guild.Id, false);

@@ -39,7 +39,7 @@ namespace BirthdayBot
         /// Amount of time without a completed background service run before a shard instance
         /// is considered "dead" and tasked to be removed.
         /// </summary>
-        private static readonly TimeSpan DeadShardThreshold = new TimeSpan(0, 20, 0);
+        private static readonly TimeSpan DeadShardThreshold = new(0, 20, 0);
 
         /// <summary>
         /// A dictionary with shard IDs as its keys and shard instances as its values.
@@ -132,7 +132,6 @@ namespace BirthdayBot
                 LogLevel = LogSeverity.Info,
                 DefaultRetryMode = RetryMode.RetryRatelimit,
                 MessageCacheSize = 0, // not needed at all
-                ExclusiveBulkDelete = true, // not relevant, but this is configured to skip the warning
                 GatewayIntents = GatewayIntents.Guilds | GatewayIntents.GuildMembers | GatewayIntents.GuildMessages
             };
             var newClient = new DiscordSocketClient(clientConf);

@@ -48,7 +48,7 @@ namespace BirthdayBot.UserInterface
 
         #region Documentation
         public static readonly CommandDocumentation DocOverride =
-            new CommandDocumentation(new string[] { "override (user ping or ID) (command w/ parameters)" },
+            new(new string[] { "override (user ping or ID) (command w/ parameters)" },
                 "Perform certain commands on behalf of another user.", null);
         #endregion
 
@@ -426,7 +426,7 @@ namespace BirthdayBot.UserInterface
             if (cmdsearch.StartsWith(CommandPrefix))
             {
                 // Strip command prefix to search for the given command.
-                cmdsearch = cmdsearch.Substring(CommandPrefix.Length);
+                cmdsearch = cmdsearch[CommandPrefix.Length..];
             }
             else
             {
@@ -472,7 +472,7 @@ namespace BirthdayBot.UserInterface
                 var guild = reqChannel.Guild;
                 string result = $"\nServer ID: {guild.Id} | Bot shard ID: {instance.ShardId:00}";
                 result += $"\nLocally cached members: {guild.DownloadedMemberCount} out of {guild.MemberCount}";
-                result += "\n" + await instance.ForceBirthdayUpdateAsync(guild).ConfigureAwait(false);
+                result += "\n" + await ShardInstance.ForceBirthdayUpdateAsync(guild).ConfigureAwait(false);
                 await reqChannel.SendMessageAsync(result).ConfigureAwait(false);
             }
             catch (Exception ex)
@@ -485,9 +485,9 @@ namespace BirthdayBot.UserInterface
 
         #region Common/helper methods
         private const string RoleInputError = ":x: Unable to determine the given role.";
-        private static readonly Regex RoleMention = new Regex(@"<@?&(?<snowflake>\d+)>", RegexOptions.Compiled);
+        private static readonly Regex RoleMention = new(@"<@?&(?<snowflake>\d+)>", RegexOptions.Compiled);
 
-        private SocketRole FindUserInputRole(string inputStr, SocketGuild guild)
+        private static SocketRole FindUserInputRole(string inputStr, SocketGuild guild)
         {
             // Resembles a role mention? Strip it to the pure number
             var input = inputStr;

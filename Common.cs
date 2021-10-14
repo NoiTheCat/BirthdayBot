@@ -14,12 +14,12 @@ namespace BirthdayBot
         {
             if (ping) return member.Mention;
 
-            string escapeFormattingCharacters(string input)
+            static string escapeFormattingCharacters(string input)
             {
                 var result = new StringBuilder();
                 foreach (var c in input)
                 {
-                    if (c == '\\' || c == '_' || c == '~' || c == '*' || c == '@')
+                    if (c is '\\' or '_' or '~' or '*' or '@')
                     {
                         result.Append('\\');
                     }
@@ -36,7 +36,7 @@ namespace BirthdayBot
             return $"**{username}**#{member.Discriminator}";
         }
 
-        public static readonly Dictionary<int, string> MonthNames = new Dictionary<int, string>()
+        public static readonly Dictionary<int, string> MonthNames = new()
         {
             {1, "Jan"}, {2, "Feb"}, {3, "Mar"}, {4, "Apr"}, {5, "May"}, {6, "Jun"},
             {7, "Jul"}, {8, "Aug"}, {9, "Sep"}, {10, "Oct"}, {11, "Nov"}, {12, "Dec"}

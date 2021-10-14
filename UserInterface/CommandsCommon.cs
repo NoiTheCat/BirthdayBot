@@ -59,7 +59,7 @@ namespace BirthdayBot.UserInterface
         /// <summary>
         /// Checks given time zone input. Returns a valid string for use with NodaTime.
         /// </summary>
-        protected string ParseTimeZone(string tzinput)
+        protected static string ParseTimeZone(string tzinput)
         {
             string tz = null;
             if (tzinput != null)
@@ -80,16 +80,14 @@ namespace BirthdayBot.UserInterface
         /// Given user input where a user-like parameter is expected, attempts to resolve to an ID value.
         /// Input must be a mention or explicit ID. No name resolution is done here.
         /// </summary>
-        protected bool TryGetUserId(string input, out ulong result)
+        protected static bool TryGetUserId(string input, out ulong result)
         {
             string doParse;
             var m = UserMention.Match(input);
             if (m.Success) doParse = m.Groups[1].Value; 
             else doParse = input;
 
-            ulong resultVal;
-            if (ulong.TryParse(doParse, out resultVal))
-            {
+            if (ulong.TryParse(doParse, out ulong resultVal)) {
                 result = resultVal;
                 return true;
             }

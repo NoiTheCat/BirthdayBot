@@ -15,7 +15,7 @@ namespace BirthdayBot.BackgroundServices
     /// </summary>
     class DataRetention : BackgroundService
     {
-        private static readonly SemaphoreSlim _updateLock = new SemaphoreSlim(ShardManager.MaxConcurrentOperations);
+        private static readonly SemaphoreSlim _updateLock = new(ShardManager.MaxConcurrentOperations);
         const int ProcessInterval = 3600 / ShardBackgroundWorker.Interval; // Process about once per hour
         private int _tickCount = -1;
 
@@ -33,10 +33,11 @@ namespace BirthdayBot.BackgroundServices
             try
             {
                 // A semaphore is used to restrict this work being done concurrently on other shards
-                // to avoid putting pressure on the SQL connection pool. Updating this is a low priority.
+                // to avoid putting pressure on the SQL connection pool. Clearing old database information
+                // ultimately is a low priority among other tasks.
                 await _updateLock.WaitAsync(token).ConfigureAwait(false);
             }
-            catch (Exception ex) when (ex is OperationCanceledException || ex is ObjectDisposedException)
+            catch (Exception ex) when (ex is OperationCanceledException or ObjectDisposedException)
             {
                 // Calling thread does not expect the exception that SemaphoreSlim throws...
                 throw new TaskCanceledException();
@@ -81,13 +82,13 @@ namespace BirthdayBot.BackgroundServices
                     var userlist = item.Value;
 
                     pUpdateG.Value = (long)guild;
-                    updatedGuilds += await cUpdateGuild.ExecuteNonQueryAsync().ConfigureAwait(false);
+                    updatedGuilds += await cUpdateGuild.ExecuteNonQueryAsync(CancellationToken.None).ConfigureAwait(false);
 
                     pUpdateGU_g.Value = (long)guild;
                     foreach (var userid in userlist)
                     {
                         pUpdateGU_u.Value = (long)userid;
-                        updatedUsers += await cUpdateGuildUser.ExecuteNonQueryAsync().ConfigureAwait(false);
+                        updatedUsers += await cUpdateGuildUser.ExecuteNonQueryAsync(CancellationToken.None).ConfigureAwait(false);
                     }
                 }
                 var resultText = new StringBuilder();
@@ -100,13 +101,13 @@ namespace BirthdayBot.BackgroundServices
                 {
                     // Delete data for guilds not seen in 4 weeks
                     c.CommandText = $"delete from {GuildConfiguration.BackingTable} where (now() - interval '28 days') > last_seen";
-                    staleGuilds = await c.ExecuteNonQueryAsync().ConfigureAwait(false);
+                    staleGuilds = await c.ExecuteNonQueryAsync(CancellationToken.None).ConfigureAwait(false);
                 }
                 using (var c = db.CreateCommand())
                 {
                     // Delete data for users not seen in 8 weeks
                     c.CommandText = $"delete from {GuildUserConfiguration.BackingTable} where (now() - interval '56 days') > last_seen";
-                    staleUsers = await c.ExecuteNonQueryAsync().ConfigureAwait(false);
+                    staleUsers = await c.ExecuteNonQueryAsync(CancellationToken.None).ConfigureAwait(false);
                 }
                 if (staleGuilds != 0 || staleUsers != 0)
                 {

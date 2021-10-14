@@ -14,7 +14,7 @@ namespace BirthdayBot.BackgroundServices
         const int ProcessInterval = 600 / ShardBackgroundWorker.Interval; // Process every ~5 minutes
         private int _tickCount = 0;
 
-        private static readonly HttpClient _httpClient = new HttpClient();
+        private static readonly HttpClient _httpClient = new();
 
         public ExternalStatisticsReporting(ShardInstance instance) : base(instance) { }
 

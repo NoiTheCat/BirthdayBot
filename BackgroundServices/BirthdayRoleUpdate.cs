@@ -19,8 +19,7 @@ namespace BirthdayBot.BackgroundServices
         public BirthdayRoleUpdate(ShardInstance instance) : base(instance) { }
 
         /// <summary>
-        /// Processes birthday updates for all available guilds synchronously
-        /// (to avoid database connection pool bottlenecks and rate limiting).
+        /// Processes birthday updates for all available guilds synchronously.
         /// </summary>
         public override async Task OnTick(CancellationToken token)
         {
@@ -41,25 +40,24 @@ namespace BirthdayBot.BackgroundServices
                 }
                 catch (Exception ex)
                 {
-                    // Catch all exceptions per-guild but continue processing, throw at end
+                    // Catch all exceptions per-guild but continue processing, throw at end.
                     exs.Add(ex);
                 }
             }
             if (exs.Count != 0) throw new AggregateException(exs);
-
-            // TODO metrics for role sets, unsets, announcements - and how to do that for singles too?
         }
 
         /// <summary>
         /// Access to <see cref="ProcessGuildAsync(SocketGuild)"/> for the testing command.
         /// </summary>
         /// <returns>Diagnostic data in string form.</returns>
-        public async Task<string> SingleProcessGuildAsync(SocketGuild guild) => (await ProcessGuildAsync(guild).ConfigureAwait(false)).Export();
+        public static async Task<string> SingleProcessGuildAsync(SocketGuild guild) 
+            => (await ProcessGuildAsync(guild).ConfigureAwait(false)).Export();
 
         /// <summary>
         /// Main method where actual guild processing occurs.
         /// </summary>
-        private async Task<PGDiagnostic> ProcessGuildAsync(SocketGuild guild)
+        private static async Task<PGDiagnostic> ProcessGuildAsync(SocketGuild guild)
         {
             var diag = new PGDiagnostic();
 
@@ -100,7 +98,7 @@ namespace BirthdayBot.BackgroundServices
             var announceping = gc.AnnouncePing;
             SocketTextChannel channel = null;
             if (gc.AnnounceChannelId.HasValue) channel = guild.GetTextChannel(gc.AnnounceChannelId.Value);
-            if (announcementList.Count() != 0)
+            if (announcementList.Any())
             {
                 var announceResult =
                     await AnnounceBirthdaysAsync(announce, announceping, channel, announcementList).ConfigureAwait(false);
@@ -117,7 +115,7 @@ namespace BirthdayBot.BackgroundServices
         /// <summary>
         /// Checks if the bot may be allowed to alter roles.
         /// </summary>
-        private string CheckCorrectRoleSettings(SocketGuild guild, SocketRole role)
+        private static string CheckCorrectRoleSettings(SocketGuild guild, SocketRole role)
         {
             if (role == null) return "Designated role is not set, or target role cannot be found.";
 
@@ -139,7 +137,7 @@ namespace BirthdayBot.BackgroundServices
         /// Gets all known users from the given guild and returns a list including only those who are
         /// currently experiencing a birthday in the respective time zone.
         /// </summary>
-        private HashSet<ulong> GetGuildCurrentBirthdays(IEnumerable<GuildUserConfiguration> guildUsers, string defaultTzStr)
+        private static HashSet<ulong> GetGuildCurrentBirthdays(IEnumerable<GuildUserConfiguration> guildUsers, string defaultTzStr)
         {
             var birthdayUsers = new HashSet<ulong>();
 
@@ -184,7 +182,7 @@ namespace BirthdayBot.BackgroundServices
         /// First item: List of users who had the birthday role applied, used to announce.
         /// Second item: Counts of users who have had roles added/removed, used for operation reporting.
         /// </returns>
-        private async Task<(IEnumerable<SocketGuildUser>, (int, int))> UpdateGuildBirthdayRoles(
+        private static async Task<(IEnumerable<SocketGuildUser>, (int, int))> UpdateGuildBirthdayRoles(
             SocketGuild g, SocketRole r, HashSet<ulong> names)
         {
             // Check members currently with the role. Figure out which users to remove it from.
@@ -224,7 +222,7 @@ namespace BirthdayBot.BackgroundServices
         /// who have just had their birthday role added.
         /// </summary>
         /// <returns>The message to place into operation status log.</returns>
-        private async Task<string> AnnounceBirthdaysAsync(
+        private static async Task<string> AnnounceBirthdaysAsync(
             (string, string) announce, bool announcePing, SocketTextChannel c, IEnumerable<SocketGuildUser> names)
         {
             if (c == null) return "Announcement channel is not set, or previous announcement channel has been deleted.";
