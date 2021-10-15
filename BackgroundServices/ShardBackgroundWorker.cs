@@ -18,22 +18,20 @@ namespace BirthdayBot.BackgroundServices
         private readonly Task _workerTask;
         private readonly CancellationTokenSource _workerCanceller;
         private readonly List<BackgroundService> _workers;
+        private int _tickCount = -1;
 
         private ShardInstance Instance { get; }
 
-        public ConnectionStatus ConnStatus { get; }
         public BirthdayRoleUpdate BirthdayUpdater { get; }
         public SelectiveAutoUserDownload UserDownloader { get; }
         public DateTimeOffset LastBackgroundRun { get; private set; }
-        public string CurrentExecutingService { get; private set; }
-        public int ConnectionScore => ConnStatus.Score;
+        public string? CurrentExecutingService { get; private set; }
 
         public ShardBackgroundWorker(ShardInstance instance)
         {
             Instance = instance;
             _workerCanceller = new CancellationTokenSource();
 
-            ConnStatus = new ConnectionStatus(instance);
             BirthdayUpdater = new BirthdayRoleUpdate(instance);
             UserDownloader = new SelectiveAutoUserDownload(instance);
             _workers = new List<BackgroundService>()
@@ -70,9 +68,8 @@ namespace BirthdayBot.BackgroundServices
                 {
                     await Task.Delay(Interval * 1000, _workerCanceller.Token).ConfigureAwait(false);
 
-                    // ConnectionStatus will always run. Its result determines if remaining tasks also this time.
-                    await ConnStatus.OnTick(_workerCanceller.Token).ConfigureAwait(false);
-                    if (!ConnStatus.Stable) continue;
+                    // Skip this round of task execution if the client is not connected
+                    if (Instance.DiscordClient.ConnectionState != Discord.ConnectionState.Connected) continue;
 
                     // Execute tasks sequentially
                     foreach (var service in _workers)
@@ -81,21 +78,13 @@ namespace BirthdayBot.BackgroundServices
                         try
                         {
                             if (_workerCanceller.IsCancellationRequested) break;
-                            await service.OnTick(_workerCanceller.Token).ConfigureAwait(false);
+                            _tickCount++;
+                            await service.OnTick(_tickCount, _workerCanceller.Token).ConfigureAwait(false);
                         }
-                        catch (Exception ex)
+                        catch (Exception ex) when (ex is not TaskCanceledException)
                         {
-                            
-                            if (ex is TaskCanceledException)
-                            {
-                                Instance.Log(nameof(WorkerLoop), $"{CurrentExecutingService} was interrupted by a cancellation request.");
-                                throw;
-                            }
-                            else
-                            {
-                                // TODO webhook log
-                                Instance.Log(nameof(WorkerLoop), $"{CurrentExecutingService} encountered an exception:\n" + ex.ToString());
-                            }
+                            // TODO webhook log
+                            Instance.Log(nameof(WorkerLoop), $"{CurrentExecutingService} encountered an exception:\n" + ex.ToString());
                         }
                     }
                     CurrentExecutingService = null;
@@ -103,8 +92,6 @@ namespace BirthdayBot.BackgroundServices
                 }
             }
             catch (TaskCanceledException) { }
-
-            Instance.Log(nameof(WorkerLoop), "Background worker has concluded normally.");
         }
     }
 }

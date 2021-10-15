@@ -1,16 +1,14 @@
 ﻿using System.Threading;
 using System.Threading.Tasks;
 
-namespace BirthdayBot.BackgroundServices
-{
-    abstract class BackgroundService
-    {
-        protected ShardInstance ShardInstance { get; }
+namespace BirthdayBot.BackgroundServices;
 
-        public BackgroundService(ShardInstance instance) => ShardInstance = instance;
+abstract class BackgroundService {
+    protected ShardInstance ShardInstance { get; }
 
-        protected void Log(string message) => ShardInstance.Log(GetType().Name, message);
+    public BackgroundService(ShardInstance instance) => ShardInstance = instance;
 
-        public abstract Task OnTick(CancellationToken token);
-    }
+    protected void Log(string message) => ShardInstance.Log(GetType().Name, message);
+
+    public abstract Task OnTick(int tickCount, CancellationToken token);
 }

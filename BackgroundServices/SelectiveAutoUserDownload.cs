@@ -18,7 +18,7 @@ class SelectiveAutoUserDownload : BackgroundService {
 
     public SelectiveAutoUserDownload(ShardInstance instance) : base(instance) { }
 
-    public override async Task OnTick(CancellationToken token) {
+    public override async Task OnTick(int tickCount, CancellationToken token) {
         IEnumerable<ulong> requests;
         lock (_fetchRequests) {
             requests = _fetchRequests.ToArray();
@@ -26,10 +26,8 @@ class SelectiveAutoUserDownload : BackgroundService {
         }
 
         foreach (var guild in ShardInstance.DiscordClient.Guilds) {
-            if (ShardInstance.DiscordClient.ConnectionState != ConnectionState.Connected) {
-                Log("Client no longer connected. Stopping early.");
-                return;
-            }
+            // Has the potential to disconnect while in the middle of processing.
+            if (ShardInstance.DiscordClient.ConnectionState != ConnectionState.Connected) return;
 
             // Determine if there is action to be taken...
             if (guild.HasAllMembers) continue;

@@ -30,11 +30,6 @@ namespace BirthdayBot
         /// </summary>
         public string CurrentExecutingService => _background.CurrentExecutingService;
         public Configuration Config => _manager.Config;
-        /// <summary>
-        /// Returns this shard's connection score.
-        /// See <see cref="BackgroundServices.ConnectionStatus"/> for details on what this means.
-        /// </summary>
-        public int ConnectionScore => _background.ConnectionScore;
 
         /// <summary>
         /// Prepares and configures the shard instances, but does not yet start its connection.
@@ -51,7 +46,6 @@ namespace BirthdayBot
 
             // Background task constructor begins background processing immediately.
             _background = new ShardBackgroundWorker(this);
-            DiscordClient.Disconnected += Client_Disconnected;
         }
         
         /// <summary>
@@ -69,13 +63,10 @@ namespace BirthdayBot
         /// </summary>
         public void Dispose()
         {
-            Log("Instance", "Cleaning up...");
-
             // Unsubscribe from own events
             DiscordClient.Log -= Client_Log;
             DiscordClient.Ready -= Client_Ready;
             DiscordClient.MessageReceived -= Client_MessageReceived;
-            DiscordClient.Disconnected -= Client_Disconnected;
 
             _background.Dispose();
             try
@@ -98,9 +89,8 @@ namespace BirthdayBot
             }
 
             var clientDispose = Task.Run(DiscordClient.Dispose);
-            if (!clientDispose.Wait(10000))
-                Log("Instance", "Warning: Client hanging on dispose.");
-            Log("Instance", "Shard instance disposed.");
+            if (!clientDispose.Wait(10000)) Log("Instance", "Warning: Client is hanging on dispose. Will continue.");
+            else Log("Instance", "Shard instance disposed.");
         }
 
         public void Log(string source, string message) => Program.Log($"Shard {ShardId:00}] [{source}", message);
@@ -130,6 +120,7 @@ namespace BirthdayBot
                     case "Disconnecting":
                     case "Disconnected":
                     case "WebSocket connection was closed":
+                    case "Server requested a reconnect":
                         return Task.CompletedTask;
                 }
                 if (arg.Message == "Heartbeat Errored")
@@ -151,15 +142,6 @@ namespace BirthdayBot
         /// Sets the shard's status to display the help command.
         /// </summary>
         private async Task Client_Ready() => await DiscordClient.SetGameAsync(CommandPrefix + "help");
-
-        /// <summary>
-        /// Notify ConnectionStatus of a disconnect.
-        /// </summary>
-        private Task Client_Disconnected(Exception arg)
-        {
-            _background.ConnStatus.Disconnected();
-            return Task.CompletedTask;
-        }
 
         /// <summary>
         /// Determines if the incoming message is an incoming command, and dispatches to the appropriate handler if necessary.

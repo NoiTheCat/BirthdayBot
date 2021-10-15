@@ -150,7 +150,7 @@ namespace BirthdayBot
                     Log($"Bot uptime: {Common.BotUptime}");
 
                     // Iterate through shard list, extract data
-                    var guildInfo = new Dictionary<int, (int, int, TimeSpan, string)>();
+                    var guildInfo = new Dictionary<int, (int, TimeSpan, string)>();
                     var now = DateTimeOffset.UtcNow;
                     var nullShards = new List<int>();
                     foreach (var item in _shards)
@@ -163,11 +163,10 @@ namespace BirthdayBot
                         var shard = item.Value;
 
                         var guildCount = shard.DiscordClient.Guilds.Count;
-                        var connScore = shard.ConnectionScore;
                         var lastRun = now - shard.LastBackgroundRun;
                         var lastExec = shard.CurrentExecutingService ?? "null";
 
-                        guildInfo[item.Key] = (guildCount, connScore, lastRun, lastExec);
+                        guildInfo[item.Key] = (guildCount, lastRun, lastExec);
                     }
 
                     // Process info
@@ -182,10 +181,9 @@ namespace BirthdayBot
                     var deadShards = new List<int>(); // shards to destroy and reinitialize
                     foreach (var item in guildInfo)
                     {
-                        var connScore = item.Value.Item2;
-                        var lastRun = item.Value.Item3;
+                        var lastRun = item.Value.Item2;
 
-                        if (lastRun > new TimeSpan(0, 10, 0) || connScore < ConnectionStatus.StableScore)
+                        if (lastRun > DeadShardThreshold / 3)
                         {
                             badShards.Add(item.Key);
 
@@ -208,9 +206,8 @@ namespace BirthdayBot
                             if (detailedInfo)
                             {
                                 result.Remove(result.Length - 1, 1);
-                                result.Append($"[{guildInfo[item].Item2:+0;-0}");
-                                result.Append($" {Math.Floor(guildInfo[item].Item3.TotalSeconds):000}s");
-                                result.Append($" {guildInfo[item].Item4}] ");
+                                result.Append($"[{Math.Floor(guildInfo[item].Item2.TotalSeconds):000}s");
+                                result.Append($" {guildInfo[item].Item3}] ");
                             }
                         }
                         if (result.Length > 0) result.Remove(result.Length - 1, 1);
