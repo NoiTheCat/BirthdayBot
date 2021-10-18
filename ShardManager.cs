@@ -105,7 +105,7 @@ class ShardManager : IDisposable {
             Log("Warning: Not all shards terminated cleanly after 30 seconds. Continuing...");
         }
 
-        Log($"Uptime: {Common.BotUptime}");
+        Log($"Uptime: {Program.BotUptime}");
     }
 
     private void Log(string message) => Program.Log(nameof(ShardManager), message);
@@ -158,7 +158,7 @@ class ShardManager : IDisposable {
     private async Task StatusLoop() {
         try {
             while (!_mainCancel.IsCancellationRequested) {
-                Log($"Bot uptime: {Common.BotUptime}");
+                Log($"Bot uptime: {Program.BotUptime}");
 
                 // Iterate through shard list, extract data
                 var guildInfo = new Dictionary<int, GuildStatusData>();

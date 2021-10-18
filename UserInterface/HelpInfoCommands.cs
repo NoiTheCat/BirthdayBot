@@ -156,7 +156,7 @@ namespace BirthdayBot.UserInterface
             //strStats.AppendLine("Server count: " + Discord.Guilds.Count.ToString());
             // TODO restore this statistic
             strStats.AppendLine("Shard #" + instance.ShardId.ToString("00"));
-            strStats.AppendLine("Uptime: " + Common.BotUptime);
+            strStats.AppendLine("Uptime: " + Program.BotUptime);
 
             // TODO fun stats
             // current birthdays, total names registered, unique time zones

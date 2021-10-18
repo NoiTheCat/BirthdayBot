@@ -6,7 +6,12 @@ namespace BirthdayBot;
 
 class Program {
     private static ShardManager _bot;
-    public static DateTimeOffset BotStartTime { get; } = DateTimeOffset.UtcNow;
+    private static readonly DateTimeOffset _botStartTime = DateTimeOffset.UtcNow;
+
+    /// <summary>
+    /// Returns the amount of time the program has been running in a human-readable format.
+    /// </summary>
+    public static string BotUptime => (DateTimeOffset.UtcNow - _botStartTime).ToString("d' days, 'hh':'mm':'ss");
 
     static async Task Main() {
         var cfg = new Configuration();
