@@ -12,17 +12,20 @@ namespace BirthdayBot;
 /// Loads and holds configuration values.
 /// </summary>
 class Configuration {
+    const string KeySqlHost = "SqlHost";
+    const string KeySqlUsername = "SqlUsername";
+    const string KeySqlPassword = "SqlPassword";
+    const string KeySqlDatabase = "SqlDatabase";
+    const string KeyShardRange = "ShardRange";
+
     public string BotToken { get; }
     public string LogWebhook { get; }
     public string? DBotsToken { get; }
+    public bool QuitOnFails { get; }
 
-    public const string ShardLenConfKey = "ShardRange";
     public int ShardStart { get; }
     public int ShardAmount { get; }
-
     public int ShardTotal { get; }
-
-    public bool QuitOnFails { get; }
 
     public Configuration() {
         // Looks for settings.json in the executable directory.
@@ -36,61 +39,50 @@ class Configuration {
 
         var jc = JObject.Parse(File.ReadAllText(confPath));
 
-        BotToken = jc[nameof(BotToken)]?.Value<string>();
-        if (string.IsNullOrWhiteSpace(BotToken))
-            throw new Exception($"'{nameof(BotToken)}' must be specified.");
+        BotToken = ReadConfKey<string>(jc, nameof(BotToken), true);
+        LogWebhook = ReadConfKey<string>(jc, nameof(LogWebhook), true);
+        DBotsToken = ReadConfKey<string>(jc, nameof(DBotsToken), false);
+        QuitOnFails = ReadConfKey<bool?>(jc, nameof(QuitOnFails), false) ?? false;
 
-        LogWebhook = jc[nameof(LogWebhook)]?.Value<string>();
-        if (string.IsNullOrWhiteSpace(LogWebhook))
-            throw new Exception($"'{nameof(LogWebhook)}' must be specified.");
+        ShardTotal = ReadConfKey<int?>(jc, nameof(ShardTotal), false) ?? 1;
+        if (ShardTotal < 1) throw new Exception($"'{nameof(ShardTotal)}' must be a positive integer.");
 
-        var dbj = jc[nameof(DBotsToken)];
-        if (dbj != null) {
-            DBotsToken = dbj.Value<string>();
-        } else {
-            DBotsToken = null;
-        }
-
-        var sqlhost = jc["SqlHost"]?.Value<string>() ?? "localhost"; // Default to localhost
-        var sqluser = jc["SqlUsername"]?.Value<string>();
-        var sqlpass = jc["SqlPassword"]?.Value<string>();
-        if (string.IsNullOrWhiteSpace(sqluser) || string.IsNullOrWhiteSpace(sqlpass))
-            throw new Exception("'SqlUsername', 'SqlPassword' must be specified.");
-        var csb = new NpgsqlConnectionStringBuilder() {
-            Host = sqlhost,
-            Username = sqluser,
-            Password = sqlpass
-        };
-        var sqldb = jc["SqlDatabase"]?.Value<string>();
-        if (sqldb != null) csb.Database = sqldb; // Optional database setting
-        Database.DBConnectionString = csb.ToString();
-
-        int? sc = jc[nameof(ShardTotal)]?.Value<int>();
-        if (!sc.HasValue) ShardTotal = 1;
-        else {
-            ShardTotal = sc.Value;
-            if (ShardTotal <= 0) {
-                throw new Exception($"'{nameof(ShardTotal)}' must be a positive integer.");
-            }
-        }
-
-        string srVal = jc[ShardLenConfKey]?.Value<string>();
-        if (!string.IsNullOrWhiteSpace(srVal)) {
+        string shardRangeInput = ReadConfKey<string>(jc, KeyShardRange, false);
+        if (!string.IsNullOrWhiteSpace(shardRangeInput)) {
             Regex srPicker = new(@"(?<low>\d{1,2})[-,]{1}(?<high>\d{1,2})");
-            var m = srPicker.Match(srVal);
+            var m = srPicker.Match(shardRangeInput);
             if (m.Success) {
                 ShardStart = int.Parse(m.Groups["low"].Value);
                 int high = int.Parse(m.Groups["high"].Value);
                 ShardAmount = high - (ShardStart - 1);
             } else {
-                throw new Exception($"Shard range not properly formatted in '{ShardLenConfKey}'.");
+                throw new Exception($"Shard range not properly formatted in '{KeyShardRange}'.");
             }
         } else {
-            // Default: this instance handles all shards from ShardTotal
+            // Default: this instance handles all shards
             ShardStart = 0;
             ShardAmount = ShardTotal;
         }
 
-        QuitOnFails = jc[nameof(QuitOnFails)]?.Value<bool>() ?? false;
+        var sqlhost = ReadConfKey<string>(jc, KeySqlHost, false) ?? "localhost"; // Default to localhost
+        var sqluser = ReadConfKey<string>(jc, KeySqlUsername, false);
+        var sqlpass = ReadConfKey<string>(jc, KeySqlPassword, false);
+        if (string.IsNullOrWhiteSpace(sqluser) || string.IsNullOrWhiteSpace(sqlpass))
+            throw new Exception("'SqlUsername', 'SqlPassword' must be specified.");
+        var csb = new NpgsqlConnectionStringBuilder() {
+            Host = sqlhost,
+            Username = sqluser,
+            Password = sqlpass,
+            ApplicationName = $"ClientShard{ShardStart}+{ShardAmount}"
+        };
+        var sqldb = ReadConfKey<string>(jc, KeySqlDatabase, false);
+        if (sqldb != null) csb.Database = sqldb; // Optional database setting
+        Database.DBConnectionString = csb.ToString();
+    }
+
+    private static T ReadConfKey<T>(JObject jc, string key, bool failOnEmpty) {
+        if (jc.ContainsKey(key)) return jc[key].Value<T>();
+        if (failOnEmpty) throw new Exception($"'{key}' must be specified.");
+        return default;
     }
 }
