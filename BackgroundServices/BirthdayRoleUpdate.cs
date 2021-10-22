@@ -42,47 +42,32 @@ class BirthdayRoleUpdate : BackgroundService {
     }
 
     /// <summary>
-    /// Access to <see cref="ProcessGuildAsync(SocketGuild)"/> for the testing command.
-    /// </summary>
-    /// <returns>Diagnostic data in string form.</returns>
-    public static async Task<string> SingleProcessGuildAsync(SocketGuild guild)
-        => (await ProcessGuildAsync(guild).ConfigureAwait(false)).Export();
-
-    /// <summary>
     /// Main method where actual guild processing occurs.
     /// </summary>
-    private static async Task<PGDiagnostic> ProcessGuildAsync(SocketGuild guild) {
-        var diag = new PGDiagnostic();
-
+    private static async Task ProcessGuildAsync(SocketGuild guild) {
         // Load guild information - stop if local cache is unavailable.
-        if (!Common.HasMostMembersDownloaded(guild)) return diag;
+        if (!Common.HasMostMembersDownloaded(guild)) return;
         var gc = await GuildConfiguration.LoadAsync(guild.Id, true).ConfigureAwait(false);
-        if (gc == null) return diag;
+        if (gc == null) return;
 
         // Check if role settings are correct before continuing with further processing
-        SocketRole role = null;
-        if (gc.RoleId.HasValue) role = guild.GetRole(gc.RoleId.Value);
-        diag.RoleCheck = CheckCorrectRoleSettings(guild, role);
-        if (diag.RoleCheck != null) return diag;
+        SocketRole? role = guild.GetRole(gc.RoleId ?? 0);
+        if (role == null || !guild.CurrentUser.GuildPermissions.ManageRoles || role.Position >= guild.CurrentUser.Hierarchy) return;
 
         // Determine who's currently having a birthday
         var users = await GuildUserConfiguration.LoadAllAsync(guild.Id).ConfigureAwait(false);
         var tz = gc.TimeZone;
         var birthdays = GetGuildCurrentBirthdays(users, tz);
         // Note: Don't quit here if zero people are having birthdays. Roles may still need to be removed by BirthdayApply.
-        diag.CurrentBirthdays = birthdays.Count.ToString();
 
         IEnumerable<SocketGuildUser> announcementList;
         // Update roles as appropriate
         try {
             var updateResult = await UpdateGuildBirthdayRoles(guild, role, birthdays).ConfigureAwait(false);
             announcementList = updateResult.Item1;
-            diag.RoleApplyResult = updateResult.Item2; // statistics
-        } catch (Discord.Net.HttpException ex) {
-            diag.RoleApply = ex.Message;
-            return diag;
+        } catch (Discord.Net.HttpException) {
+            return;
         }
-        diag.RoleApply = null;
 
         // Birthday announcement
         var announce = gc.AnnounceMessages;
@@ -90,32 +75,8 @@ class BirthdayRoleUpdate : BackgroundService {
         SocketTextChannel channel = null;
         if (gc.AnnounceChannelId.HasValue) channel = guild.GetTextChannel(gc.AnnounceChannelId.Value);
         if (announcementList.Any()) {
-            var announceResult =
-                await AnnounceBirthdaysAsync(announce, announceping, channel, announcementList).ConfigureAwait(false);
-            diag.Announcement = announceResult;
-        } else {
-            diag.Announcement = "No new role additions. Announcement not needed.";
+            await AnnounceBirthdaysAsync(announce, announceping, channel, announcementList).ConfigureAwait(false);
         }
-
-        return diag;
-    }
-
-    /// <summary>
-    /// Checks if the bot may be allowed to alter roles.
-    /// </summary>
-    private static string CheckCorrectRoleSettings(SocketGuild guild, SocketRole role) {
-        if (role == null) return "Birthday role is not configured, or has gone missing.";
-
-        if (!guild.CurrentUser.GuildPermissions.ManageRoles) {
-            return "Bot does not have the 'Manage Roles' permission.";
-        }
-
-        // Check potential role order conflict
-        if (role.Position >= guild.CurrentUser.Hierarchy) {
-            return "Can't access the birthday role. Is it above the bot's permissions?";
-        }
-
-        return null;
     }
 
     /// <summary>
@@ -227,30 +188,6 @@ class BirthdayRoleUpdate : BackgroundService {
         } catch (Discord.Net.HttpException ex) {
             // Directly use the resulting exception message in the operation status log
             return ex.Message;
-        }
-    }
-
-    private class PGDiagnostic {
-        const string DefaultValue = "--";
-
-        public string RoleCheck = DefaultValue;
-        public string CurrentBirthdays = DefaultValue;
-        public string RoleApply = DefaultValue;
-        public (int, int)? RoleApplyResult;
-        public string Announcement = DefaultValue;
-
-        public string Export() {
-            var result = new StringBuilder();
-            result.AppendLine("Test result:");
-            result.AppendLine("Check role permissions: " + (RoleCheck ?? ":white_check_mark:"));
-            result.AppendLine("Number of known users currently with a birthday: " + CurrentBirthdays);
-            result.AppendLine("Role application process: " + (RoleApply ?? ":white_check_mark:"));
-            result.Append("Role application metrics: ");
-            if (RoleApplyResult.HasValue) result.AppendLine($"{RoleApplyResult.Value.Item1} additions, {RoleApplyResult.Value.Item2} removals.");
-            else result.AppendLine(DefaultValue);
-            result.AppendLine("Announcement: " + (Announcement ?? ":white_check_mark:"));
-
-            return result.ToString();
         }
     }
 }

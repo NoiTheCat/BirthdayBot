@@ -95,12 +95,6 @@ namespace BirthdayBot
 
         public void Log(string source, string message) => Program.Log($"Shard {ShardId:00}] [{source}", message);
 
-        /// <summary>
-        /// Direct access to invoke the background task of updating birthdays in a guild, for use by the testing command.
-        /// </summary>
-        public static Task<string> ForceBirthdayUpdateAsync(SocketGuild guild)
-            => BirthdayRoleUpdate.SingleProcessGuildAsync(guild);
-
         public void RequestDownloadUsers(ulong guildId) => _background.UserDownloader.RequestDownload(guildId);
 
         #region Event handling
