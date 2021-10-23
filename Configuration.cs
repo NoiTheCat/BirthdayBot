@@ -5,6 +5,9 @@ using System;
 using System.IO;
 using System.Reflection;
 using System.Text.RegularExpressions;
+using CommandLine;
+using CommandLine.Text;
+using System.Diagnostics.CodeAnalysis;
 
 namespace BirthdayBot;
 
@@ -27,15 +30,13 @@ class Configuration {
     public int ShardAmount { get; }
     public int ShardTotal { get; }
 
-    public Configuration() {
-        // Looks for settings.json in the executable directory.
-        var confPath = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
-        confPath += Path.DirectorySeparatorChar + "settings.json";
+    public Configuration(string[] args) {
+        var cmdline = CmdLineOpts.Parse(args);
 
-        if (!File.Exists(confPath)) {
-            throw new Exception("Settings file not found."
-                + " Create a file in the executable directory named 'settings.json'.");
-        }
+        // Looks for configuration file
+        var confPath = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location) + Path.DirectorySeparatorChar;
+        confPath += cmdline.Config!;
+        if (!File.Exists(confPath)) throw new Exception("Settings file not found in path: " + confPath);
 
         var jc = JObject.Parse(File.ReadAllText(confPath));
 
@@ -44,10 +45,10 @@ class Configuration {
         DBotsToken = ReadConfKey<string>(jc, nameof(DBotsToken), false);
         QuitOnFails = ReadConfKey<bool?>(jc, nameof(QuitOnFails), false) ?? false;
 
-        ShardTotal = ReadConfKey<int?>(jc, nameof(ShardTotal), false) ?? 1;
+        ShardTotal = cmdline.ShardTotal ?? ReadConfKey<int?>(jc, nameof(ShardTotal), false) ?? 1;
         if (ShardTotal < 1) throw new Exception($"'{nameof(ShardTotal)}' must be a positive integer.");
 
-        string shardRangeInput = ReadConfKey<string>(jc, KeyShardRange, false);
+        string shardRangeInput = cmdline.ShardRange ?? ReadConfKey<string>(jc, KeyShardRange, false);
         if (!string.IsNullOrWhiteSpace(shardRangeInput)) {
             Regex srPicker = new(@"(?<low>\d{1,2})[-,]{1}(?<high>\d{1,2})");
             var m = srPicker.Match(shardRangeInput);
@@ -80,9 +81,39 @@ class Configuration {
         Database.DBConnectionString = csb.ToString();
     }
 
-    private static T ReadConfKey<T>(JObject jc, string key, bool failOnEmpty) {
-        if (jc.ContainsKey(key)) return jc[key].Value<T>();
+    private static T? ReadConfKey<T>(JObject jc, string key, [DoesNotReturnIf(true)] bool failOnEmpty) {
+        if (jc.ContainsKey(key)) return jc[key]!.Value<T>();
         if (failOnEmpty) throw new Exception($"'{key}' must be specified.");
         return default;
+    }
+
+    private class CmdLineOpts {
+        [Option('c', "config", Default = "settings.json",
+            HelpText = "Custom path to instance configuration, relative from executable directory.")]
+        public string? Config { get; set; }
+
+        [Option("shardtotal",
+            HelpText = "Total number of shards online. MUST be the same for all instances.\n"
+            + "This value overrides the config file value.")]
+        public int? ShardTotal { get; set; }
+
+        [Option("shardrange", HelpText = "Shard range for this instance to handle.\n"
+            + "This value overrides the config file value.")]
+        public string? ShardRange { get; set; }
+
+        public static CmdLineOpts Parse(string[] args) {
+            // Do not automatically print help message
+            var clp = new Parser(c => c.HelpWriter = null);
+
+            CmdLineOpts? result = null;
+            var r = clp.ParseArguments<CmdLineOpts>(args);
+            r.WithParsed(parsed => result = parsed);
+            r.WithNotParsed(err => {
+                    var ht = HelpText.AutoBuild(r);
+                    Console.WriteLine(ht.ToString());
+                    Environment.Exit((int)Program.ExitCodes.BadCommand);
+                });
+            return result!;
+        }
     }
 }

@@ -213,7 +213,7 @@ class ShardManager : IDisposable {
                     _destroyedShards++;
                 }
                 if (Config.QuitOnFails && _destroyedShards > MaxDestroyedShards) {
-                    Environment.ExitCode = 0x04;
+                    Environment.ExitCode = (int)Program.ExitCodes.DeadShardThreshold;
                     Program.ProgramStop();
                 } else {
                     // Start up any missing shards
