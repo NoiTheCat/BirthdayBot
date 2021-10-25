@@ -72,7 +72,7 @@ class BirthdayRoleUpdate : BackgroundService {
         // Birthday announcement
         var announce = gc.AnnounceMessages;
         var announceping = gc.AnnouncePing;
-        SocketTextChannel channel = null;
+        SocketTextChannel? channel = null;
         if (gc.AnnounceChannelId.HasValue) channel = guild.GetTextChannel(gc.AnnounceChannelId.Value);
         if (announcementList.Any()) {
             await AnnounceBirthdaysAsync(announce, announceping, channel, announcementList).ConfigureAwait(false);
@@ -83,21 +83,14 @@ class BirthdayRoleUpdate : BackgroundService {
     /// Gets all known users from the given guild and returns a list including only those who are
     /// currently experiencing a birthday in the respective time zone.
     /// </summary>
-    private static HashSet<ulong> GetGuildCurrentBirthdays(IEnumerable<GuildUserConfiguration> guildUsers, string defaultTzStr) {
+    public static HashSet<ulong> GetGuildCurrentBirthdays(IEnumerable<GuildUserConfiguration> guildUsers, string? defaultTzStr) {
+        var tzdb = DateTimeZoneProviders.Tzdb;
+        DateTimeZone defaultTz = (defaultTzStr != null ? DateTimeZoneProviders.Tzdb.GetZoneOrNull(defaultTzStr) : null) ?? tzdb.GetZoneOrNull("UTC")!;
+
         var birthdayUsers = new HashSet<ulong>();
-
-        DateTimeZone defaultTz = null;
-        if (defaultTzStr != null) defaultTz = DateTimeZoneProviders.Tzdb.GetZoneOrNull(defaultTzStr);
-        defaultTz ??= DateTimeZoneProviders.Tzdb.GetZoneOrNull("UTC");
-
         foreach (var item in guildUsers) {
             // Determine final time zone to use for calculation
-            DateTimeZone tz = null;
-            if (item.TimeZone != null) {
-                // Try user-provided time zone
-                tz = DateTimeZoneProviders.Tzdb.GetZoneOrNull(item.TimeZone);
-            }
-            tz ??= defaultTz;
+            DateTimeZone tz = (item.TimeZone != null ? tzdb.GetZoneOrNull(item.TimeZone) : null) ?? defaultTz;
 
             var targetMonth = item.BirthMonth;
             var targetDay = item.BirthDay;
@@ -112,7 +105,6 @@ class BirthdayRoleUpdate : BackgroundService {
                 birthdayUsers.Add(item.UserId);
             }
         }
-
         return birthdayUsers;
     }
 
@@ -155,13 +147,12 @@ class BirthdayRoleUpdate : BackgroundService {
     public const string DefaultAnnouncePl = "Please wish a happy birthday to our esteemed members: %n";
 
     /// <summary>
-    /// Makes (or attempts to make) an announcement in the specified channel that includes all users
-    /// who have just had their birthday role added.
+    /// Attempts to send an announcement message.
     /// </summary>
-    /// <returns>The message to place into operation status log.</returns>
-    private static async Task<string> AnnounceBirthdaysAsync(
-        (string, string) announce, bool announcePing, SocketTextChannel c, IEnumerable<SocketGuildUser> names) {
-        if (c == null) return "Announcement channel is not configured, or has gone missing.";
+    private static async Task AnnounceBirthdaysAsync(
+        (string?, string?) announce, bool announcePing, SocketTextChannel? c, IEnumerable<SocketGuildUser> names) {
+        if (c == null) return;
+        if (!c.Guild.CurrentUser.GetPermissions(c).SendMessages) return;
 
         string announceMsg;
         if (names.Count() == 1) announceMsg = announce.Item1 ?? announce.Item2 ?? DefaultAnnounce;
@@ -182,12 +173,6 @@ class BirthdayRoleUpdate : BackgroundService {
         }
         namedisplay.Remove(0, 2); // Remove initial comma and space
 
-        try {
-            await c.SendMessageAsync(announceMsg.Replace("%n", namedisplay.ToString())).ConfigureAwait(false);
-            return null;
-        } catch (Discord.Net.HttpException ex) {
-            // Directly use the resulting exception message in the operation status log
-            return ex.Message;
-        }
+        await c.SendMessageAsync(announceMsg.Replace("%n", namedisplay.ToString())).ConfigureAwait(false);
     }
 }

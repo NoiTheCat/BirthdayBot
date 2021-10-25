@@ -34,7 +34,7 @@ class GuildConfiguration {
     /// Gets or sets the guild's default time zone ztring.
     /// Updating this value requires a call to <see cref="UpdateAsync"/>.
     /// </summary>
-    public string TimeZone { get; set; }
+    public string? TimeZone { get; set; }
 
     /// <summary>
     /// Gets or sets the guild's moderated mode setting.
@@ -52,7 +52,7 @@ class GuildConfiguration {
     /// Gets or sets the guild-specific birthday announcement message.
     /// Updating this value requires a call to <see cref="UpdateAsync"/>.
     /// </summary>
-    public (string, string) AnnounceMessages { get; set; }
+    public (string?, string?) AnnounceMessages { get; set; }
 
     /// <summary>
     /// Gets or sets the announcement ping setting.
@@ -68,8 +68,8 @@ class GuildConfiguration {
         TimeZone = reader.IsDBNull(3) ? null : reader.GetString(3);
         IsModerated = reader.GetBoolean(4);
         if (!reader.IsDBNull(5)) ModeratorRole = (ulong)reader.GetInt64(5);
-        string announceMsg = reader.IsDBNull(6) ? null : reader.GetString(6);
-        string announceMsgPl = reader.IsDBNull(7) ? null : reader.GetString(7);
+        string? announceMsg = reader.IsDBNull(6) ? null : reader.GetString(6);
+        string? announceMsgPl = reader.IsDBNull(7) ? null : reader.GetString(7);
         AnnounceMessages = (announceMsg, announceMsgPl);
         AnnouncePing = reader.GetBoolean(8);
     }
@@ -169,7 +169,7 @@ class GuildConfiguration {
     /// If true, this method shall not create a new entry and will return null if the guild does
     /// not exist in the database.
     /// </param>
-    public static async Task<GuildConfiguration> LoadAsync(ulong guildId, bool nullIfUnknown) {
+    public static async Task<GuildConfiguration?> LoadAsync(ulong guildId, bool nullIfUnknown) {
         using (var db = await Database.OpenConnectionAsync().ConfigureAwait(false)) {
             using (var c = db.CreateCommand()) {
                 // Take note of ordinals for the constructor
@@ -242,8 +242,8 @@ class GuildConfiguration {
 
         c.Parameters.Add("@AnnouncePing", NpgsqlDbType.Boolean).Value = AnnouncePing;
 
-        c.Prepare();
-        c.ExecuteNonQuery();
+        await c.PrepareAsync().ConfigureAwait(false);
+        await c.ExecuteNonQueryAsync().ConfigureAwait(false);
     }
     #endregion
 }

@@ -391,15 +391,23 @@ internal class ManagerCommands : CommandsCommon {
         var result = new StringBuilder();
         var guild = reqChannel.Guild;
         var conf = await GuildConfiguration.LoadAsync(guild.Id, true).ConfigureAwait(false);
-        result.AppendLine($"Server ID: {guild.Id} | Bot shard ID: {instance.ShardId:00}");
-        result.AppendLine();
 
-        result.AppendLine(DoTestFor("Bot has obtained the user list", () => Common.HasMostMembersDownloaded(guild)));
-        result.AppendLine(DoTestFor("Server configuration exists", delegate {
-            if (conf == null) return false;
+        result.AppendLine($"Server ID: {guild.Id} | Bot shard ID: {instance.ShardId:00}");
+        bool hasMembers = Common.HasMostMembersDownloaded(guild);
+        result.Append(DoTestFor("Bot has obtained the user list", () => hasMembers));
+        result.AppendLine($" - Has {guild.DownloadedMemberCount} of {guild.MemberCount} members.");
+        int bdayCount = -1;
+        result.Append(DoTestFor("Check if users have a birthday today", delegate {
+            if (!hasMembers) return false;
+            var gc = GuildConfiguration.LoadAsync(guild.Id, true).ConfigureAwait(false).GetAwaiter().GetResult();
+            var users = GuildUserConfiguration.LoadAllAsync(guild.Id).ConfigureAwait(false).GetAwaiter().GetResult();
+            bdayCount = BackgroundServices.BirthdayRoleUpdate.GetGuildCurrentBirthdays(users, gc?.TimeZone).Count;
             return true;
         }));
+        if (hasMembers) result.AppendLine($" - {bdayCount} user(s) currently having a birthday.");
+        else result.AppendLine(" - Cannot check without user list.");
         result.AppendLine();
+
         result.AppendLine(DoTestFor("Birthday role set with `bb.config role`", delegate {
             if (conf == null) return false;
             SocketRole? role = guild.GetRole(conf.RoleId ?? 0);
@@ -412,14 +420,15 @@ internal class ManagerCommands : CommandsCommon {
             return guild.CurrentUser.GuildPermissions.ManageRoles && role.Position < guild.CurrentUser.Hierarchy;
         }));
         result.AppendLine();
+
+        SocketTextChannel? channel = null;
         result.AppendLine(DoTestFor("(Optional) Announcement channel set with `bb.config channel`", delegate {
             if (conf == null) return false;
-            SocketTextChannel? channel = guild.GetTextChannel(conf.AnnounceChannelId ?? 0);
+            channel = guild.GetTextChannel(conf.AnnounceChannelId ?? 0);
             return channel != null;
         }));
-        result.AppendLine(DoTestFor("(Optional) Bot can send messages into announcement channel", delegate {
-            if (conf == null) return false;
-            SocketTextChannel? channel = guild.GetTextChannel(conf.AnnounceChannelId ?? 0);
+        string disp = channel == null ? "announcement channel" : $"<#{channel.Id}>";
+        result.AppendLine(DoTestFor($"(Optional) Bot can send messages into { disp }", delegate {
             if (channel == null) return false;
             return guild.CurrentUser.GetPermissions(channel).SendMessages;
         }));
