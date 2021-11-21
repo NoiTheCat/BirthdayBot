@@ -41,7 +41,7 @@ class ShardManager : IDisposable {
     /// a key's corresponding value will temporarily become null instead of the key/value
     /// pair being removed.
     /// </summary>
-    private readonly Dictionary<int, ShardInstance> _shards;
+    private readonly Dictionary<int, ShardInstance?> _shards;
 
     private readonly Dictionary<string, CommandHandler> _dispatchCommands;
     private readonly UserCommands _cmdsUser;
@@ -73,7 +73,7 @@ class ShardManager : IDisposable {
         foreach (var item in _cmdsMods.Commands) _dispatchCommands.Add(item.Item1, item.Item2);
 
         // Allocate shards based on configuration
-        _shards = new Dictionary<int, ShardInstance>();
+        _shards = new Dictionary<int, ShardInstance?>();
         for (int i = Config.ShardStart; i < (Config.ShardStart + Config.ShardAmount); i++) {
             _shards.Add(i, null);
         }
@@ -203,7 +203,7 @@ class ShardManager : IDisposable {
 
                 // Remove dead shards
                 foreach (var dead in deadShards) {
-                    _shards[dead].Dispose();
+                    _shards[dead]!.Dispose();
                     _shards[dead] = null;
                     _destroyedShards++;
                 }

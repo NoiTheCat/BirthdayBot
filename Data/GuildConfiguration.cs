@@ -1,10 +1,6 @@
-﻿using Discord.WebSocket;
-using Npgsql;
+﻿using Npgsql;
 using NpgsqlTypes;
-using System;
 using System.Data.Common;
-using System.Linq;
-using System.Threading.Tasks;
 
 namespace BirthdayBot.Data;
 
@@ -170,6 +166,7 @@ class GuildConfiguration {
     /// not exist in the database.
     /// </param>
     public static async Task<GuildConfiguration?> LoadAsync(ulong guildId, bool nullIfUnknown) {
+        // TODO nullable static analysis problem: how to indicate non-null return when nullIfUnknown parameter is true?
         using (var db = await Database.OpenConnectionAsync().ConfigureAwait(false)) {
             using (var c = db.CreateCommand()) {
                 // Take note of ordinals for the constructor
