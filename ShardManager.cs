@@ -1,13 +1,8 @@
-﻿using BirthdayBot.BackgroundServices;
+﻿global using Discord;
+global using Discord.WebSocket;
+using BirthdayBot.BackgroundServices;
 using BirthdayBot.UserInterface;
-using Discord;
-using Discord.WebSocket;
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
 using static BirthdayBot.UserInterface.CommandsCommon;
 
 namespace BirthdayBot;
