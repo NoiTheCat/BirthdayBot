@@ -1,11 +1,6 @@
 ﻿using BirthdayBot.Data;
 using NpgsqlTypes;
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace BirthdayBot.BackgroundServices;
 
@@ -14,14 +9,16 @@ namespace BirthdayBot.BackgroundServices;
 /// </summary>
 class DataRetention : BackgroundService {
     private static readonly SemaphoreSlim _updateLock = new(ShardManager.MaxConcurrentOperations);
-    const int ProcessInterval = 3600 / ShardBackgroundWorker.Interval; // Process about once per hour
-    const int Stagger = 3; // How many ticks in between each group of guilds to stagger processing.
+    const int ProcessInterval = 5400 / ShardBackgroundWorker.Interval; // Process about once per hour and a half
+    // Amount of days without updates before data is considered stale and up for deletion.
+    const int StaleGuildThreshold = 180;
+    const int StaleUserThreashold = 360;
 
     public DataRetention(ShardInstance instance) : base(instance) { }
 
     public override async Task OnTick(int tickCount, CancellationToken token) {
         // On each tick, run only a set group of guilds, each group still processed every ProcessInterval ticks.
-        if ((tickCount + ShardInstance.ShardId * Stagger) % ProcessInterval != 0) return;
+        if ((tickCount + ShardInstance.ShardId) % ProcessInterval != 0) return;
 
         try {
             // A semaphore is used to restrict this work being done concurrently on other shards
@@ -33,7 +30,7 @@ class DataRetention : BackgroundService {
             throw new TaskCanceledException();
         }
         try {
-            // Build a list of all values to update
+            // Build a list of all values across all guilds to update
             var updateList = new Dictionary<ulong, List<ulong>>();
             foreach (var g in ShardInstance.DiscordClient.Guilds) {
                 // Get list of IDs for all users who exist in the database and currently exist in the guild
@@ -80,17 +77,18 @@ class DataRetention : BackgroundService {
             var resultText = new StringBuilder();
             resultText.Append($"Updated {updatedGuilds} guilds, {updatedUsers} users.");
 
-            // Delete all old values - expects referencing tables to have 'on delete cascade'
+            // Deletes both guild and user data if it hasn't been seen for over the threshold defined at the top of this file
+            // Expects referencing tables to have 'on delete cascade'
             using var t = db.BeginTransaction();
             int staleGuilds, staleUsers;
             using (var c = db.CreateCommand()) {
-                // Delete data for guilds not seen in 4 weeks
-                c.CommandText = $"delete from {GuildConfiguration.BackingTable} where (now() - interval '28 days') > last_seen";
+                c.CommandText = $"delete from {GuildConfiguration.BackingTable}" +
+                    $" where (now() - interval '{StaleGuildThreshold} days') > last_seen";
                 staleGuilds = await c.ExecuteNonQueryAsync(CancellationToken.None).ConfigureAwait(false);
             }
             using (var c = db.CreateCommand()) {
-                // Delete data for users not seen in 8 weeks
-                c.CommandText = $"delete from {GuildUserConfiguration.BackingTable} where (now() - interval '56 days') > last_seen";
+                c.CommandText = $"delete from {GuildUserConfiguration.BackingTable}" +
+                    $" where (now() - interval '{StaleUserThreashold} days') > last_seen";
                 staleUsers = await c.ExecuteNonQueryAsync(CancellationToken.None).ConfigureAwait(false);
             }
             if (staleGuilds != 0 || staleUsers != 0) {
@@ -100,7 +98,7 @@ class DataRetention : BackgroundService {
                     if (staleUsers != 0) resultText.Append(", ");
                 }
                 if (staleUsers != 0) {
-                    resultText.Append($"{staleUsers} standalone users");
+                    resultText.Append($"{staleUsers} users");
                 }
                 resultText.Append('.');
             }

@@ -15,10 +15,10 @@ class ShardManager : IDisposable {
     /// <summary>
     /// Number of seconds between each time the status task runs, in seconds.
     /// </summary>
-    private const int StatusInterval = 90;
+    private const int StatusInterval = 60;
 
     /// <summary>
-    /// Number of shards allowed to be destroyed before forcing the program to close.
+    /// Number of shards allowed to be destroyed before the program may close itself, if configured.
     /// </summary>
     private const int MaxDestroyedShards = 10; // TODO make configurable
 
@@ -26,7 +26,7 @@ class ShardManager : IDisposable {
     /// Number of concurrent shard startups to happen on each check.
     /// This value is also used in <see cref="DataRetention"/>.
     /// </summary>
-    public const int MaxConcurrentOperations = 5;
+    public const int MaxConcurrentOperations = 4;
 
     /// <summary>
     /// Amount of time without a completed background service run before a shard instance

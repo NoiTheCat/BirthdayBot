@@ -80,12 +80,14 @@ class ShardInstance : IDisposable {
 
     public void Log(string source, string message) => Program.Log($"Shard {ShardId:00}] [{source}", message);
 
+    public void RequestDownloadUsers(ulong guildId) => _background.UserDownloader.RequestDownload(guildId);
+
     #region Event handling
     private Task Client_Log(LogMessage arg) {
         // TODO revise this some time, filters might need to be modified by now
         // Suppress certain messages
         if (arg.Message != null) {
-            if (arg.Message.StartsWith("Unknown Dispatch ") || arg.Message.StartsWith("Missing Channel")) return Task.CompletedTask;
+            if (arg.Message.StartsWith("Unknown Dispatch ") || arg.Message.StartsWith("Unknown Channel")) return Task.CompletedTask;
             switch (arg.Message) // Connection status messages replaced by ShardManager's output
             {
                 case "Connecting":
