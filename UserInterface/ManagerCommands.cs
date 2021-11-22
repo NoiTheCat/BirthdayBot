@@ -1,11 +1,6 @@
 ﻿using BirthdayBot.Data;
-using Discord.WebSocket;
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
-using System.Threading.Tasks;
 
 namespace BirthdayBot.UserInterface;
 
@@ -327,9 +322,8 @@ internal class ManagerCommands : CommandsCommon {
         // Moderators only. As with config, silently drop if this check fails.
         if (!gconf.IsBotModerator(reqUser)) return;
 
-        if (!Common.HasMostMembersDownloaded(reqChannel.Guild)) {
-            instance.RequestDownloadUsers(reqChannel.Guild.Id);
-            await reqChannel.SendMessageAsync(UsersNotDownloadedError);
+        if (!await HasMemberCacheAsync(reqChannel.Guild)) {
+            await reqChannel.SendMessageAsync(MemberCacheEmptyError);
             return;
         }
 
@@ -393,7 +387,7 @@ internal class ManagerCommands : CommandsCommon {
         var conf = await GuildConfiguration.LoadAsync(guild.Id, true).ConfigureAwait(false);
 
         result.AppendLine($"Server ID: {guild.Id} | Bot shard ID: {instance.ShardId:00}");
-        bool hasMembers = Common.HasMostMembersDownloaded(guild);
+        bool hasMembers = guild.HasAllMembers;
         result.Append(DoTestFor("Bot has obtained the user list", () => hasMembers));
         result.AppendLine($" - Has {guild.DownloadedMemberCount} of {guild.MemberCount} members.");
         int bdayCount = -1;

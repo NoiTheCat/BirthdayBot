@@ -1,6 +1,4 @@
-﻿using Discord.WebSocket;
-using System.Collections.Generic;
-using System.Text;
+﻿using System.Text;
 
 namespace BirthdayBot;
 
@@ -33,21 +31,4 @@ static class Common {
         { 1, "Jan" }, { 2, "Feb" }, { 3, "Mar" }, { 4, "Apr" }, { 5, "May" }, { 6, "Jun" },
         { 7, "Jul" }, { 8, "Aug" }, { 9, "Sep" }, { 10, "Oct" }, { 11, "Nov" }, { 12, "Dec" }
     };
-
-    /// <summary>
-    /// An alternative to <see cref="SocketGuild.HasAllMembers"/>.
-    /// Returns true if *most* members have been downloaded.
-    /// </summary>
-    public static bool HasMostMembersDownloaded(SocketGuild guild) {
-        if (guild.HasAllMembers) return true;
-        if (guild.MemberCount > 30) {
-            // For guilds of size over 30, require 85% or more of the members to be known
-            // (26/30, 42/50, 255/300, etc)
-            int threshold = (int)(guild.MemberCount * 0.85);
-            return guild.DownloadedMemberCount >= threshold;
-        } else {
-            // For smaller guilds, fail if two or more members are missing
-            return guild.MemberCount - guild.DownloadedMemberCount <= 2;
-        }
-    }
 }

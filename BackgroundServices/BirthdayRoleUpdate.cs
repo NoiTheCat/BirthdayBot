@@ -1,12 +1,6 @@
 ﻿using BirthdayBot.Data;
-using Discord.WebSocket;
 using NodaTime;
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace BirthdayBot.BackgroundServices;
 
@@ -46,7 +40,7 @@ class BirthdayRoleUpdate : BackgroundService {
     /// </summary>
     private static async Task ProcessGuildAsync(SocketGuild guild) {
         // Load guild information - stop if local cache is unavailable.
-        if (!Common.HasMostMembersDownloaded(guild)) return;
+        if (!guild.HasAllMembers) return;
         var gc = await GuildConfiguration.LoadAsync(guild.Id, true).ConfigureAwait(false);
         if (gc == null) return;
 
