@@ -61,35 +61,40 @@ class DataRetention : BackgroundService {
             // Do actual updates
             int updatedGuilds = 0;
             int updatedUsers = 0;
-            foreach (var item in updateList) {
-                var guild = item.Key;
-                var userlist = item.Value;
+            using (var tUpdate = db.BeginTransaction()) {
+                foreach (var item in updateList) {
+                    var guild = item.Key;
+                    var userlist = item.Value;
 
-                pUpdateG.Value = (long)guild;
-                updatedGuilds += await cUpdateGuild.ExecuteNonQueryAsync(CancellationToken.None).ConfigureAwait(false);
+                    pUpdateG.Value = (long)guild;
+                    updatedGuilds += await cUpdateGuild.ExecuteNonQueryAsync(CancellationToken.None).ConfigureAwait(false);
 
-                pUpdateGU_g.Value = (long)guild;
-                foreach (var userid in userlist) {
-                    pUpdateGU_u.Value = (long)userid;
-                    updatedUsers += await cUpdateGuildUser.ExecuteNonQueryAsync(CancellationToken.None).ConfigureAwait(false);
+                    pUpdateGU_g.Value = (long)guild;
+                    foreach (var userid in userlist) {
+                        pUpdateGU_u.Value = (long)userid;
+                        updatedUsers += await cUpdateGuildUser.ExecuteNonQueryAsync(CancellationToken.None).ConfigureAwait(false);
+                    }
                 }
+                await tUpdate.CommitAsync(CancellationToken.None).ConfigureAwait(false);
             }
             var resultText = new StringBuilder();
             resultText.Append($"Updated {updatedGuilds} guilds, {updatedUsers} users.");
 
             // Deletes both guild and user data if it hasn't been seen for over the threshold defined at the top of this file
             // Expects referencing tables to have 'on delete cascade'
-            using var t = db.BeginTransaction();
             int staleGuilds, staleUsers;
-            using (var c = db.CreateCommand()) {
-                c.CommandText = $"delete from {GuildConfiguration.BackingTable}" +
-                    $" where (now() - interval '{StaleGuildThreshold} days') > last_seen";
-                staleGuilds = await c.ExecuteNonQueryAsync(CancellationToken.None).ConfigureAwait(false);
-            }
-            using (var c = db.CreateCommand()) {
-                c.CommandText = $"delete from {GuildUserConfiguration.BackingTable}" +
-                    $" where (now() - interval '{StaleUserThreashold} days') > last_seen";
-                staleUsers = await c.ExecuteNonQueryAsync(CancellationToken.None).ConfigureAwait(false);
+            using (var tRemove = db.BeginTransaction()) {
+                using (var c = db.CreateCommand()) {
+                    c.CommandText = $"delete from {GuildConfiguration.BackingTable}" +
+                        $" where (now() - interval '{StaleGuildThreshold} days') > last_seen";
+                    staleGuilds = await c.ExecuteNonQueryAsync(CancellationToken.None).ConfigureAwait(false);
+                }
+                using (var c = db.CreateCommand()) {
+                    c.CommandText = $"delete from {GuildUserConfiguration.BackingTable}" +
+                        $" where (now() - interval '{StaleUserThreashold} days') > last_seen";
+                    staleUsers = await c.ExecuteNonQueryAsync(CancellationToken.None).ConfigureAwait(false);
+                }
+                await tRemove.CommitAsync(CancellationToken.None).ConfigureAwait(false);
             }
             if (staleGuilds != 0 || staleUsers != 0) {
                 resultText.Append(" Discarded ");
@@ -102,7 +107,6 @@ class DataRetention : BackgroundService {
                 }
                 resultText.Append('.');
             }
-            t.Commit();
             Log(resultText.ToString());
         } finally {
             _updateLock.Release();
