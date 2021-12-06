@@ -82,11 +82,11 @@ internal abstract class CommandsCommon {
     /// </returns>
     /// <remarks>
     /// Any updates to the member cache aren't accessible until the event handler finishes execution, meaning proactive downloading
-    /// is necessary, and is handled by <seealso cref="BackgroundServices.SelectiveAutoUserDownload"/>. In situations where
+    /// is necessary, and is handled by <seealso cref="BackgroundServices.AutoUserDownload"/>. In situations where
     /// this approach fails, this is to be called, and the user must be asked to attempt the command again if this returns false.
     /// </remarks>
     protected static async Task<bool> HasMemberCacheAsync(SocketGuild guild) {
-        if (guild.HasAllMembers) return true;
+        if (Common.HasMostMembersDownloaded(guild)) return true;
         // Event handling thread hangs if awaited normally or used with Task.Run
         await Task.Factory.StartNew(guild.DownloadUsersAsync).ConfigureAwait(false);
         return false;

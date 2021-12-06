@@ -5,8 +5,8 @@ namespace BirthdayBot.BackgroundServices;
 /// <summary>
 /// Proactively fills the user cache for guilds in which any birthday data already exists.
 /// </summary>
-class SelectiveAutoUserDownload : BackgroundService {
-    public SelectiveAutoUserDownload(ShardInstance instance) : base(instance) { }
+class AutoUserDownload : BackgroundService {
+    public AutoUserDownload(ShardInstance instance) : base(instance) { }
 
     public override async Task OnTick(int tickCount, CancellationToken token) {
         foreach (var guild in ShardInstance.DiscordClient.Guilds) {

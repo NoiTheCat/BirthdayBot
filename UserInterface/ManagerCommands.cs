@@ -387,7 +387,7 @@ internal class ManagerCommands : CommandsCommon {
         var conf = await GuildConfiguration.LoadAsync(guild.Id, true).ConfigureAwait(false);
 
         result.AppendLine($"Server ID: {guild.Id} | Bot shard ID: {instance.ShardId:00}");
-        bool hasMembers = guild.HasAllMembers;
+        bool hasMembers = Common.HasMostMembersDownloaded(guild);
         result.Append(DoTestFor("Bot has obtained the user list", () => hasMembers));
         result.AppendLine($" - Has {guild.DownloadedMemberCount} of {guild.MemberCount} members.");
         int bdayCount = -1;

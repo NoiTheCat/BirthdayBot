@@ -40,7 +40,7 @@ class BirthdayRoleUpdate : BackgroundService {
     /// </summary>
     private static async Task ProcessGuildAsync(SocketGuild guild) {
         // Load guild information - stop if local cache is unavailable.
-        if (!guild.HasAllMembers) return;
+        if (!Common.HasMostMembersDownloaded(guild)) return;
         var gc = await GuildConfiguration.LoadAsync(guild.Id, true).ConfigureAwait(false);
         if (gc == null) return;
 
