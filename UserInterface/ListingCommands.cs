@@ -129,7 +129,6 @@ internal class ListingCommands : CommandsCommon {
         } catch (Exception ex) {
             Program.Log("Listing", ex.ToString());
             reqChannel.SendMessageAsync(InternalError).Wait();
-            // TODO webhook report
         } finally {
             File.Delete(filepath);
         }

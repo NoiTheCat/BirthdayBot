@@ -1,13 +1,11 @@
 ﻿using BirthdayBot.Data;
-using Newtonsoft.Json.Linq;
-using Npgsql;
-using System;
-using System.IO;
-using System.Reflection;
-using System.Text.RegularExpressions;
 using CommandLine;
 using CommandLine.Text;
+using Newtonsoft.Json.Linq;
+using Npgsql;
 using System.Diagnostics.CodeAnalysis;
+using System.Reflection;
+using System.Text.RegularExpressions;
 
 namespace BirthdayBot;
 
@@ -22,7 +20,6 @@ class Configuration {
     const string KeyShardRange = "ShardRange";
 
     public string BotToken { get; }
-    public string LogWebhook { get; }
     public string? DBotsToken { get; }
     public bool QuitOnFails { get; }
 
@@ -41,7 +38,6 @@ class Configuration {
         var jc = JObject.Parse(File.ReadAllText(confPath));
 
         BotToken = ReadConfKey<string>(jc, nameof(BotToken), true);
-        LogWebhook = ReadConfKey<string>(jc, nameof(LogWebhook), true);
         DBotsToken = ReadConfKey<string>(jc, nameof(DBotsToken), false);
         QuitOnFails = ReadConfKey<bool?>(jc, nameof(QuitOnFails), false) ?? false;
 

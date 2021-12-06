@@ -119,7 +119,6 @@ class BirthdayRoleUpdate : BackgroundService {
             else roleKeeps.Add(member.Id);
         }
 
-        // TODO Can we remove during the iteration instead of after? investigate later...
         foreach (var user in roleRemoves) {
             await user.RemoveRoleAsync(r).ConfigureAwait(false);
         }

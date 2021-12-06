@@ -17,7 +17,7 @@ internal abstract class CommandsCommon {
     public const string BadUserError = ":x: Unable to find user. Specify their `@` mention or their ID.";
     public const string ParameterError = ":x: Invalid usage. Refer to how to use the command and try again.";
     public const string NoParameterError = ":x: This command does not accept any parameters.";
-    public const string InternalError = ":x: An internal bot error occurred. The bot maintainer has been notified of the issue.";
+    public const string InternalError = ":x: An unknown error occurred. If it persists, please notify the bot owner.";
     public const string MemberCacheEmptyError = ":warning: Please try the command again.";
 
     public delegate Task CommandHandler(ShardInstance instance, GuildConfiguration gconf,

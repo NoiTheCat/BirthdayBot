@@ -64,7 +64,6 @@ class ShardBackgroundWorker : IDisposable {
                         _tickCount++;
                         await service.OnTick(_tickCount, _workerCanceller.Token).ConfigureAwait(false);
                     } catch (Exception ex) when (ex is not TaskCanceledException) {
-                        // TODO webhook log
                         Instance.Log(nameof(WorkerLoop), $"{CurrentExecutingService} encountered an exception:\n" + ex.ToString());
                     }
                 }

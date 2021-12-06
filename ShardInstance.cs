@@ -50,41 +50,27 @@ class ShardInstance : IDisposable {
     }
 
     /// <summary>
-    /// Does all necessary steps to stop this shard. This method may block for a few seconds as it waits
-    /// for the process to finish, but will force its disposal after at most 30 seconds.
+    /// Does all necessary steps to stop this shard, including canceling background tasks and disconnecting.
     /// </summary>
     public void Dispose() {
-        // Unsubscribe from own events
         DiscordClient.Log -= Client_Log;
         DiscordClient.Ready -= Client_Ready;
         DiscordClient.MessageReceived -= Client_MessageReceived;
 
         _background.Dispose();
-        try {
-            if (!DiscordClient.LogoutAsync().Wait(15000))
-                Log("Instance", "Warning: Client has not yet logged out. Continuing cleanup.");
-        } catch (Exception ex) {
-            Log("Instance", "Warning: Client threw an exception when logging out: " + ex.Message);
-        }
-        try {
-            if (!DiscordClient.StopAsync().Wait(5000))
-                Log("Instance", "Warning: Client has not yet stopped. Continuing cleanup.");
-        } catch (Exception ex) {
-            Log("Instance", "Warning: Client threw an exception when stopping: " + ex.Message);
-        }
-
-        var clientDispose = Task.Run(DiscordClient.Dispose);
-        if (!clientDispose.Wait(10000)) Log("Instance", "Warning: Client is hanging on dispose. Will continue.");
-        else Log("Instance", "Shard instance disposed.");
+        DiscordClient.LogoutAsync().Wait(5000);
+        DiscordClient.StopAsync().Wait(5000);
+        DiscordClient.Dispose();
+        Log(nameof(ShardInstance), "Shard instance disposed.");
     }
 
     public void Log(string source, string message) => Program.Log($"Shard {ShardId:00}] [{source}", message);
 
     #region Event handling
     private Task Client_Log(LogMessage arg) {
-        // TODO revise this some time, filters might need to be modified by now
         // Suppress certain messages
         if (arg.Message != null) {
+            // TODO remove below line ideally when D.Net bug is fixed
             if (arg.Message.StartsWith("Unknown Dispatch ") || arg.Message.StartsWith("Unknown Channel")) return Task.CompletedTask;
             switch (arg.Message) // Connection status messages replaced by ShardManager's output
             {
@@ -92,23 +78,14 @@ class ShardInstance : IDisposable {
                 case "Connected":
                 case "Ready":
                 case "Failed to resume previous session":
-                case "Resumed previous session":
-                case "Disconnecting":
-                case "Disconnected":
-                case "WebSocket connection was closed":
-                case "Server requested a reconnect":
+                case "Discord.WebSocket.GatewayReconnectException: Server requested a reconnect":
                     return Task.CompletedTask;
             }
-            //if (arg.Message == "Heartbeat Errored") {
-            //    // Replace this with a custom message; do not show stack trace
-            //    Log("Discord.Net", $"{arg.Severity}: {arg.Message} - {arg.Exception.Message}");
-            //    return Task.CompletedTask;
-            //}
 
             Log("Discord.Net", $"{arg.Severity}: {arg.Message}");
         }
 
-        if (arg.Exception != null) Log("Discord.Net", arg.Exception.ToString());
+        if (arg.Exception != null) Log("Discord.Net exception", arg.Exception.ToString());
 
         return Task.CompletedTask;
     }
@@ -152,8 +129,7 @@ class ShardInstance : IDisposable {
                 if (ex is HttpException) return;
                 Log("Command", ex.ToString());
                 try {
-                    channel.SendMessageAsync(":x: An unknown error occurred. It has been reported to the bot owner.").Wait();
-                    // TODO webhook report
+                    channel.SendMessageAsync(UserInterface.CommandsCommon.InternalError).Wait();
                 } catch (HttpException) { } // Fail silently
             }
         }
