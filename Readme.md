@@ -18,16 +18,16 @@ At this point, you may also wish to do the following optional steps:
 * Customize the announcement message: See `bb.help-message` for more information.
 
 #### Support the bot
-Birthday Bot is and shall remain free. I have no plans to hide new or existing features behind pay-only, premium features. This is an independent hobby project and all costs associated with it come out of my pocket.
+Birthday Bot is and shall remain fully free to use. I have no plans to hide any new or existing features behind pay-only, premium features. This is an independent hobby project and all costs associated with it come out of my pocket.
 
-This bot has had a far greater response than I've ever expected, and at this point I find it difficult to pay for the server it runs on as its resource needs grow. I would greatly appreciate if you consider pitching in a little bit to cover my recurring costs by checking out my Patreon link: https://www.patreon.com/noibots.
+This bot has had a far greater response than I've ever expected, and at this point I find it difficult to pay for the server it runs on as its resource needs grow. I would greatly appreciate if you consider pitching in a little bit to cover my recurring costs by checking out my Ko-fi page: https://ko-fi.com/noithecat.
 
 #### Support, Privacy and Security
 The support server for my bots can be accessed via the given link: https://discord.gg/JCRyFk7. Further information in setting up the bot can be found within it, as well as a small group of volunteers who are willing to answer questions.
 
-This bot collects and stores only information necessary for its operation, including user, server, and role IDs. This data is not stored indefinitely, and is removed after some period of time depending on if the bot has been removed from a respective server or its users have been absent for a long enough time.
+This bot collects and stores only information necessary for its operation, including user, server, and role IDs. This data is not stored indefinitely, and is removed after an extended period of lack of use. If an individual member of a server is not seen after 360 days, their data is purged. If the bot has been removed from a server, all existing data (including of its associated users) is purged after 180 days.
 
-Information is not shared between servers. This is *by design*, for those preferring to share their birthdays with only certain communities instead of automatically sharing it to all of them. Users must enter their birthday information onto every server they share with the bot for the servers they wish for it to be known in.
+Birthdays are not shared between servers that this same bot may be in. This is *by design*, for those preferring to share their birthdays with only certain communities instead of automatically sharing it to all of them. Users must enter their birthday information onto every server they share with the bot for the servers they wish for it to be known in.
 
 Any questions and concerns regarding data and security may be sent to the bot author via the support server or GitHub.
 
