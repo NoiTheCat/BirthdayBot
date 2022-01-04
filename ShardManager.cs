@@ -115,8 +115,7 @@ class ShardManager : IDisposable {
             ShardId = shardId,
             TotalShards = Config.ShardTotal,
             LogLevel = LogSeverity.Info,
-            DefaultRetryMode = RetryMode.RetryRatelimit,
-            MessageCacheSize = 0, // not needed at all
+            DefaultRetryMode = RetryMode.AlwaysRetry,
             GatewayIntents = GatewayIntents.Guilds | GatewayIntents.GuildMembers | GatewayIntents.GuildMessages
         };
         var newClient = new DiscordSocketClient(clientConf);

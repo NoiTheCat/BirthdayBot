@@ -43,6 +43,8 @@ static class Common {
             // For guilds of size over 30, require 85% or more of the members to be known
             // (26/30, 42/50, 255/300, etc)
             int threshold = (int)(guild.MemberCount * 0.85);
+            Program.Log(nameof(HasMostMembersDownloaded),
+                $"Passing with {guild.DownloadedMemberCount}/{guild.MemberCount} in cache for guild {guild.Id}.");
             return guild.DownloadedMemberCount >= threshold;
         } else {
             // For smaller guilds, fail if two or more members are missing
