@@ -37,7 +37,8 @@ internal class ManagerCommands : CommandsCommon {
         {
                 ("config", CmdConfigDispatch),
                 ("override", CmdOverride),
-                ("check", CmdCheck)
+                ("check", CmdCheck),
+                ("test", CmdCheck)
         };
 
     #region Documentation
@@ -385,21 +386,24 @@ internal class ManagerCommands : CommandsCommon {
         var result = new StringBuilder();
         var guild = reqChannel.Guild;
         var conf = await GuildConfiguration.LoadAsync(guild.Id, true).ConfigureAwait(false);
+        var userbdays = await GuildUserConfiguration.LoadAllAsync(guild.Id).ConfigureAwait(false);
 
-        result.AppendLine($"Server ID: {guild.Id} | Bot shard ID: {instance.ShardId:00}");
+        result.AppendLine($"Server ID: `{guild.Id}` | Bot shard ID: `{instance.ShardId:00}`");
+        result.AppendLine($"Number of registered birthdays: `{ userbdays.Count() }`");
+        result.AppendLine($"Server time zone: `{ (conf?.TimeZone ?? "Not set - using UTC") }`");
+        result.AppendLine();
+
         bool hasMembers = Common.HasMostMembersDownloaded(guild);
         result.Append(DoTestFor("Bot has obtained the user list", () => hasMembers));
-        result.AppendLine($" - Has {guild.DownloadedMemberCount} of {guild.MemberCount} members.");
+        result.AppendLine($" - Has `{guild.DownloadedMemberCount}` of `{guild.MemberCount}` members.");
         int bdayCount = -1;
-        result.Append(DoTestFor("Check if users have a birthday today", delegate {
+        result.Append(DoTestFor("Birthday processing", delegate {
             if (!hasMembers) return false;
-            var gc = GuildConfiguration.LoadAsync(guild.Id, true).ConfigureAwait(false).GetAwaiter().GetResult();
-            var users = GuildUserConfiguration.LoadAllAsync(guild.Id).ConfigureAwait(false).GetAwaiter().GetResult();
-            bdayCount = BackgroundServices.BirthdayRoleUpdate.GetGuildCurrentBirthdays(users, gc?.TimeZone).Count;
+            bdayCount = BackgroundServices.BirthdayRoleUpdate.GetGuildCurrentBirthdays(userbdays, conf?.TimeZone).Count;
             return true;
         }));
-        if (hasMembers) result.AppendLine($" - {bdayCount} user(s) currently having a birthday.");
-        else result.AppendLine(" - Cannot check without user list.");
+        if (hasMembers) result.AppendLine($" - `{bdayCount}` user(s) currently having a birthday.");
+        else result.AppendLine(" - Previous step failed.");
         result.AppendLine();
 
         result.AppendLine(DoTestFor("Birthday role set with `bb.config role`", delegate {
@@ -427,7 +431,30 @@ internal class ManagerCommands : CommandsCommon {
             return guild.CurrentUser.GetPermissions(channel).SendMessages;
         }));
 
-        await reqChannel.SendMessageAsync(result.ToString()).ConfigureAwait(false);
+        await reqChannel.SendMessageAsync(embed: new EmbedBuilder() {
+            Author = new EmbedAuthorBuilder() { Name = "Status and config check" },
+            Description = result.ToString()
+        }.Build()).ConfigureAwait(false);
+
+        const int announceMsgPreviewLimit = 350;
+        static string prepareAnnouncePreview(string announce) {
+            string trunc = announce.Length > announceMsgPreviewLimit ? announce[..announceMsgPreviewLimit] + "`(...)`" : announce;
+            var result = new StringBuilder();
+            foreach (var line in trunc.Split('\n'))
+                result.AppendLine($"> {line}");
+            return result.ToString();
+        }
+        if (conf != null && (conf.AnnounceMessages.Item1 != null || conf.AnnounceMessages.Item2 != null)) {
+            var em = new EmbedBuilder().WithAuthor(new EmbedAuthorBuilder() { Name = "Custom announce messages:" });
+            var dispAnnounces = new StringBuilder("Custom announcement message(s):\n");
+            if (conf.AnnounceMessages.Item1 != null) {
+                em = em.AddField("Single", prepareAnnouncePreview(conf.AnnounceMessages.Item1));
+            }
+            if (conf.AnnounceMessages.Item2 != null) {
+                em = em.AddField("Plural", prepareAnnouncePreview(conf.AnnounceMessages.Item2));
+            }
+            await reqChannel.SendMessageAsync(embed: em.Build()).ConfigureAwait(false);
+        }
     }
 
     #region Common/helper methods
