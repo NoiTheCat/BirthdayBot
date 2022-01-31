@@ -17,7 +17,6 @@ internal abstract class CommandsCommon {
     public const string BadUserError = ":x: Unable to find user. Specify their `@` mention or their ID.";
     public const string ParameterError = ":x: Invalid usage. Refer to how to use the command and try again.";
     public const string NoParameterError = ":x: This command does not accept any parameters.";
-    public const string InternalError = ":x: An unknown error occurred. If it persists, please notify the bot owner.";
     public const string MemberCacheEmptyError = ":warning: Please try the command again.";
 
     public delegate Task CommandHandler(ShardInstance instance, GuildConfiguration gconf,
@@ -48,7 +47,6 @@ internal abstract class CommandsCommon {
     /// Checks given time zone input. Returns a valid string for use with NodaTime.
     /// </summary>
     protected static string ParseTimeZone(string tzinput) {
-        if (tzinput.Equals("Asia/Calcutta", StringComparison.OrdinalIgnoreCase)) tzinput = "Asia/Kolkata";
         if (!TzNameMap.TryGetValue(tzinput, out string? tz)) throw new FormatException(":x: Unexpected time zone name."
                      + $" Refer to `{CommandPrefix}help-tzdata` to help determine the correct value.");
         return tz;

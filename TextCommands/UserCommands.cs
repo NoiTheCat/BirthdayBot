@@ -120,7 +120,7 @@ internal class UserCommands : CommandsCommon {
             await user.UpdateAsync(bmonth, bday, user.TimeZone).ConfigureAwait(false);
         } catch (Exception ex) {
             Program.Log("Error", ex.ToString());
-            reqChannel.SendMessageAsync(InternalError).Wait();
+            reqChannel.SendMessageAsync(ShardInstance.InternalError).Wait();
             return;
         }
         await reqChannel.SendMessageAsync($":white_check_mark: Your birthday has been { (known ? "updated" : "recorded") }.")

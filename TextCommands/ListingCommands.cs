@@ -128,7 +128,7 @@ internal class ListingCommands : CommandsCommon {
             reqChannel.SendMessageAsync(":x: Unable to send list due to a permissions issue. Check the 'Attach Files' permission.").Wait();
         } catch (Exception ex) {
             Program.Log("Listing", ex.ToString());
-            reqChannel.SendMessageAsync(InternalError).Wait();
+            reqChannel.SendMessageAsync(ShardInstance.InternalError).Wait();
         } finally {
             File.Delete(filepath);
         }
