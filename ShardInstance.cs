@@ -1,7 +1,7 @@
 ﻿using BirthdayBot.BackgroundServices;
 using BirthdayBot.Data;
 using Discord.Net;
-using static BirthdayBot.UserInterface.CommandsCommon;
+using static BirthdayBot.TextCommands.CommandsCommon;
 
 namespace BirthdayBot;
 
@@ -132,7 +132,7 @@ class ShardInstance : IDisposable {
                 if (ex is HttpException) return;
                 Log("Command", ex.ToString());
                 try {
-                    channel.SendMessageAsync(UserInterface.CommandsCommon.InternalError).Wait();
+                    channel.SendMessageAsync(TextCommands.CommandsCommon.InternalError).Wait();
                 } catch (HttpException) { } // Fail silently
             }
         }

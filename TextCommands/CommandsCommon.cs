@@ -3,7 +3,7 @@ using NodaTime;
 using System.Collections.ObjectModel;
 using System.Text.RegularExpressions;
 
-namespace BirthdayBot.UserInterface;
+namespace BirthdayBot.TextCommands;
 
 /// <summary>
 /// Common base class for common constants and variables.

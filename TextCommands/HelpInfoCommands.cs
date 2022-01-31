@@ -1,7 +1,7 @@
 ﻿using BirthdayBot.Data;
 using System.Text;
 
-namespace BirthdayBot.UserInterface;
+namespace BirthdayBot.TextCommands;
 
 internal class HelpInfoCommands : CommandsCommon {
     private readonly Embed _helpEmbed;

@@ -1,7 +1,7 @@
 ﻿using BirthdayBot.Data;
 using System.Text.RegularExpressions;
 
-namespace BirthdayBot.UserInterface;
+namespace BirthdayBot.TextCommands;
 
 internal class UserCommands : CommandsCommon {
     public UserCommands(Configuration db) : base(db) { }

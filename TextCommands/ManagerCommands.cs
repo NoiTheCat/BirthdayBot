@@ -2,7 +2,7 @@
 using System.Text;
 using System.Text.RegularExpressions;
 
-namespace BirthdayBot.UserInterface;
+namespace BirthdayBot.TextCommands;
 
 internal class ManagerCommands : CommandsCommon {
     private static readonly string ConfErrorPostfix =

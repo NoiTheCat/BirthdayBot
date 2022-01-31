@@ -1,9 +1,9 @@
 ﻿global using Discord;
 global using Discord.WebSocket;
 using BirthdayBot.BackgroundServices;
-using BirthdayBot.UserInterface;
+using BirthdayBot.TextCommands;
 using System.Text;
-using static BirthdayBot.UserInterface.CommandsCommon;
+using static BirthdayBot.TextCommands.CommandsCommon;
 
 namespace BirthdayBot;
 

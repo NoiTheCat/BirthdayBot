@@ -1,7 +1,7 @@
 ﻿using BirthdayBot.Data;
 using System.Text;
 
-namespace BirthdayBot.UserInterface;
+namespace BirthdayBot.TextCommands;
 
 /// <summary>
 /// Commands for listing upcoming and all birthdays.
