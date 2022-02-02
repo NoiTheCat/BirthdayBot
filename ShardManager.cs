@@ -72,7 +72,9 @@ class ShardManager : IDisposable {
 
         _appCommands = new List<BotApplicationCommand>() {
             // TODO fill this out
-            new ApplicationCommands.HelpInfoCommands()
+            new HelpCommands(),
+            new RegistrationCommands(),
+            new RegistrationOverrideCommands()
         };
 
         // Allocate shards based on configuration
