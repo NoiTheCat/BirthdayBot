@@ -186,14 +186,17 @@ class ShardInstance : IDisposable {
     /// </summary>
     private async Task DiscordClient_SlashCommandExecuted(SocketSlashCommand arg) {
         SocketGuildChannel? rptChannel = arg.Channel as SocketGuildChannel;
+        string rpt = "";
+        if (rptChannel != null) rpt += rptChannel.Guild.Name + "!";
+        rpt += arg.User;
         var rptId = rptChannel?.Guild.Id ?? arg.User.Id;
-        var logLine = $"/{arg.CommandName} by {arg.User} in { (rptChannel != null ? "guild" : "DM. User") } ID {rptId}. Result: ";
+        var logLine = $"/{arg.CommandName} at {rpt}; { (rptChannel != null ? "Guild" : "User") } ID {rptId}.";
 
         // Specific reply for DM messages
         if (rptChannel == null) {
             // TODO do not hardcode message
             // TODO figure out appropriate message
-            Log("Command", logLine + "Sending message.");
+            Log("Command", logLine + " Sending default reply.");
             await arg.RespondAsync("don't dm me").ConfigureAwait(false);
             return;
         }
@@ -206,18 +209,18 @@ class ShardInstance : IDisposable {
         }
         
         if (handler == null) { // Handler not found
-            Log("Command", logLine + "Unknown command.");
+            Log("Command", logLine + " Unknown command.");
             await arg.RespondAsync("Oops, that command isn't supposed to be there... Please try something else.",
                 ephemeral: true).ConfigureAwait(false);
             return;
         }
 
         var gconf = await GuildConfiguration.LoadAsync(rptChannel.Guild.Id, false);
-        // Block check here
+        // Blocklist/moderated check
         if (!gconf!.IsBotModerator((SocketGuildUser)arg.User)) // Except if moderator
         {
             if (await gconf.IsUserBlockedAsync(arg.User.Id)) {
-                Log("Command", logLine + "Blocked per guild policy.");
+                Log("Command", logLine + " Blocked per guild policy.");
                 await arg.RespondAsync(AccessDeniedError, ephemeral: true).ConfigureAwait(false);
                 return;
             }
@@ -226,9 +229,9 @@ class ShardInstance : IDisposable {
         // Execute the handler
         try {
             await handler(this, gconf, arg).ConfigureAwait(false);
-            Log("Command", logLine + "Executed normally.");
-        } catch (Exception ex) when (ex is not HttpException) {
-            Log("Command", logLine + ex.ToString());
+            Log("Command", logLine);
+        } catch (Exception e) when (e is not HttpException) {
+            Log("Command", $"{logLine} {e}");
         }
     }
 }
