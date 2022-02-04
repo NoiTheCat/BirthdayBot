@@ -39,10 +39,13 @@ internal class RegistrationCommands : BotApplicationCommand {
     public override CommandResponder? GetHandlerFor(string commandName) => commandName switch {
         "set-birthday" => CmdSetBirthday,
         "set-timezone" => CmdSetTimezone,
-        "remove-timezone" => CmdDelTimezone,
-        "remove-birthday" => CmdRemove,
+        "remove-timezone" => CmdDelTz,
+        "remove-birthday" => CmdDelBd,
         _ => null
     };
+
+    // Note that the following subcommands have largely been copied to RegistrationOverrideCommands.
+    // Any changes made here should be reflected there, if appropriate.
 
     private static async Task CmdSetBirthday(ShardInstance instance, GuildConfiguration gconf, SocketSlashCommand arg) {
         int inmonth, inday;
@@ -91,7 +94,7 @@ internal class RegistrationCommands : BotApplicationCommand {
             .ConfigureAwait(false);
     }
 
-    private static async Task CmdDelTimezone(ShardInstance instance, GuildConfiguration gconf, SocketSlashCommand arg) {
+    private static async Task CmdDelTz(ShardInstance instance, GuildConfiguration gconf, SocketSlashCommand arg) {
         var u = await GuildUserConfiguration.LoadAsync(gconf.GuildId, arg.User.Id).ConfigureAwait(false);
         if (!u.IsKnown) {
             await arg.RespondAsync(":white_check_mark: " + MsgNoData);
@@ -103,7 +106,7 @@ internal class RegistrationCommands : BotApplicationCommand {
         }
     }
 
-    private static async Task CmdRemove(ShardInstance instance, GuildConfiguration gconf, SocketSlashCommand arg) {
+    private static async Task CmdDelBd(ShardInstance instance, GuildConfiguration gconf, SocketSlashCommand arg) {
         var u = await GuildUserConfiguration.LoadAsync(gconf.GuildId, arg.User.Id).ConfigureAwait(false);
         if (u.IsKnown) {
             await u.DeleteAsync().ConfigureAwait(false);

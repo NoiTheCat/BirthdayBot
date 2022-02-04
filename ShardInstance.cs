@@ -29,6 +29,7 @@ class ShardInstance : IDisposable {
     public Configuration Config => _manager.Config;
 
     public const string InternalError = ":x: An unknown error occurred. If it persists, please notify the bot owner.";
+    public const string UnknownCommandError = "Oops, that command isn't supposed to be there... Please try something else.";
 
     /// <summary>
     /// Prepares and configures the shard instances, but does not yet start its connection.
@@ -132,10 +133,11 @@ class ShardInstance : IDisposable {
         foreach (var g in DiscordClient.Guilds) {
             await g.DeleteApplicationCommandsAsync().ConfigureAwait(false);
             await g.BulkOverwriteApplicationCommandAsync(commands.ToArray()).ConfigureAwait(false);
+            Log("Command registration", $"Sent bulk overrides for {commands.Count} commands.");
         }
 
         foreach (var gcmd in await DiscordClient.GetGlobalApplicationCommandsAsync()) {
-            Program.Log("Command registration", $"Found global command /{gcmd.Name} and we're DEBUG - sending removal request");
+            Log("Command registration", $"Found global command /{gcmd.Name} and we're DEBUG - sending removal request");
             await gcmd.DeleteAsync();
         }
 #endif
@@ -210,7 +212,7 @@ class ShardInstance : IDisposable {
         
         if (handler == null) { // Handler not found
             Log("Command", logLine + " Unknown command.");
-            await arg.RespondAsync("Oops, that command isn't supposed to be there... Please try something else.",
+            await arg.RespondAsync(UnknownCommandError,
                 ephemeral: true).ConfigureAwait(false);
             return;
         }
