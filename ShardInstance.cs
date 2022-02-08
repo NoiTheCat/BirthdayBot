@@ -118,7 +118,7 @@ class ShardInstance : IDisposable {
         }
 #if !DEBUG
         // Remove any unneeded/unused commands
-        var existingcmdnames = cmds.Select(c => c.Name.Value).ToHashSet();
+        var existingcmdnames = commands.Select(c => c.Name.Value).ToHashSet();
         foreach (var gcmd in await DiscordClient.GetGlobalApplicationCommandsAsync()) {
             if (!existingcmdnames.Contains(gcmd.Name)) {
                 Log("Command registration", $"Found registered unused command /{gcmd.Name} - sending removal request");
@@ -126,8 +126,8 @@ class ShardInstance : IDisposable {
             }
         }
         // And update what we have
-        Log("Command registration", $"Bulk updating {cmds.Length} global command(s)");
-        await DiscordClient.BulkOverwriteGlobalApplicationCommandsAsync(cmds).ConfigureAwait(false);
+        Log("Command registration", $"Bulk updating {commands.Count} global command(s)");
+        await DiscordClient.BulkOverwriteGlobalApplicationCommandsAsync(commands.ToArray()).ConfigureAwait(false);
 #else
         // Debug: Register our commands locally instead, in each guild we're in
         foreach (var g in DiscordClient.Guilds) {
