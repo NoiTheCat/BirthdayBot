@@ -9,9 +9,6 @@ internal class RegistrationCommands : BotApplicationCommand {
     public const string HelpZoneDel = "Removes your time zone information from the bot.";
     public const string HelpDel = "Removes your birthday information from the bot.";
 
-    public const string HelpOptDate = "A date, including the month and day. For example, \"15 January\".";
-    public const string HelpOptZone = "A 'tzdata'-compliant time zone name. See help for more details.";
-
     const string MsgNoData = "This bot does not have your birthday information for this server.";
     #endregion
 

@@ -22,7 +22,7 @@ internal class RegistrationOverrideCommands : BotApplicationCommand {
                     .AddOption(new SlashCommandOptionBuilder()
                         .WithName("target")
                         .WithType(ApplicationCommandOptionType.User)
-                        .WithDescription("The target user whose birthday to modify.")
+                        .WithDescription(HelpOptTarget)
                         .WithRequired(true)
                     ).AddOption(new SlashCommandOptionBuilder()
                         .WithName("date")
