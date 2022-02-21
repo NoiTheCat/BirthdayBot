@@ -45,9 +45,9 @@ internal abstract class BotApplicationCommand {
     /// throwing a FormatException if the input is not recognized.
     /// </summary>
     protected static string ParseTimeZone(string tzinput) {
-        if (!TzNameMap.TryGetValue(tzinput, out string? tz)) throw new FormatException(":x: Unexpected time zone name."
-                     + $" Refer to `INSERT COMMAND NAME HERE` to help determine the correct value."); // TODO fix!!!!!!!!!!!!!!!!!!!
-        // put link to tz finder -and- refer to command for elaborate info
+        if (!TzNameMap.TryGetValue(tzinput, out string? tz))
+            throw new FormatException(":x: Unknown time zone name.\n" +
+                "To find your time zone, please refer to: https://kevinnovak.github.io/Time-Zone-Picker/");
         return tz!;
     }
 

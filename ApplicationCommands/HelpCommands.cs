@@ -9,14 +9,23 @@ internal class HelpCommands : BotApplicationCommand {
     static HelpCommands() {
         _helpEmbedRegCommandsField = new EmbedFieldBuilder() {
             Name = "Commands",
-            Value = $"`/set-birthday` - {RegistrationCommands.HelpSet}\n"
-                + $"`/set-timezone` - {RegistrationCommands.HelpZone}\n"
-                + $"`/remove-timezone` - {RegistrationCommands.HelpZoneDel}\n"
-                + $"`/remove-birthday` - {RegistrationCommands.HelpDel}"
+            Value = $"`/set-birthday` - {RegistrationCommands.HelpSet}\n" +
+                $"`/set-timezone` - {RegistrationCommands.HelpZone}\n" +
+                $"`/remove-timezone` - {RegistrationCommands.HelpZoneDel}\n" +
+                $"`/remove-birthday` - {RegistrationCommands.HelpDel}\n" +
+                $"`/birthday` - {QueryCommands.HelpBirthdayFor}\n" +
+                $"`/recent`, `/upcoming` - {QueryCommands.HelpRecentUpcoming}"
+                
         };
         _helpEmbedModCommandsField = new EmbedFieldBuilder() {
             Name = "Moderator commands",
-            Value = $"`/override` - {RegistrationOverrideCommands.HelpOverride}"
+            Value =
+                $"`/config` - {ModCommands.HelpConfig}\n" +
+                $"`/announce` - {ModCommands.HelpConfAnnounce}\n" +
+                $"`/blocking` - {ModCommands.HelpConfBlocking}\n" +
+                $"`/list-all` - {QueryCommands.HelpListAll}\n" +
+                $"`/override` - {RegistrationOverrideCommands.HelpOverride}\n" +
+                $"See also: `/config help`, `/announce help`, `/blocking help`."
         };
     }
 
@@ -40,10 +49,10 @@ internal class HelpCommands : BotApplicationCommand {
             .WithAuthor("Help & About")
             .WithFooter($"Birthday Bot {ver} - Shard {instance.ShardId:00} up {Program.BotUptime}",
                 instance.DiscordClient.CurrentUser.GetAvatarUrl())
-            .WithDescription("Support, data policy, etc: https://noithecat.dev/bots/BirthdayBot\n"
-                + "This bot is provided for free, without any paywalls or exclusive paid features. If this bot has been useful to you, "
-                + "please consider taking a look at the author's Ko-fi: https://ko-fi.com/noithecat.\n"
-                + "Thank you for using Birthday Bot!")
+            .WithDescription("Thank you for using Birthday Bot!\n" +
+                "Support, data policy, etc: https://noithecat.dev/bots/BirthdayBot\n" +
+                "This bot is provided for free, without any paywalls or exclusive paid features. If this bot has been useful to you, " +
+                "please consider taking a look at the author's Ko-fi: https://ko-fi.com/noithecat.")
             .AddField(_helpEmbedRegCommandsField)
             .AddField(_helpEmbedModCommandsField)
             .Build();

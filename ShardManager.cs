@@ -71,10 +71,11 @@ class ShardManager : IDisposable {
         foreach (var item in cmdsMods.Commands) _textCommands.Add(item.Item1, item.Item2);
 
         _appCommands = new List<BotApplicationCommand>() {
-            // TODO fill this out
             new HelpCommands(),
             new RegistrationCommands(),
-            new RegistrationOverrideCommands()
+            new RegistrationOverrideCommands(),
+            new QueryCommands(),
+            new ModCommands(this)
         };
 
         // Allocate shards based on configuration
@@ -128,6 +129,14 @@ class ShardManager : IDisposable {
         await newInstance.StartAsync().ConfigureAwait(false);
 
         return newInstance;
+    }
+
+    public int? GetShardIdFor(ulong guildId) {
+        foreach (var sh in _shards.Values) {
+            if (sh == null) continue;
+            if (sh.DiscordClient.GetGuild(guildId) != null) return sh.ShardId;
+        }
+        return null;
     }
 
     #region Status checking and display
