@@ -1,4 +1,4 @@
-﻿using BirthdayBot.Data;
+﻿using Discord.Interactions;
 using NodaTime;
 using System.Collections.ObjectModel;
 using System.Text.RegularExpressions;
@@ -6,11 +6,9 @@ using System.Text.RegularExpressions;
 namespace BirthdayBot.ApplicationCommands;
 
 /// <summary>
-/// Base class for classes handling slash command execution.
+/// Base class for our interaction module classes. Contains common data for use in implementing classes.
 /// </summary>
-internal abstract class BotApplicationCommand {
-    public delegate Task CommandResponder(ShardInstance instance, GuildConfiguration gconf, SocketSlashCommand arg);
-
+public abstract class BotModuleBase : InteractionModuleBase<SocketInteractionContext> {
     protected const string HelpPfxModOnly = "Bot moderators only: ";
     protected const string ErrGuildOnly = ":x: This command can only be run within a server.";
     protected const string ErrNotAllowed = ":x: Only server moderators may use this command.";
@@ -20,24 +18,17 @@ internal abstract class BotApplicationCommand {
     protected const string HelpOptDate = "A date, including the month and day. For example, \"15 January\".";
     protected const string HelpOptZone = "A 'tzdata'-compliant time zone name. See help for more details.";
 
-    protected static ReadOnlyDictionary<string, string> TzNameMap { get; }
+#pragma warning disable CS8618
+    public DiscordSocketClient BotClient { get; set; }
+    public ShardInstance Instance { get; set; }
+#pragma warning restore CS8618
 
-    /// <summary>
-    /// Returns a list of application command definitions handled by the implementing class,
-    /// for use when registering/updating this bot's available slash commands.
-    /// </summary>
-    public abstract IEnumerable<ApplicationCommandProperties> GetCommands();
+    protected static IReadOnlyDictionary<string, string> TzNameMap { get; }
 
-    /// <summary>
-    /// Given the command name, returns the designated handler to execute to fulfill the command.
-    /// Returns null if this class does not contain a handler for the given command.
-    /// </summary>
-    public abstract CommandResponder? GetHandlerFor(string commandName);
-
-    static BotApplicationCommand() {
+    static BotModuleBase() {
         var dict = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         foreach (var name in DateTimeZoneProviders.Tzdb.Ids) dict.Add(name, name);
-        TzNameMap = new(dict);
+        TzNameMap = new ReadOnlyDictionary<string, string>(dict);
     }
 
     /// <summary>

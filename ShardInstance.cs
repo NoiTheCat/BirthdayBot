@@ -1,8 +1,9 @@
-﻿using BirthdayBot.ApplicationCommands;
-using BirthdayBot.BackgroundServices;
+﻿using BirthdayBot.BackgroundServices;
 using BirthdayBot.Data;
+using Discord.Interactions;
 using Discord.Net;
-using static BirthdayBot.ApplicationCommands.BotApplicationCommand;
+using Microsoft.Extensions.DependencyInjection;
+using System.Reflection;
 using static BirthdayBot.TextCommands.CommandsCommon;
 
 namespace BirthdayBot;
@@ -10,23 +11,24 @@ namespace BirthdayBot;
 /// <summary>
 /// Single shard instance for Birthday Bot. This shard independently handles all input and output to Discord.
 /// </summary>
-class ShardInstance : IDisposable {
+public class ShardInstance : IDisposable {
     private readonly ShardManager _manager;
     private readonly ShardBackgroundWorker _background;
     private readonly Dictionary<string, CommandHandler> _textDispatch;
-    private readonly IEnumerable<BotApplicationCommand> _slashCmdHandlers;
+    private readonly InteractionService _interactionService;
+    private readonly IServiceProvider _services;
 
-    public DiscordSocketClient DiscordClient { get; }
+    internal DiscordSocketClient DiscordClient { get; }
     public int ShardId => DiscordClient.ShardId;
     /// <summary>
     /// Returns a value showing the time in which the last background run successfully completed.
     /// </summary>
-    public DateTimeOffset LastBackgroundRun => _background.LastBackgroundRun;
+    internal DateTimeOffset LastBackgroundRun => _background.LastBackgroundRun;
     /// <summary>
     /// Returns the name of the background service currently in execution.
     /// </summary>
-    public string? CurrentExecutingService => _background.CurrentExecutingService;
-    public Configuration Config => _manager.Config;
+    internal string? CurrentExecutingService => _background.CurrentExecutingService;
+    internal Configuration Config => _manager.Config;
 
     public const string InternalError = ":x: An unknown error occurred. If it persists, please notify the bot owner.";
     public const string UnknownCommandError = "Oops, that command isn't supposed to be there... Please try something else.";
@@ -34,17 +36,20 @@ class ShardInstance : IDisposable {
     /// <summary>
     /// Prepares and configures the shard instances, but does not yet start its connection.
     /// </summary>
-    public ShardInstance(ShardManager manager, DiscordSocketClient client,
-                         Dictionary<string, CommandHandler> textCmds, IEnumerable<BotApplicationCommand> appCmdHandlers) {
+    internal ShardInstance(ShardManager manager, IServiceProvider services, Dictionary<string, CommandHandler> textCmds) {
         _manager = manager;
+        _services = services;
         _textDispatch = textCmds;
-        _slashCmdHandlers = appCmdHandlers;
 
-        DiscordClient = client;
+        DiscordClient = _services.GetRequiredService<DiscordSocketClient>();
         DiscordClient.Log += Client_Log;
         DiscordClient.Ready += Client_Ready;
         DiscordClient.MessageReceived += Client_MessageReceived;
-        DiscordClient.SlashCommandExecuted += DiscordClient_SlashCommandExecuted;
+
+        _interactionService = _services.GetRequiredService<InteractionService>();
+        _interactionService.AddModulesAsync(Assembly.GetExecutingAssembly(), null);
+        DiscordClient.InteractionCreated += DiscordClient_InteractionCreated;
+        _interactionService.SlashCommandExecuted += InteractionService_SlashCommandExecuted;
 
         // Background task constructor begins background processing immediately.
         _background = new ShardBackgroundWorker(this);
@@ -62,10 +67,14 @@ class ShardInstance : IDisposable {
     /// Does all necessary steps to stop this shard, including canceling background tasks and disconnecting.
     /// </summary>
     public void Dispose() {
+        // TODO are these necessary?
+        _interactionService.SlashCommandExecuted -= InteractionService_SlashCommandExecuted;
+        DiscordClient.InteractionCreated -= DiscordClient_InteractionCreated;
         DiscordClient.Log -= Client_Log;
         DiscordClient.Ready -= Client_Ready;
         DiscordClient.MessageReceived -= Client_MessageReceived;
 
+        _interactionService.Dispose();
         _background.Dispose();
         DiscordClient.LogoutAsync().Wait(5000);
         DiscordClient.StopAsync().Wait(5000);
@@ -109,36 +118,13 @@ class ShardInstance : IDisposable {
         await DiscordClient.SetGameAsync(CommandPrefix + "help");
 
 #if !DEBUG
-        // Update our commands here, only when the first shard connects
-        if (ShardId != 0) return;
-#endif
-        var commands = new List<ApplicationCommandProperties>();
-        foreach (var source in _slashCmdHandlers) {
-            commands.AddRange(source.GetCommands());
-        }
-#if !DEBUG
-        // Remove any unneeded/unused commands
-        var existingcmdnames = commands.Select(c => c.Name.Value).ToHashSet();
-        foreach (var gcmd in await DiscordClient.GetGlobalApplicationCommandsAsync()) {
-            if (!existingcmdnames.Contains(gcmd.Name)) {
-                Log("Command registration", $"Found registered unused command /{gcmd.Name} - sending removal request");
-                await gcmd.DeleteAsync();
-            }
-        }
-        // And update what we have
-        Log("Command registration", $"Bulk updating {commands.Count} global command(s)");
-        await DiscordClient.BulkOverwriteGlobalApplicationCommandsAsync(commands.ToArray()).ConfigureAwait(false);
+        // Update slash/interaction commands
+        await _interactionService.RegisterCommandsGloballyAsync(true).ConfigureAwait(false);
 #else
         // Debug: Register our commands locally instead, in each guild we're in
         foreach (var g in DiscordClient.Guilds) {
-            await g.DeleteApplicationCommandsAsync().ConfigureAwait(false);
-            await g.BulkOverwriteApplicationCommandAsync(commands.ToArray()).ConfigureAwait(false);
-            Log("Command registration", $"Sent bulk overrides for {commands.Count} commands.");
-        }
-
-        foreach (var gcmd in await DiscordClient.GetGlobalApplicationCommandsAsync()) {
-            Log("Command registration", $"Found global command /{gcmd.Name} and we're DEBUG - sending removal request");
-            await gcmd.DeleteAsync();
+            await _interactionService.RegisterCommandsToGuildAsync(g.Id, true).ConfigureAwait(false);
+            // TODO log?
         }
 #endif
     }
@@ -183,57 +169,25 @@ class ShardInstance : IDisposable {
         }
     }
 
-    /// <summary>
-    /// Dispatches to the appropriate slash command handler while catching any exceptions that may occur.
-    /// </summary>
-    private async Task DiscordClient_SlashCommandExecuted(SocketSlashCommand arg) {
-        SocketGuildChannel? rptChannel = arg.Channel as SocketGuildChannel;
-        string rpt = "";
-        if (rptChannel != null) rpt += rptChannel.Guild.Name + "!";
-        rpt += arg.User;
-        var rptId = rptChannel?.Guild.Id ?? arg.User.Id;
-        var logLine = $"/{arg.CommandName} at {rpt}; { (rptChannel != null ? "Guild" : "User") } ID {rptId}.";
-
-        // Specific reply for DM messages
-        if (rptChannel == null) {
-            // TODO do not hardcode message
-            // TODO figure out appropriate message
-            Log("Command", logLine + " Sending default reply.");
-            await arg.RespondAsync("don't dm me").ConfigureAwait(false);
-            return;
-        }
-
-        // Determine handler to use
-        CommandResponder? handler = null;
-        foreach (var source in _slashCmdHandlers) {
-            handler = source.GetHandlerFor(arg.CommandName);
-            if (handler != null) break;
-        }
-        
-        if (handler == null) { // Handler not found
-            Log("Command", logLine + " Unknown command.");
-            await arg.RespondAsync(UnknownCommandError,
-                ephemeral: true).ConfigureAwait(false);
-            return;
-        }
-
-        var gconf = await GuildConfiguration.LoadAsync(rptChannel.Guild.Id, false);
-        // Blocklist/moderated check
-        if (!gconf!.IsBotModerator((SocketGuildUser)arg.User)) // Except if moderator
-        {
-            if (await gconf.IsUserBlockedAsync(arg.User.Id)) {
-                Log("Command", logLine + " Blocked per guild policy.");
-                await arg.RespondAsync(AccessDeniedError, ephemeral: true).ConfigureAwait(false);
-                return;
-            }
-        }
-
-        // Execute the handler
+    private async Task InteractionService_SlashCommandExecuted(SlashCommandInfo arg1, IInteractionContext arg2, IResult arg3) {
+        if (arg3.IsSuccess) return;
+        Log("Interaction error", Enum.GetName(typeof(InteractionCommandError), arg3.Error) + " " + arg3.ErrorReason);
+        // TODO finish this up
+    }
+    
+    private async Task DiscordClient_InteractionCreated(SocketInteraction arg) {
+        // TODO this is straight from the example - look it over
         try {
-            await handler(this, gconf, arg).ConfigureAwait(false);
-            Log("Command", logLine);
-        } catch (Exception e) when (e is not HttpException) {
-            Log("Command", $"{logLine} {e}");
+            // Create an execution context that matches the generic type parameter of your InteractionModuleBase<T> modules
+            var context = new SocketInteractionContext(DiscordClient, arg);
+            await _interactionService.ExecuteCommandAsync(context, _services);
+        } catch (Exception ex) {
+            Console.WriteLine(ex);
+
+            // If a Slash Command execution fails it is most likely that the original interaction acknowledgement will persist. It is a good idea to delete the original
+            // response, or at least let the user know that something went wrong during the command execution.
+            if (arg.Type == InteractionType.ApplicationCommand)
+                await arg.GetOriginalResponseAsync().ContinueWith(async (msg) => await msg.Result.DeleteAsync());
         }
     }
 }

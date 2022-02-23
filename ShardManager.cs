@@ -1,8 +1,9 @@
 ﻿global using Discord;
 global using Discord.WebSocket;
-using BirthdayBot.ApplicationCommands;
 using BirthdayBot.BackgroundServices;
 using BirthdayBot.TextCommands;
+using Discord.Interactions;
+using Microsoft.Extensions.DependencyInjection;
 using System.Text;
 using static BirthdayBot.TextCommands.CommandsCommon;
 
@@ -45,7 +46,6 @@ class ShardManager : IDisposable {
     private readonly Dictionary<int, ShardInstance?> _shards;
 
     private readonly Dictionary<string, CommandHandler> _textCommands;
-    private readonly List<BotApplicationCommand> _appCommands;
 
     private readonly Task _statusTask;
     private readonly CancellationTokenSource _mainCancel;
@@ -69,14 +69,6 @@ class ShardManager : IDisposable {
         foreach (var item in cmdsHelp.Commands) _textCommands.Add(item.Item1, item.Item2);
         var cmdsMods = new ManagerCommands(cfg, cmdsUser.Commands);
         foreach (var item in cmdsMods.Commands) _textCommands.Add(item.Item1, item.Item2);
-
-        _appCommands = new List<BotApplicationCommand>() {
-            new HelpCommands(),
-            new RegistrationCommands(),
-            new RegistrationOverrideCommands(),
-            new QueryCommands(),
-            new ModCommands(this)
-        };
 
         // Allocate shards based on configuration
         _shards = new Dictionary<int, ShardInstance?>();
@@ -124,8 +116,12 @@ class ShardManager : IDisposable {
             DefaultRetryMode = RetryMode.AlwaysRetry,
             GatewayIntents = GatewayIntents.Guilds | GatewayIntents.GuildMembers | GatewayIntents.GuildMessages
         };
-        var newClient = new DiscordSocketClient(clientConf);
-        newInstance = new ShardInstance(this, newClient, _textCommands, _appCommands);
+        var services = new ServiceCollection()
+            .AddSingleton(s => new ShardInstance(this, s, _textCommands))
+            .AddSingleton(s => new DiscordSocketClient(clientConf))
+            .AddSingleton(s => new InteractionService(s.GetRequiredService<DiscordSocketClient>()))
+            .BuildServiceProvider();
+        newInstance = services.GetRequiredService<ShardInstance>();
         await newInstance.StartAsync().ConfigureAwait(false);
 
         return newInstance;
