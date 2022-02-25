@@ -4,12 +4,15 @@ using System.Text;
 
 namespace BirthdayBot.ApplicationCommands;
 
+[RequireContext(ContextType.Guild)]
 [Group("birthday", "Commands relating to birthdays.")]
 public class BirthdayModule : BotModuleBase {
     public const string HelpExport = "Generates a text file with all known and available birthdays.";
     public const string HelpGet = "Gets a user's birthday.";
     public const string HelpRecentUpcoming = "Get a list of users who recently had or will have a birthday.";
     public const string HelpRemove = "Removes your birthday information from this bot.";
+
+    // Note that these methods have largely been copied to BirthdayOverrideModule. Changes here should be reflected there as needed.
 
     [Group("set", "Subcommands for setting birthday information.")]
     public class SubCmdsBirthdaySet : BotModuleBase {
@@ -38,18 +41,18 @@ public class BirthdayModule : BotModuleBase {
                 }
             }
 
-            var user = await Context.GetGuildUserConfAsync().ConfigureAwait(false);
+            var user = await ((SocketGuildUser)Context.User).GetConfigAsync().ConfigureAwait(false);
             await user.UpdateAsync(inmonth, inday, inzone ?? user.TimeZone).ConfigureAwait(false);
 
             await RespondAsync($":white_check_mark: Your birthday has been set to **{FormatDate(inmonth, inday)}**" +
-                (inzone == null ? "" : $", with time zone {inzone}") + ".");
+                (inzone == null ? "" : $", with time zone {inzone}") + ".").ConfigureAwait(false);
         }
 
         [SlashCommand("zone", HelpSetZone)]
         public async Task CmdSetZone([Summary(description: HelpOptZone)] string zone) {
-            var user = await Context.GetGuildUserConfAsync().ConfigureAwait(false);
+            var user = await ((SocketGuildUser)Context.User).GetConfigAsync().ConfigureAwait(false);
             if (!user.IsKnown) {
-                await RespondAsync(":x: You must first set your birthday to use this command.", ephemeral: true).ConfigureAwait(false);
+                await RespondAsync(":x: You do not have a birthday set.", ephemeral: true).ConfigureAwait(false);
                 return;
             }
 
@@ -67,12 +70,14 @@ public class BirthdayModule : BotModuleBase {
 
     [SlashCommand("remove", HelpRemove)]
     public async Task CmdRemove() {
-        var user = await Context.GetGuildUserConfAsync().ConfigureAwait(false);
+        var user = await ((SocketGuildUser)Context.User).GetConfigAsync().ConfigureAwait(false);
         if (user.IsKnown) {
             await user.DeleteAsync().ConfigureAwait(false);
-            await RespondAsync(":white_check_mark: Your information for this server has been removed.");
+            await RespondAsync(":white_check_mark: Your birthday in this server has been removed.")
+                .ConfigureAwait(false);
         } else {
-            await RespondAsync(":white_check_mark: This bot already does not have your birthday for this server.");
+            await RespondAsync(":white_check_mark: Your birthday is not registered.")
+                .ConfigureAwait(false);
         }
     }
 
@@ -169,15 +174,9 @@ public class BirthdayModule : BotModuleBase {
             await doOutput(output.ToString()).ConfigureAwait(false);
     }
 
+    [RequireBotModerator]
     [SlashCommand("export", HelpPfxModOnly + HelpExport)]
     public async Task CmdExport([Summary(description: "Specify whether to export the list in CSV format.")] bool asCsv = false) {
-        // For now, we're restricting this command to moderators only. This may turn into an option later.
-        if (!(await Context.GetGuildConfAsync()).IsBotModerator((SocketGuildUser)Context.User)) {
-            // Do not add detailed usage information to this error message.
-            await RespondAsync(":x: Only bot moderators may use this command.", ephemeral: true).ConfigureAwait(false);
-            return;
-        }
-
         if (!await HasMemberCacheAsync(Context.Guild)) {
             await RespondAsync(MemberCacheEmptyError).ConfigureAwait(false);
             return;
