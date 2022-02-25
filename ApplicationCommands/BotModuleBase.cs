@@ -136,20 +136,3 @@ public abstract class BotModuleBase : InteractionModuleBase<SocketInteractionCon
     protected static string FormatDate(int month, int day) => $"{day:00}-{Common.MonthNames[month]}";
     #endregion
 }
-
-internal static class Extensions {
-    /// <summary>
-    /// Retrieves the database-backed guild configuration for the executing guild.
-    /// </summary>
-    internal static async Task<GuildConfiguration> GetGuildConfAsync(this SocketInteractionContext context)
-#pragma warning disable CS8603 // Possible null reference return.
-        => await GuildConfiguration.LoadAsync(context.Guild.Id, false);
-#pragma warning restore CS8603 // Possible null reference return.
-
-    /// <summary>
-    /// Retrieves the database-backed guild user configuration for the executing user.
-    /// </summary>
-    internal static async Task<GuildUserConfiguration> GetGuildUserConfAsync(this SocketInteractionContext context)
-        => await GuildUserConfiguration.LoadAsync(context.Guild.Id, context.User.Id);
-
-}
