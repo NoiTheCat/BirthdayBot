@@ -1,6 +1,8 @@
-﻿using Discord.Interactions;
+﻿using BirthdayBot.Data;
+using Discord.Interactions;
 using NodaTime;
 using System.Collections.ObjectModel;
+using System.Diagnostics.CodeAnalysis;
 using System.Text.RegularExpressions;
 
 namespace BirthdayBot.ApplicationCommands;
@@ -15,13 +17,15 @@ public abstract class BotModuleBase : InteractionModuleBase<SocketInteractionCon
     protected const string MemberCacheEmptyError = ":warning: Please try the command again.";
     public const string AccessDeniedError = ":warning: You are not allowed to run this command.";
 
+    protected const string HelpOptPfxOptional = "Optional: ";
     protected const string HelpOptDate = "A date, including the month and day. For example, \"15 January\".";
     protected const string HelpOptZone = "A 'tzdata'-compliant time zone name. See help for more details.";
 
-#pragma warning disable CS8618
-    public DiscordSocketClient BotClient { get; set; }
-    public ShardInstance Instance { get; set; }
-#pragma warning restore CS8618
+    /// <summary>
+    /// The corresponding <see cref="ShardInstance"/> handling the client where the command originated from.
+    /// </summary>
+    [NotNull]
+    public ShardInstance? Shard { get; set; }
 
     protected static IReadOnlyDictionary<string, string> TzNameMap { get; }
 
@@ -125,5 +129,27 @@ public abstract class BotModuleBase : InteractionModuleBase<SocketInteractionCon
             _ => throw new FormatException($":x: Can't determine month name `{input}`. Check your spelling and try again."),
         };
     }
+
+    /// <summary>
+    /// Returns a string representing a birthday in a consistent format.
+    /// </summary>
+    protected static string FormatDate(int month, int day) => $"{day:00}-{Common.MonthNames[month]}";
     #endregion
+}
+
+internal static class Extensions {
+    /// <summary>
+    /// Retrieves the database-backed guild configuration for the executing guild.
+    /// </summary>
+    internal static async Task<GuildConfiguration> GetGuildConfAsync(this SocketInteractionContext context)
+#pragma warning disable CS8603 // Possible null reference return.
+        => await GuildConfiguration.LoadAsync(context.Guild.Id, false);
+#pragma warning restore CS8603 // Possible null reference return.
+
+    /// <summary>
+    /// Retrieves the database-backed guild user configuration for the executing user.
+    /// </summary>
+    internal static async Task<GuildUserConfiguration> GetGuildUserConfAsync(this SocketInteractionContext context)
+        => await GuildUserConfiguration.LoadAsync(context.Guild.Id, context.User.Id);
+
 }

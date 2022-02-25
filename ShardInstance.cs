@@ -31,7 +31,6 @@ public class ShardInstance : IDisposable {
     internal Configuration Config => _manager.Config;
 
     public const string InternalError = ":x: An unknown error occurred. If it persists, please notify the bot owner.";
-    public const string UnknownCommandError = "Oops, that command isn't supposed to be there... Please try something else.";
 
     /// <summary>
     /// Prepares and configures the shard instances, but does not yet start its connection.
@@ -47,7 +46,6 @@ public class ShardInstance : IDisposable {
         DiscordClient.MessageReceived += Client_MessageReceived;
 
         _interactionService = _services.GetRequiredService<InteractionService>();
-        _interactionService.AddModulesAsync(Assembly.GetExecutingAssembly(), null);
         DiscordClient.InteractionCreated += DiscordClient_InteractionCreated;
         _interactionService.SlashCommandExecuted += InteractionService_SlashCommandExecuted;
 
@@ -59,6 +57,7 @@ public class ShardInstance : IDisposable {
     /// Starts up this shard's connection to Discord and background task handling associated with it.
     /// </summary>
     public async Task StartAsync() {
+        await _interactionService.AddModulesAsync(Assembly.GetExecutingAssembly(), _services).ConfigureAwait(false);
         await DiscordClient.LoginAsync(TokenType.Bot, Config.BotToken).ConfigureAwait(false);
         await DiscordClient.StartAsync().ConfigureAwait(false);
     }
@@ -119,7 +118,7 @@ public class ShardInstance : IDisposable {
 
 #if !DEBUG
         // Update slash/interaction commands
-        await _interactionService.RegisterCommandsGloballyAsync(true).ConfigureAwait(false);
+        if (ShardId == 0) await _interactionService.RegisterCommandsGloballyAsync(true).ConfigureAwait(false);
 #else
         // Debug: Register our commands locally instead, in each guild we're in
         foreach (var g in DiscordClient.Guilds) {
@@ -169,17 +168,40 @@ public class ShardInstance : IDisposable {
         }
     }
 
-    private async Task InteractionService_SlashCommandExecuted(SlashCommandInfo arg1, IInteractionContext arg2, IResult arg3) {
-        if (arg3.IsSuccess) return;
-        Log("Interaction error", Enum.GetName(typeof(InteractionCommandError), arg3.Error) + " " + arg3.ErrorReason);
+    private Task InteractionService_SlashCommandExecuted(SlashCommandInfo arg1, IInteractionContext arg2, IResult arg3) {
+        // TODO extract command and subcommands to log here
+        Log("Interaction", $"/{arg1.Name} executed by {arg2.Guild.Name}!{arg2.User}.");
+        if (!arg3.IsSuccess) {
+            Log("Interaction", Enum.GetName(typeof(InteractionCommandError), arg3.Error) + ": " + arg3.ErrorReason);
+        }
+
         // TODO finish this up
+        return Task.CompletedTask;
     }
     
     private async Task DiscordClient_InteractionCreated(SocketInteraction arg) {
-        // TODO this is straight from the example - look it over
+        // TODO verify this whole thing - it's a hastily done mash-up of example code and my old code
+        var context = new SocketInteractionContext(DiscordClient, arg);
+
+        // Specific reply for DM messages
+        if (context.Channel is not SocketGuildChannel) {
+            Log("Interaction", $"DM interaction. User ID {context.User.Id}, {context.User}");
+            await arg.RespondAsync("DMs are not supported by this bot.").ConfigureAwait(false);
+            return;
+        }
+
+        // Blocklist/moderated check
+        var gconf = await GuildConfiguration.LoadAsync(context.Guild.Id, false);
+        if (!gconf!.IsBotModerator((SocketGuildUser)arg.User)) // Except if moderator
+        {
+            if (await gconf.IsUserBlockedAsync(arg.User.Id)) {
+                Log("Interaction", $"Blocking interaction per guild policy. User ID {context.User.Id}, {context.User}");
+                await arg.RespondAsync(ApplicationCommands.BotModuleBase.AccessDeniedError, ephemeral: true).ConfigureAwait(false);
+                return;
+            }
+        }
+
         try {
-            // Create an execution context that matches the generic type parameter of your InteractionModuleBase<T> modules
-            var context = new SocketInteractionContext(DiscordClient, arg);
             await _interactionService.ExecuteCommandAsync(context, _services);
         } catch (Exception ex) {
             Console.WriteLine(ex);
