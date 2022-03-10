@@ -6,13 +6,18 @@ namespace BirthdayBot.ApplicationCommands;
 
 [RequireContext(ContextType.Guild)]
 [RequireBotModerator]
-[Group("config", "Configure basic settings for the bot.")]
+[Group("config", HelpCmdConfig)]
 public class ConfigModule : BotModuleBase {
+    public const string HelpCmdConfig = "Configure basic settings for the bot.";
+    public const string HelpCmdAnnounce = "Settings regarding birthday announcements.";
+    public const string HelpCmdRole = "Settings for roles used by this bot.";
+    public const string HelpCmdCheck = "Test the bot's current configuration and show the results.";
+
     const string HelpPofxBlankUnset = " Leave blank to unset.";
     const string HelpOptChannel = "The corresponding channel to use.";
     const string HelpOptRole = "The corresponding role to use.";
 
-    [Group("announce", HelpPfxModOnly + "Configure settings regarding birthday announcements.")]
+    [Group("announce", HelpPfxModOnly + HelpCmdAnnounce)]
     public class SubCmdsConfigAnnounce : BotModuleBase {
         [SlashCommand("help", "Show information regarding announcement messages.")]
         public async Task CmdAnnounceHelp() {
@@ -33,7 +38,6 @@ public class ConfigModule : BotModuleBase {
         [SlashCommand("set-message", HelpPfxModOnly + "Modify the announcement message.")]
         public async Task CmdSetMessage() {
             // TODO fully implement this
-            // idea: ephemeral message prints on command use, then a modal appears. though maybe this isn't really possible...
             await RespondAsync("Sorry, changing the announcement message via slash commands is not yet available. " +
                 "Please use the corresponding text command.", ephemeral: true);
         }
@@ -47,7 +51,7 @@ public class ConfigModule : BotModuleBase {
         }
     }
 
-    [Group("role", HelpPfxModOnly + "Configure settings regarding roles used by this bot.")]
+    [Group("role", HelpPfxModOnly + HelpCmdRole)]
     public class SubCmdsConfigRole : BotModuleBase {
         [SlashCommand("set-birthday-role", HelpPfxModOnly + "Set the role given to users having a birthday.")]
         public async Task CmdSetBRole([Summary(description: HelpOptRole)] SocketRole role) {
@@ -67,7 +71,7 @@ public class ConfigModule : BotModuleBase {
         }
     }
 
-    [SlashCommand("check", HelpPfxModOnly + "Test the bot's current configuration and show the results.")]
+    [SlashCommand("check", HelpPfxModOnly + HelpCmdCheck)]
     public async Task CmdCheck() {
         static string DoTestFor(string label, Func<bool> test) => $"{label}: { (test() ? ":white_check_mark: Yes" : ":x: No") }";
         var result = new StringBuilder();

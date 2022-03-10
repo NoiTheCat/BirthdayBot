@@ -5,8 +5,9 @@ namespace BirthdayBot.ApplicationCommands;
 
 [RequireContext(ContextType.Guild)]
 [RequireBotModerator]
-[Group("override", "Run certain commands on behalf of other users.")]
+[Group("override", HelpCmdOverride)]
 public class BirthdayOverrideModule : BotModuleBase {
+    public const string HelpCmdOverride = "Commands to set options for other users.";
     const string HelpOptOvTarget = "The user whose data to modify.";
 
     // Note that these methods have largely been copied from BirthdayModule. Changes there should be reflected here as needed.

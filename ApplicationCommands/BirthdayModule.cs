@@ -5,23 +5,23 @@ using System.Text;
 namespace BirthdayBot.ApplicationCommands;
 
 [RequireContext(ContextType.Guild)]
-[Group("birthday", "Commands relating to birthdays.")]
+[Group("birthday", HelpCmdBirthday)]
 public class BirthdayModule : BotModuleBase {
-    public const string HelpExport = "Generates a text file with all known and available birthdays.";
-    public const string HelpGet = "Gets a user's birthday.";
-    public const string HelpRecentUpcoming = "Get a list of users who recently had or will have a birthday.";
-    public const string HelpRemove = "Removes your birthday information from this bot.";
+    public const string HelpCmdBirthday = "Commands relating to birthdays.";
+    public const string HelpCmdSetDate = "Sets or updates your birthday.";
+    public const string HelpCmdSetZone = "Sets or updates your time zone if your birthday is already set.";
+    public const string HelpCmdRemove = "Removes your birthday information from this bot.";
+    public const string HelpCmdGet = "Gets a user's birthday.";
+    public const string HelpCmdNearest = "Get a list of users who recently had or will have a birthday.";
+    public const string HelpCmdExport = "Generates a text file with all known and available birthdays.";
 
     // Note that these methods have largely been copied to BirthdayOverrideModule. Changes here should be reflected there as needed.
 
     [Group("set", "Subcommands for setting birthday information.")]
     public class SubCmdsBirthdaySet : BotModuleBase {
-        public const string HelpSetBday = "Sets or updates your birthday.";
-        public const string HelpSetZone = "Sets or updates your time zone, when your birthday is already set.";
-        
-        [SlashCommand("date", HelpSetBday)]
+        [SlashCommand("date", HelpCmdSetDate)]
         public async Task CmdSetBday([Summary(description: HelpOptDate)] string date,
-                                     [Summary(description: HelpOptPfxOptional + HelpOptZone)] string? zone = null) {
+                                     [Summary(description: HelpOptZone)] string? zone = null) {
             int inmonth, inday;
             try {
                 (inmonth, inday) = ParseDate(date);
@@ -48,7 +48,7 @@ public class BirthdayModule : BotModuleBase {
                 (inzone == null ? "" : $", with time zone {inzone}") + ".").ConfigureAwait(false);
         }
 
-        [SlashCommand("zone", HelpSetZone)]
+        [SlashCommand("timezone", HelpCmdSetZone)]
         public async Task CmdSetZone([Summary(description: HelpOptZone)] string zone) {
             var user = await ((SocketGuildUser)Context.User).GetConfigAsync().ConfigureAwait(false);
             if (!user.IsKnown) {
@@ -68,7 +68,7 @@ public class BirthdayModule : BotModuleBase {
         }
     }
 
-    [SlashCommand("remove", HelpRemove)]
+    [SlashCommand("remove", HelpCmdRemove)]
     public async Task CmdRemove() {
         var user = await ((SocketGuildUser)Context.User).GetConfigAsync().ConfigureAwait(false);
         if (user.IsKnown) {
@@ -100,7 +100,7 @@ public class BirthdayModule : BotModuleBase {
     // "Recent and upcoming birthdays"
     // The 'recent' bit removes time zone ambiguity and spares us from extra time zone processing here
     // TODO stop being lazy
-    [SlashCommand("show-nearest", HelpRecentUpcoming)]
+    [SlashCommand("show-nearest", HelpCmdNearest)]
     public async Task CmdShowNearest() {
         if (!await HasMemberCacheAsync(Context.Guild).ConfigureAwait(false)) {
             await RespondAsync(MemberCacheEmptyError, ephemeral: true);
@@ -175,7 +175,7 @@ public class BirthdayModule : BotModuleBase {
     }
 
     [RequireBotModerator]
-    [SlashCommand("export", HelpPfxModOnly + HelpExport)]
+    [SlashCommand("export", HelpPfxModOnly + HelpCmdGet)]
     public async Task CmdExport([Summary(description: "Specify whether to export the list in CSV format.")] bool asCsv = false) {
         if (!await HasMemberCacheAsync(Context.Guild)) {
             await RespondAsync(MemberCacheEmptyError).ConfigureAwait(false);
@@ -229,7 +229,7 @@ public class BirthdayModule : BotModuleBase {
         return result;
     }
 
-    private Stream ListExportNormal(SocketGuild guild, IEnumerable<ListItem> list) {
+    private static Stream ListExportNormal(SocketGuild guild, IEnumerable<ListItem> list) {
         // Output: "● Mon-dd: (user ID) Username [ - Nickname: (nickname)]"
         var result = new MemoryStream();
         var writer = new StreamWriter(result, Encoding.UTF8);
@@ -250,7 +250,7 @@ public class BirthdayModule : BotModuleBase {
         return result;
     }
 
-    private Stream ListExportCsv(SocketGuild guild, IEnumerable<ListItem> list) {
+    private static Stream ListExportCsv(SocketGuild guild, IEnumerable<ListItem> list) {
         // Output: User ID, Username, Nickname, Month-Day, Month, Day
         var result = new MemoryStream();
         var writer = new StreamWriter(result, Encoding.UTF8);

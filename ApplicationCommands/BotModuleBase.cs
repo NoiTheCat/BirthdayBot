@@ -17,7 +17,6 @@ public abstract class BotModuleBase : InteractionModuleBase<SocketInteractionCon
     protected const string MemberCacheEmptyError = ":warning: Please try the command again.";
     public const string AccessDeniedError = ":warning: You are not allowed to run this command.";
 
-    protected const string HelpOptPfxOptional = "Optional: ";
     protected const string HelpOptDate = "A date, including the month and day. For example, \"15 January\".";
     protected const string HelpOptZone = "A 'tzdata'-compliant time zone name. See help for more details.";
 
