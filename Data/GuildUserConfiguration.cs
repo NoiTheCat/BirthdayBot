@@ -1,9 +1,6 @@
 ﻿using Npgsql;
 using NpgsqlTypes;
-using System;
-using System.Collections.Generic;
 using System.Data.Common;
-using System.Threading.Tasks;
 
 namespace BirthdayBot.Data;
 
@@ -23,7 +20,7 @@ class GuildUserConfiguration {
     /// </summary>
     public int BirthDay { get; private set; }
 
-    public string TimeZone { get; private set; }
+    public string? TimeZone { get; private set; }
     public bool IsKnown { get { return BirthMonth != 0 && BirthDay != 0; } }
 
     /// <summary>
@@ -47,7 +44,7 @@ class GuildUserConfiguration {
     /// <summary>
     /// Updates user with given information.
     /// </summary>
-    public async Task UpdateAsync(int month, int day, string newtz) {
+    public async Task UpdateAsync(int month, int day, string? newtz) {
         using (var db = await Database.OpenConnectionAsync().ConfigureAwait(false)) {
             using var c = db.CreateCommand();
             c.CommandText = $"insert into {BackingTable} "
@@ -109,6 +106,7 @@ class GuildUserConfiguration {
     /// <summary>
     /// Attempts to retrieve a user's configuration. Returns a new, updateable instance if none is found.
     /// </summary>
+    [Obsolete("Migrate to using extension methods to retrieve necessary data instead.", false)]
     public static async Task<GuildUserConfiguration> LoadAsync(ulong guildId, ulong userId) {
         using var db = await Database.OpenConnectionAsync().ConfigureAwait(false);
         using var c = db.CreateCommand();
@@ -125,6 +123,7 @@ class GuildUserConfiguration {
     /// <summary>
     /// Gets all known user configuration records associated with the specified guild.
     /// </summary>
+    [Obsolete("Migrate to using extension methods to retrieve necessary data instead.", false)]
     public static async Task<IEnumerable<GuildUserConfiguration>> LoadAllAsync(ulong guildId) {
         using var db = await Database.OpenConnectionAsync().ConfigureAwait(false);
         using var c = db.CreateCommand();

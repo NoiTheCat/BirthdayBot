@@ -1,50 +1,65 @@
-﻿using BirthdayBot.BackgroundServices;
+﻿using BirthdayBot.ApplicationCommands;
+using BirthdayBot.BackgroundServices;
 using BirthdayBot.Data;
+using Discord.Interactions;
 using Discord.Net;
-using static BirthdayBot.UserInterface.CommandsCommon;
+using Microsoft.Extensions.DependencyInjection;
+using System.Reflection;
+using static BirthdayBot.TextCommands.CommandsCommon;
 
 namespace BirthdayBot;
 
 /// <summary>
 /// Single shard instance for Birthday Bot. This shard independently handles all input and output to Discord.
 /// </summary>
-class ShardInstance : IDisposable {
+public sealed class ShardInstance : IDisposable {
     private readonly ShardManager _manager;
     private readonly ShardBackgroundWorker _background;
-    private readonly Dictionary<string, CommandHandler> _dispatchCommands;
+    private readonly Dictionary<string, CommandHandler> _textDispatch;
+    private readonly InteractionService _interactionService;
+    private readonly IServiceProvider _services;
 
-    public DiscordSocketClient DiscordClient { get; }
+    internal DiscordSocketClient DiscordClient { get; }
     public int ShardId => DiscordClient.ShardId;
     /// <summary>
     /// Returns a value showing the time in which the last background run successfully completed.
     /// </summary>
-    public DateTimeOffset LastBackgroundRun => _background.LastBackgroundRun;
+    internal DateTimeOffset LastBackgroundRun => _background.LastBackgroundRun;
     /// <summary>
     /// Returns the name of the background service currently in execution.
     /// </summary>
-    public string? CurrentExecutingService => _background.CurrentExecutingService;
-    public Configuration Config => _manager.Config;
+    internal string? CurrentExecutingService => _background.CurrentExecutingService;
+    internal Configuration Config => _manager.Config;
+
+    public const string InternalError = ":x: An unknown error occurred. If it persists, please notify the bot owner.";
 
     /// <summary>
     /// Prepares and configures the shard instances, but does not yet start its connection.
     /// </summary>
-    public ShardInstance(ShardManager manager, DiscordSocketClient client, Dictionary<string, CommandHandler> commands) {
+    internal ShardInstance(ShardManager manager, IServiceProvider services, Dictionary<string, CommandHandler> textCmds) {
         _manager = manager;
-        _dispatchCommands = commands;
+        _services = services;
+        _textDispatch = textCmds;
 
-        DiscordClient = client;
+        DiscordClient = _services.GetRequiredService<DiscordSocketClient>();
         DiscordClient.Log += Client_Log;
         DiscordClient.Ready += Client_Ready;
         DiscordClient.MessageReceived += Client_MessageReceived;
 
+        _interactionService = _services.GetRequiredService<InteractionService>();
+        DiscordClient.InteractionCreated += DiscordClient_InteractionCreated;
+        _interactionService.SlashCommandExecuted += InteractionService_SlashCommandExecuted;
+
         // Background task constructor begins background processing immediately.
         _background = new ShardBackgroundWorker(this);
+        Log(nameof(ShardInstance), "Instance created.");
     }
 
     /// <summary>
     /// Starts up this shard's connection to Discord and background task handling associated with it.
     /// </summary>
     public async Task StartAsync() {
+        await _interactionService.AddModulesAsync(Assembly.GetExecutingAssembly(), _services).ConfigureAwait(false);
         await DiscordClient.LoginAsync(TokenType.Bot, Config.BotToken).ConfigureAwait(false);
         await DiscordClient.StartAsync().ConfigureAwait(false);
     }
@@ -53,20 +68,15 @@ class ShardInstance : IDisposable {
     /// Does all necessary steps to stop this shard, including canceling background tasks and disconnecting.
     /// </summary>
     public void Dispose() {
-        DiscordClient.Log -= Client_Log;
-        DiscordClient.Ready -= Client_Ready;
-        DiscordClient.MessageReceived -= Client_MessageReceived;
-
         _background.Dispose();
         DiscordClient.LogoutAsync().Wait(5000);
-        DiscordClient.StopAsync().Wait(5000);
         DiscordClient.Dispose();
-        Log(nameof(ShardInstance), "Shard instance disposed.");
+        _interactionService.Dispose();
+        Log(nameof(ShardInstance), "Instance disposed.");
     }
 
     public void Log(string source, string message) => Program.Log($"Shard {ShardId:00}] [{source}", message);
 
-    #region Event handling
     private Task Client_Log(LogMessage arg) {
         // Suppress certain messages
         if (arg.Message != null) {
@@ -94,9 +104,27 @@ class ShardInstance : IDisposable {
     }
 
     /// <summary>
-    /// Sets the shard's status to display the help command.
+    /// Registers all available slash commands.
+    /// Additionally, sets the shard's status to display the help command.
     /// </summary>
-    private async Task Client_Ready() => await DiscordClient.SetGameAsync(CommandPrefix + "help");
+    private async Task Client_Ready() {
+        // TODO get rid of this eventually? or change it to something fun...
+        await DiscordClient.SetGameAsync("/help");
+
+#if !DEBUG
+        // Update slash/interaction commands
+        if (ShardId == 0) {
+            await _interactionService.RegisterCommandsGloballyAsync(true).ConfigureAwait(false);
+            Log(nameof(ShardInstance), "Updated global command registration.");
+        }
+#else
+        // Debug: Register our commands locally instead, in each guild we're in
+        foreach (var g in DiscordClient.Guilds) {
+            await _interactionService.RegisterCommandsToGuildAsync(g.Id, true).ConfigureAwait(false);
+            Log(nameof(ShardInstance), $"Updated DEBUG command registration in guild {g.Id}.");
+        }
+#endif
+    }
 
     /// <summary>
     /// Determines if the incoming message is an incoming command, and dispatches to the appropriate handler if necessary.
@@ -113,7 +141,7 @@ class ShardInstance : IDisposable {
         var csplit = msg.Content.Split(" ", 3, StringSplitOptions.RemoveEmptyEntries);
         if (csplit.Length > 0 && csplit[0].StartsWith(CommandPrefix, StringComparison.OrdinalIgnoreCase)) {
             // Determine if it's something we're listening for.
-            if (!_dispatchCommands.TryGetValue(csplit[0][CommandPrefix.Length..], out CommandHandler? command)) return;
+            if (!_textDispatch.TryGetValue(csplit[0][CommandPrefix.Length..], out CommandHandler? command)) return;
 
             // Load guild information here
             var gconf = await GuildConfiguration.LoadAsync(channel.Guild.Id, false);
@@ -132,10 +160,65 @@ class ShardInstance : IDisposable {
                 if (ex is HttpException) return;
                 Log("Command", ex.ToString());
                 try {
-                    channel.SendMessageAsync(UserInterface.CommandsCommon.InternalError).Wait();
+                    channel.SendMessageAsync(InternalError).Wait();
                 } catch (HttpException) { } // Fail silently
             }
         }
     }
-    #endregion
+
+    // Slash command preparation and invocation
+    private async Task DiscordClient_InteractionCreated(SocketInteraction arg) {
+        var context = new SocketInteractionContext(DiscordClient, arg);
+
+        // Blocklist/moderated check
+        // TODO convert to precondition
+        var gconf = await GuildConfiguration.LoadAsync(context.Guild.Id, false);
+        if (context.Channel is SocketGuildChannel) { // Check only if in a guild context
+            if (!gconf!.IsBotModerator((SocketGuildUser)arg.User)) { // Moderators exempted from this check
+                if (await gconf.IsUserBlockedAsync(arg.User.Id)) {
+                    Log("Interaction", $"Interaction blocked per guild policy for {context.Guild}!{context.User}");
+                    await arg.RespondAsync(BotModuleBase.AccessDeniedError, ephemeral: true).ConfigureAwait(false);
+                    return;
+                }
+            }
+        }
+
+        try {
+            await _interactionService.ExecuteCommandAsync(context, _services).ConfigureAwait(false);
+        } catch (Exception e) {
+            Log(nameof(DiscordClient_InteractionCreated), $"Unhandled exception. {e}");
+            // TODO when implementing proper error logging, see here
+            if (arg.Type == InteractionType.ApplicationCommand)
+                if (arg.HasResponded) await arg.ModifyOriginalResponseAsync(prop => prop.Content = ":warning: An unknown error occured.");
+        }
+    }
+
+    // Slash command logging and failed execution handling
+    private async Task InteractionService_SlashCommandExecuted(SlashCommandInfo info, IInteractionContext context, IResult result) {
+        string sender;
+        if (context.Guild != null) {
+            sender = $"{context.Guild}!{context.User}";
+        } else {
+            sender = $"{context.User} in non-guild context";
+        }
+        var logresult = $"{(result.IsSuccess ? "Success" : "Fail")}: `/{info}` by {sender}.";
+
+        if (result.Error != null) {
+            // Additional log information with error detail
+            logresult += Enum.GetName(typeof(InteractionCommandError), result.Error) + ": " + result.ErrorReason;
+
+            // Specific responses to errors, if necessary
+            if (result.Error == InteractionCommandError.UnmetPrecondition && result.ErrorReason == RequireBotModeratorAttribute.FailMsg) {
+                await context.Interaction.RespondAsync(RequireBotModeratorAttribute.Reply, ephemeral: true).ConfigureAwait(false);
+            } else {
+                // Generic error response
+                var ia = context.Interaction;
+                if (ia.HasResponded) await ia.ModifyOriginalResponseAsync(p => p.Content = InternalError).ConfigureAwait(false);
+                else await ia.RespondAsync(InternalError).ConfigureAwait(false);
+                // TODO when implementing proper error logging, see here
+            }
+        }
+
+        Log("Command", logresult);
+    }
 }

@@ -1,9 +1,11 @@
 ﻿global using Discord;
 global using Discord.WebSocket;
 using BirthdayBot.BackgroundServices;
-using BirthdayBot.UserInterface;
+using BirthdayBot.TextCommands;
+using Discord.Interactions;
+using Microsoft.Extensions.DependencyInjection;
 using System.Text;
-using static BirthdayBot.UserInterface.CommandsCommon;
+using static BirthdayBot.TextCommands.CommandsCommon;
 
 namespace BirthdayBot;
 
@@ -43,11 +45,7 @@ class ShardManager : IDisposable {
     /// </summary>
     private readonly Dictionary<int, ShardInstance?> _shards;
 
-    private readonly Dictionary<string, CommandHandler> _dispatchCommands;
-    private readonly UserCommands _cmdsUser;
-    private readonly ListingCommands _cmdsListing;
-    private readonly HelpInfoCommands _cmdsHelp;
-    private readonly ManagerCommands _cmdsMods;
+    private readonly Dictionary<string, CommandHandler> _textCommands;
 
     private readonly Task _statusTask;
     private readonly CancellationTokenSource _mainCancel;
@@ -62,15 +60,15 @@ class ShardManager : IDisposable {
         Config = cfg;
 
         // Command handler setup
-        _dispatchCommands = new Dictionary<string, CommandHandler>(StringComparer.OrdinalIgnoreCase);
-        _cmdsUser = new UserCommands(cfg);
-        foreach (var item in _cmdsUser.Commands) _dispatchCommands.Add(item.Item1, item.Item2);
-        _cmdsListing = new ListingCommands(cfg);
-        foreach (var item in _cmdsListing.Commands) _dispatchCommands.Add(item.Item1, item.Item2);
-        _cmdsHelp = new HelpInfoCommands(cfg);
-        foreach (var item in _cmdsHelp.Commands) _dispatchCommands.Add(item.Item1, item.Item2);
-        _cmdsMods = new ManagerCommands(cfg, _cmdsUser.Commands);
-        foreach (var item in _cmdsMods.Commands) _dispatchCommands.Add(item.Item1, item.Item2);
+        _textCommands = new Dictionary<string, CommandHandler>(StringComparer.OrdinalIgnoreCase);
+        var cmdsUser = new UserCommands(cfg);
+        foreach (var item in cmdsUser.Commands) _textCommands.Add(item.Item1, item.Item2);
+        var cmdsListing = new ListingCommands(cfg);
+        foreach (var item in cmdsListing.Commands) _textCommands.Add(item.Item1, item.Item2);
+        var cmdsHelp = new TextCommands.HelpInfoCommands(cfg);
+        foreach (var item in cmdsHelp.Commands) _textCommands.Add(item.Item1, item.Item2);
+        var cmdsMods = new ManagerCommands(cfg, cmdsUser.Commands);
+        foreach (var item in cmdsMods.Commands) _textCommands.Add(item.Item1, item.Item2);
 
         // Allocate shards based on configuration
         _shards = new Dictionary<int, ShardInstance?>();
@@ -118,11 +116,23 @@ class ShardManager : IDisposable {
             DefaultRetryMode = RetryMode.AlwaysRetry,
             GatewayIntents = GatewayIntents.Guilds | GatewayIntents.GuildMembers | GatewayIntents.GuildMessages
         };
-        var newClient = new DiscordSocketClient(clientConf);
-        newInstance = new ShardInstance(this, newClient, _dispatchCommands);
+        var services = new ServiceCollection()
+            .AddSingleton(s => new ShardInstance(this, s, _textCommands))
+            .AddSingleton(s => new DiscordSocketClient(clientConf))
+            .AddSingleton(s => new InteractionService(s.GetRequiredService<DiscordSocketClient>()))
+            .BuildServiceProvider();
+        newInstance = services.GetRequiredService<ShardInstance>();
         await newInstance.StartAsync().ConfigureAwait(false);
 
         return newInstance;
+    }
+
+    public int? GetShardIdFor(ulong guildId) {
+        foreach (var sh in _shards.Values) {
+            if (sh == null) continue;
+            if (sh.DiscordClient.GetGuild(guildId) != null) return sh.ShardId;
+        }
+        return null;
     }
 
     #region Status checking and display

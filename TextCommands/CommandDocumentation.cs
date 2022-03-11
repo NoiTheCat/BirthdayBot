@@ -1,6 +1,6 @@
 ﻿using System.Text;
 
-namespace BirthdayBot.UserInterface;
+namespace BirthdayBot.TextCommands;
 
 internal class CommandDocumentation {
     public string[] Commands { get; }

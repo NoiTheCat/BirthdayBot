@@ -125,6 +125,7 @@ class GuildConfiguration {
     /// Checks if the given user can be considered a bot moderator.
     /// Checks for either the Manage Guild permission or if the user is within a predetermined role.
     /// </summary>
+    [Obsolete("Usage should be phased out when text commands are removed. Use PreconditionAttribute from now on.", error: false)]
     public bool IsBotModerator(SocketGuildUser user)
         => user.GuildPermissions.ManageGuild || (ModeratorRole.HasValue && user.Roles.Any(r => r.Id == ModeratorRole.Value));
 
@@ -165,6 +166,7 @@ class GuildConfiguration {
     /// If true, this method shall not create a new entry and will return null if the guild does
     /// not exist in the database.
     /// </param>
+    [Obsolete("Begin using extension method to retrieve necessary data instead.", false)]
     public static async Task<GuildConfiguration?> LoadAsync(ulong guildId, bool nullIfUnknown) {
         // TODO nullable static analysis problem: how to indicate non-null return when nullIfUnknown parameter is true?
         using (var db = await Database.OpenConnectionAsync().ConfigureAwait(false)) {
