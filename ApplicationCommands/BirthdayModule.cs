@@ -175,7 +175,7 @@ public class BirthdayModule : BotModuleBase {
     }
 
     [RequireBotModerator]
-    [SlashCommand("export", HelpPfxModOnly + HelpCmdGet)]
+    [SlashCommand("export", HelpPfxModOnly + HelpCmdExport)]
     public async Task CmdExport([Summary(description: "Specify whether to export the list in CSV format.")] bool asCsv = false) {
         if (!await HasMemberCacheAsync(Context.Guild)) {
             await RespondAsync(MemberCacheEmptyError).ConfigureAwait(false);
