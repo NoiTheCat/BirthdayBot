@@ -192,7 +192,7 @@ internal class ListingCommands : CommandsCommon {
 
         if (resultCount == 0)
             await reqChannel.SendMessageAsync(
-                "There are no recent or upcoming birthdays (within the last 7 days and/or next 21 days).")
+                "There are no recent or upcoming birthdays (within the last 7 days and/or next 14 days).")
                 .ConfigureAwait(false);
         else
             await reqChannel.SendMessageAsync(output.ToString()).ConfigureAwait(false);
