@@ -102,21 +102,20 @@ public class ConfigModule : BotModuleBase {
     [Group("block", HelpCmdBlocking)]
     public class SubCmdsConfigBlocking : BotModuleBase {
         [SlashCommand("add-block", HelpPfxModOnly + "Add a user to the block list.")]
-        public Task CmdAddBlock([Summary(description: "The user to block.")] SocketGuildUser user) => DoBlocklist(user.Id, true);
+        public Task CmdAddBlock([Summary(description: "The user to block.")] SocketGuildUser user) => UpdateBlockAsync(user, true);
 
         [SlashCommand("remove-block", HelpPfxModOnly + "Remove a user from the block list.")]
-        public Task CmdDelBlock([Summary(description: "The user to unblock.")] SocketGuildUser user) => DoBlocklist(user.Id, false);
+        public Task CmdDelBlock([Summary(description: "The user to unblock.")] SocketGuildUser user) => UpdateBlockAsync(user, false);
 
-        private async Task DoBlocklist(ulong userId, bool setting) {
+        private async Task UpdateBlockAsync(SocketGuildUser user, bool setting) {
             var gconf = await Context.Guild.GetConfigAsync().ConfigureAwait(false);
-            bool already = setting == await gconf.IsUserBlockedAsync(userId).ConfigureAwait(false);
+            bool already = setting == await gconf.IsUserBlockedAsync(user.Id).ConfigureAwait(false);
             if (already) {
-                // TODO bug: this may sometimes be misleading when in moderated mode
-                await ReplyAsync($":white_check_mark: User is already {(setting ? "" : "not ")}blocked.").ConfigureAwait(false);
+                await RespondAsync($":white_check_mark: User is already {(setting ? "" : "not ")}blocked.").ConfigureAwait(false);
             } else {
-                if (setting) await gconf.BlockUserAsync(userId).ConfigureAwait(false);
-                else await gconf.UnblockUserAsync(userId).ConfigureAwait(false);
-                await ReplyAsync($":white_check_mark: User has been {(setting ? "" : "un")}blocked.");
+                if (setting) await gconf.BlockUserAsync(user.Id).ConfigureAwait(false);
+                else await gconf.UnblockUserAsync(user.Id).ConfigureAwait(false);
+                await RespondAsync($":white_check_mark: {Common.FormatName(user, false)} has been {(setting ? "" : "un")}blocked.");
             }
         }
 
@@ -208,7 +207,7 @@ public class ConfigModule : BotModuleBase {
             if (conf.AnnounceMessages.Item2 != null) {
                 em = em.AddField("Multi", prepareAnnouncePreview(conf.AnnounceMessages.Item2));
             }
-            await channel.SendMessageAsync(embed: em.Build()).ConfigureAwait(false);
+            await ReplyAsync(embed: em.Build()).ConfigureAwait(false);
         }
     }
 

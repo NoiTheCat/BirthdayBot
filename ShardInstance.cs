@@ -1,4 +1,5 @@
-﻿using BirthdayBot.BackgroundServices;
+﻿using BirthdayBot.ApplicationCommands;
+using BirthdayBot.BackgroundServices;
 using BirthdayBot.Data;
 using Discord.Interactions;
 using Discord.Net;
@@ -11,7 +12,7 @@ namespace BirthdayBot;
 /// <summary>
 /// Single shard instance for Birthday Bot. This shard independently handles all input and output to Discord.
 /// </summary>
-public class ShardInstance : IDisposable {
+public sealed class ShardInstance : IDisposable {
     private readonly ShardManager _manager;
     private readonly ShardBackgroundWorker _background;
     private readonly Dictionary<string, CommandHandler> _textDispatch;
@@ -51,6 +52,7 @@ public class ShardInstance : IDisposable {
 
         // Background task constructor begins background processing immediately.
         _background = new ShardBackgroundWorker(this);
+        Log(nameof(ShardInstance), "Instance created.");
     }
 
     /// <summary>
@@ -66,19 +68,11 @@ public class ShardInstance : IDisposable {
     /// Does all necessary steps to stop this shard, including canceling background tasks and disconnecting.
     /// </summary>
     public void Dispose() {
-        // TODO are these necessary?
-        _interactionService.SlashCommandExecuted -= InteractionService_SlashCommandExecuted;
-        DiscordClient.InteractionCreated -= DiscordClient_InteractionCreated;
-        DiscordClient.Log -= Client_Log;
-        DiscordClient.Ready -= Client_Ready;
-        DiscordClient.MessageReceived -= Client_MessageReceived;
-
-        _interactionService.Dispose();
         _background.Dispose();
         DiscordClient.LogoutAsync().Wait(5000);
-        DiscordClient.StopAsync().Wait(5000);
         DiscordClient.Dispose();
-        Log(nameof(ShardInstance), "Shard instance disposed.");
+        _interactionService.Dispose();
+        Log(nameof(ShardInstance), "Instance disposed.");
     }
 
     public void Log(string source, string message) => Program.Log($"Shard {ShardId:00}] [{source}", message);
@@ -114,16 +108,20 @@ public class ShardInstance : IDisposable {
     /// Additionally, sets the shard's status to display the help command.
     /// </summary>
     private async Task Client_Ready() {
-        await DiscordClient.SetGameAsync(CommandPrefix + "help");
+        // TODO get rid of this eventually? or change it to something fun...
+        await DiscordClient.SetGameAsync("/help");
 
 #if !DEBUG
         // Update slash/interaction commands
-        if (ShardId == 0) await _interactionService.RegisterCommandsGloballyAsync(true).ConfigureAwait(false);
+        if (ShardId == 0) {
+            await _interactionService.RegisterCommandsGloballyAsync(true).ConfigureAwait(false);
+            Log(nameof(ShardInstance), "Updated global command registration.");
+        }
 #else
         // Debug: Register our commands locally instead, in each guild we're in
         foreach (var g in DiscordClient.Guilds) {
             await _interactionService.RegisterCommandsToGuildAsync(g.Id, true).ConfigureAwait(false);
-            // TODO log?
+            Log(nameof(ShardInstance), $"Updated DEBUG command registration in guild {g.Id}.");
         }
 #endif
     }
@@ -168,48 +166,59 @@ public class ShardInstance : IDisposable {
         }
     }
 
-    private Task InteractionService_SlashCommandExecuted(SlashCommandInfo arg1, IInteractionContext arg2, IResult arg3) {
-        // TODO extract command and subcommands to log here
-        Log("Interaction", $"/{arg1.Name} executed by {arg2.Guild.Name}!{arg2.User}.");
-        if (!arg3.IsSuccess) {
-            Log("Interaction", Enum.GetName(typeof(InteractionCommandError), arg3.Error) + ": " + arg3.ErrorReason);
-        }
-
-        // TODO finish this up
-        return Task.CompletedTask;
-    }
-    
+    // Slash command preparation and invocation
     private async Task DiscordClient_InteractionCreated(SocketInteraction arg) {
-        // TODO verify this whole thing - it's a hastily done mash-up of example code and my old code
         var context = new SocketInteractionContext(DiscordClient, arg);
 
-        // Specific reply for DM messages
-        if (context.Channel is not SocketGuildChannel) {
-            Log("Interaction", $"DM interaction. User ID {context.User.Id}, {context.User}");
-            await arg.RespondAsync("DMs are not supported by this bot.").ConfigureAwait(false);
-            return;
-        }
-
         // Blocklist/moderated check
+        // TODO convert to precondition
         var gconf = await GuildConfiguration.LoadAsync(context.Guild.Id, false);
-        if (!gconf!.IsBotModerator((SocketGuildUser)arg.User)) // Except if moderator
-        {
-            if (await gconf.IsUserBlockedAsync(arg.User.Id)) {
-                Log("Interaction", $"Blocking interaction per guild policy. User ID {context.User.Id}, {context.User}");
-                await arg.RespondAsync(ApplicationCommands.BotModuleBase.AccessDeniedError, ephemeral: true).ConfigureAwait(false);
-                return;
+        if (context.Channel is SocketGuildChannel) { // Check only if in a guild context
+            if (!gconf!.IsBotModerator((SocketGuildUser)arg.User)) { // Moderators exempted from this check
+                if (await gconf.IsUserBlockedAsync(arg.User.Id)) {
+                    Log("Interaction", $"Interaction blocked per guild policy for {context.Guild}!{context.User}");
+                    await arg.RespondAsync(BotModuleBase.AccessDeniedError, ephemeral: true).ConfigureAwait(false);
+                    return;
+                }
             }
         }
 
         try {
-            await _interactionService.ExecuteCommandAsync(context, _services);
-        } catch (Exception ex) {
-            Console.WriteLine(ex);
-
-            // If a Slash Command execution fails it is most likely that the original interaction acknowledgement will persist. It is a good idea to delete the original
-            // response, or at least let the user know that something went wrong during the command execution.
+            await _interactionService.ExecuteCommandAsync(context, _services).ConfigureAwait(false);
+        } catch (Exception e) {
+            Log(nameof(DiscordClient_InteractionCreated), $"Unhandled exception. {e}");
+            // TODO when implementing proper error logging, see here
             if (arg.Type == InteractionType.ApplicationCommand)
-                await arg.GetOriginalResponseAsync().ContinueWith(async (msg) => await msg.Result.DeleteAsync());
+                if (arg.HasResponded) await arg.ModifyOriginalResponseAsync(prop => prop.Content = ":warning: An unknown error occured.");
         }
+    }
+
+    // Slash command logging and failed execution handling
+    private async Task InteractionService_SlashCommandExecuted(SlashCommandInfo info, IInteractionContext context, IResult result) {
+        string sender;
+        if (context.Guild != null) {
+            sender = $"{context.Guild}!{context.User}";
+        } else {
+            sender = $"{context.User} in non-guild context";
+        }
+        var logresult = $"{(result.IsSuccess ? "Success" : "Fail")}: `/{info}` by {sender}.";
+
+        if (result.Error != null) {
+            // Additional log information with error detail
+            logresult += Enum.GetName(typeof(InteractionCommandError), result.Error) + ": " + result.ErrorReason;
+
+            // Specific responses to errors, if necessary
+            if (result.Error == InteractionCommandError.UnmetPrecondition && result.ErrorReason == RequireBotModeratorAttribute.FailMsg) {
+                await context.Interaction.RespondAsync(RequireBotModeratorAttribute.Reply, ephemeral: true).ConfigureAwait(false);
+            } else {
+                // Generic error response
+                var ia = context.Interaction;
+                if (ia.HasResponded) await ia.ModifyOriginalResponseAsync(p => p.Content = InternalError).ConfigureAwait(false);
+                else await ia.RespondAsync(InternalError).ConfigureAwait(false);
+                // TODO when implementing proper error logging, see here
+            }
+        }
+
+        Log("Command", logresult);
     }
 }

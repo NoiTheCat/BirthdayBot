@@ -21,13 +21,13 @@ public class HelpModule : BotModuleBase {
         $"` ⤷check` - {ConfigModule.HelpCmdCheck}\n" +
         $"` ⤷announce` - {ConfigModule.HelpCmdAnnounce}\n" +
         $"`  ⤷` See also: `/config announce help`.\n" +
-        $"` ⤷blocking` - {ConfigModule.HelpCmdBlocking}\n" +
+        $"` ⤷block` - {ConfigModule.HelpCmdBlocking}\n" +
         $"`  ⤷add-block`, `⤷remove-block`, `⤷set-moderated`\n" +
         $"` ⤷role` - {ConfigModule.HelpCmdRole}\n" +
         $"`  ⤷set-birthday-role`, `⤷set-moderator-role`\n" +
         $"`/override` - {BirthdayOverrideModule.HelpCmdOverride}\n" +
         $"` ⤷set-birthday`, `⤷set-timezone`, `⤷remove`\n" +
-        "**Caution:** Skipping optional parameters may __remove__ their configuration.";
+        "**Caution:** Skipping optional parameters __removes__ their configuration.";
 
     [SlashCommand("help", "Show an overview of available commands.")]
     public async Task CmdHelp() {

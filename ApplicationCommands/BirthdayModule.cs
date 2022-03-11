@@ -85,7 +85,7 @@ public class BirthdayModule : BotModuleBase {
     public async Task CmdGetBday([Summary(description: "Optional: The user's birthday to look up.")] SocketGuildUser? user = null) {
         var self = user is null;
         if (self) user = (SocketGuildUser)Context.User;
-        var targetdata = await GuildUserConfiguration.LoadAsync(Context.Guild.Id, user!.Id).ConfigureAwait(false);
+        var targetdata = await user!.GetConfigAsync().ConfigureAwait(false);
 
         if (!targetdata.IsKnown) {
             if (self) await RespondAsync(":x: You do not have your birthday registered.", ephemeral: true).ConfigureAwait(false);
@@ -93,7 +93,7 @@ public class BirthdayModule : BotModuleBase {
             return;
         }
 
-        await RespondAsync($"{Common.FormatName(user, false)}: `{FormatDate(targetdata.BirthMonth, targetdata.BirthDay)}`" +
+        await RespondAsync($"{Common.FormatName(user!, false)}: `{FormatDate(targetdata.BirthMonth, targetdata.BirthDay)}`" +
             (targetdata.TimeZone == null ? "" : $" - {targetdata.TimeZone}")).ConfigureAwait(false);
     }
 
@@ -103,7 +103,7 @@ public class BirthdayModule : BotModuleBase {
     [SlashCommand("show-nearest", HelpCmdNearest)]
     public async Task CmdShowNearest() {
         if (!await HasMemberCacheAsync(Context.Guild).ConfigureAwait(false)) {
-            await RespondAsync(MemberCacheEmptyError, ephemeral: true);
+            await RespondAsync(MemberCacheEmptyError, ephemeral: true).ConfigureAwait(false);
             return;
         }
 
@@ -121,7 +121,7 @@ public class BirthdayModule : BotModuleBase {
                 await RespondAsync(msg).ConfigureAwait(false);
                 hasOutputOneLine = true;
             } else {
-                await Context.Channel.SendMessageAsync(msg).ConfigureAwait(false);
+                await ReplyAsync(msg).ConfigureAwait(false);
             }
         }
 
@@ -178,7 +178,7 @@ public class BirthdayModule : BotModuleBase {
     [SlashCommand("export", HelpPfxModOnly + HelpCmdExport)]
     public async Task CmdExport([Summary(description: "Specify whether to export the list in CSV format.")] bool asCsv = false) {
         if (!await HasMemberCacheAsync(Context.Guild)) {
-            await RespondAsync(MemberCacheEmptyError).ConfigureAwait(false);
+            await RespondAsync(MemberCacheEmptyError, ephemeral: true).ConfigureAwait(false);
             return;
         }
 

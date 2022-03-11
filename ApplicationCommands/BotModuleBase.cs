@@ -1,5 +1,4 @@
-﻿using BirthdayBot.Data;
-using Discord.Interactions;
+﻿using Discord.Interactions;
 using NodaTime;
 using System.Collections.ObjectModel;
 using System.Diagnostics.CodeAnalysis;
