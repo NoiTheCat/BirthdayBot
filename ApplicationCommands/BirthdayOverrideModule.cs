@@ -3,7 +3,6 @@ using Discord.Interactions;
 
 namespace BirthdayBot.ApplicationCommands;
 
-[RequireContext(ContextType.Guild)]
 [RequireBotModerator]
 [Group("override", HelpCmdOverride)]
 public class BirthdayOverrideModule : BotModuleBase {

@@ -4,7 +4,6 @@ using System.Text;
 
 namespace BirthdayBot.ApplicationCommands;
 
-[RequireContext(ContextType.Guild)]
 [RequireBotModerator]
 [Group("config", HelpCmdConfig)]
 public class ConfigModule : BotModuleBase {

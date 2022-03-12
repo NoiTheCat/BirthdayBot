@@ -4,7 +4,7 @@ using System.Text;
 
 namespace BirthdayBot.ApplicationCommands;
 
-[RequireContext(ContextType.Guild)]
+[RequireGuildContext]
 [Group("birthday", HelpCmdBirthday)]
 public class BirthdayModule : BotModuleBase {
     public const string HelpCmdBirthday = "Commands relating to birthdays.";

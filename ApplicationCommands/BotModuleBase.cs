@@ -9,6 +9,7 @@ namespace BirthdayBot.ApplicationCommands;
 /// <summary>
 /// Base class for our interaction module classes. Contains common data for use in implementing classes.
 /// </summary>
+[EnforceBlocking]
 public abstract class BotModuleBase : InteractionModuleBase<SocketInteractionContext> {
     protected const string HelpPfxModOnly = "Bot moderators only: ";
     protected const string ErrGuildOnly = ":x: This command can only be run within a server.";

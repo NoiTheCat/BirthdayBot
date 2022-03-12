@@ -71,12 +71,19 @@ class GuildConfiguration {
     }
 
     /// <summary>
-    /// Checks if the given user exists in the block list.
-    /// If the server is in moderated mode, this always returns true.
+    /// Checks if the specified user is blocked by current guild policy (block list or moderated mode).
     /// </summary>
+    [Obsolete("Block lists should be reimplemented in a more resource-efficient manner later.", false)]
     public async Task<bool> IsUserBlockedAsync(ulong userId) {
         if (IsModerated) return true;
+        return await IsUserInBlocklistAsync(userId).ConfigureAwait(false);
+    }
 
+    /// <summary>
+    /// Checks if the given user exists in the block list.
+    /// </summary>
+    [Obsolete("Block lists should be reimplemented in a more resource-efficient manner later.", false)]
+    public async Task<bool> IsUserInBlocklistAsync(ulong userId) {
         using var db = await Database.OpenConnectionAsync().ConfigureAwait(false);
         using var c = db.CreateCommand();
         c.CommandText = $"select * from {BackingTableBans} "
@@ -92,6 +99,7 @@ class GuildConfiguration {
     /// <summary>
     /// Adds the specified user to the block list corresponding to this guild.
     /// </summary>
+    [Obsolete("Block lists will be reimplemented in a more practical manner later.", false)]
     public async Task BlockUserAsync(ulong userId) {
         using var db = await Database.OpenConnectionAsync().ConfigureAwait(false);
         using var c = db.CreateCommand();
@@ -109,6 +117,7 @@ class GuildConfiguration {
     /// Removes the specified user from the block list corresponding to this guild.
     /// </summary>
     /// <returns>True if a user has been removed, false if the requested user was not in this list.</returns>
+    [Obsolete("Block lists will be reimplemented in a more practical manner later.", false)]
     public async Task<bool> UnblockUserAsync(ulong userId) {
         using var db = await Database.OpenConnectionAsync().ConfigureAwait(false);
         using var c = db.CreateCommand();

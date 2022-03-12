@@ -170,26 +170,15 @@ public sealed class ShardInstance : IDisposable {
     private async Task DiscordClient_InteractionCreated(SocketInteraction arg) {
         var context = new SocketInteractionContext(DiscordClient, arg);
 
-        // Blocklist/moderated check
-        // TODO convert to precondition
-        var gconf = await GuildConfiguration.LoadAsync(context.Guild.Id, false);
-        if (context.Channel is SocketGuildChannel) { // Check only if in a guild context
-            if (!gconf!.IsBotModerator((SocketGuildUser)arg.User)) { // Moderators exempted from this check
-                if (await gconf.IsUserBlockedAsync(arg.User.Id)) {
-                    Log("Interaction", $"Interaction blocked per guild policy for {context.Guild}!{context.User}");
-                    await arg.RespondAsync(BotModuleBase.AccessDeniedError, ephemeral: true).ConfigureAwait(false);
-                    return;
-                }
-            }
-        }
-
         try {
             await _interactionService.ExecuteCommandAsync(context, _services).ConfigureAwait(false);
         } catch (Exception e) {
             Log(nameof(DiscordClient_InteractionCreated), $"Unhandled exception. {e}");
-            // TODO when implementing proper error logging, see here
-            if (arg.Type == InteractionType.ApplicationCommand)
-                if (arg.HasResponded) await arg.ModifyOriginalResponseAsync(prop => prop.Content = ":warning: An unknown error occured.");
+            // TODO when implementing proper application error logging, see here
+            if (arg.Type == InteractionType.ApplicationCommand) {
+                if (arg.HasResponded) await arg.ModifyOriginalResponseAsync(prop => prop.Content = InternalError);
+                else await arg.RespondAsync(InternalError);
+            }
         }
     }
 
@@ -205,17 +194,24 @@ public sealed class ShardInstance : IDisposable {
 
         if (result.Error != null) {
             // Additional log information with error detail
-            logresult += Enum.GetName(typeof(InteractionCommandError), result.Error) + ": " + result.ErrorReason;
+            logresult += " " + Enum.GetName(typeof(InteractionCommandError), result.Error) + ": " + result.ErrorReason;
 
             // Specific responses to errors, if necessary
-            if (result.Error == InteractionCommandError.UnmetPrecondition && result.ErrorReason == RequireBotModeratorAttribute.FailMsg) {
-                await context.Interaction.RespondAsync(RequireBotModeratorAttribute.Reply, ephemeral: true).ConfigureAwait(false);
+            if (result.Error == InteractionCommandError.UnmetPrecondition) {
+                string errReply = result.ErrorReason switch {
+                    RequireBotModeratorAttribute.Error => RequireBotModeratorAttribute.Reply,
+                    EnforceBlockingAttribute.FailBlocked => EnforceBlockingAttribute.ReplyBlocked,
+                    EnforceBlockingAttribute.FailModerated => EnforceBlockingAttribute.ReplyModerated,
+                    RequireGuildContextAttribute.Error => RequireGuildContextAttribute.Reply,
+                    _ => result.ErrorReason
+                };
+                await context.Interaction.RespondAsync(errReply, ephemeral: true).ConfigureAwait(false);
             } else {
                 // Generic error response
+                // TODO when implementing proper application error logging, see here
                 var ia = context.Interaction;
                 if (ia.HasResponded) await ia.ModifyOriginalResponseAsync(p => p.Content = InternalError).ConfigureAwait(false);
                 else await ia.RespondAsync(InternalError).ConfigureAwait(false);
-                // TODO when implementing proper error logging, see here
             }
         }
 
