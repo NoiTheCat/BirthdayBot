@@ -1,6 +1,5 @@
 ﻿using BirthdayBot.Data;
-using System;
-using System.Threading.Tasks;
+using Microsoft.EntityFrameworkCore;
 
 namespace BirthdayBot;
 
@@ -21,14 +20,20 @@ class Program {
             Console.WriteLine(ex);
             Environment.Exit((int)ExitCodes.ConfigError);
         }
-        
+
+        BotDatabaseContext.NpgsqlConnectionString = cfg.DatabaseConnectionString;
+        using (var db = new BotDatabaseContext()) {
+            db.Database.Migrate();
+        }
+
+        Database.DBConnectionString = cfg.DatabaseConnectionString;
         try {
             await Database.DoInitialDatabaseSetupAsync();
         } catch (Npgsql.NpgsqlException e) {
             Console.WriteLine("Error when attempting to connect to database: " + e.Message);
             Environment.Exit((int)ExitCodes.DatabaseError);
         }
-        
+
         Console.CancelKeyPress += OnCancelKeyPressed;
         _bot = new ShardManager(cfg);
 
