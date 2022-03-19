@@ -3,13 +3,27 @@
 namespace BirthdayBot.Data;
 
 public class BotDatabaseContext : DbContext {
-    public virtual DbSet<BlocklistEntry> BlocklistEntries { get; set; } = null!;
-    public virtual DbSet<GuildConfig> GuildConfigurations { get; set; } = null!;
-    public virtual DbSet<UserEntry> UserEntries { get; set; } = null!;
+    private static string? _npgsqlConnectionString;
+    internal static string NpgsqlConnectionString {
+#if DEBUG
+        get {
+            if (_npgsqlConnectionString != null) return _npgsqlConnectionString;
+            Program.Log(nameof(BotDatabaseContext), "Using hardcoded connection string!");
+            return _npgsqlConnectionString ?? "Host=localhost;Username=birthdaybot;Password=bb";
+        }
+#else
+        get => _npgsqlConnectionString!;
+#endif
+        set => _npgsqlConnectionString ??= value;
+    }
+
+    public DbSet<BlocklistEntry> BlocklistEntries { get; set; } = null!;
+    public DbSet<GuildConfig> GuildConfigurations { get; set; } = null!;
+    public DbSet<UserEntry> UserEntries { get; set; } = null!;
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
          => optionsBuilder
-            .UseNpgsql("Host=localhost;Username=birthdaybot;Password=bb") // TODO use actual connection string
+            .UseNpgsql(NpgsqlConnectionString)
             .UseSnakeCaseNamingConvention();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder) {
