@@ -1,5 +1,4 @@
 ﻿using BirthdayBot.Data;
-using Microsoft.EntityFrameworkCore;
 
 namespace BirthdayBot;
 
@@ -22,9 +21,6 @@ class Program {
         }
 
         BotDatabaseContext.NpgsqlConnectionString = cfg.DatabaseConnectionString;
-        using (var db = new BotDatabaseContext()) {
-            db.Database.Migrate();
-        }
 
         Database.DBConnectionString = cfg.DatabaseConnectionString;
         try {
