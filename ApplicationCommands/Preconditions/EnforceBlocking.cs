@@ -23,18 +23,20 @@ class EnforceBlockingAttribute : PreconditionAttribute {
         if (user.GuildPermissions.ManageGuild) return Task.FromResult(PreconditionResult.FromSuccess());
 
         using var db = new BotDatabaseContext();
-        var settings = guild.GetConfigOrNew(db);
+        var settings = (from row in db.GuildConfigurations
+                       where row.GuildId == (long)guild.Id
+                       select new { ModRole = (ulong?)row.ModeratorRole, ModMode = row.Moderated }).FirstOrDefault();
+        if (settings != null) {
+            // Bot moderators override all blocking measures in place
+            if (user.Roles.Any(r => r.Id == settings.ModRole)) return Task.FromResult(PreconditionResult.FromSuccess());
 
-        // Bot moderators override any blocks
-        if (settings.ModeratorRole.HasValue && user.Roles.Any(r => r.Id == (ulong)settings.ModeratorRole.Value))
-            return Task.FromResult(PreconditionResult.FromSuccess());
+            // Check for moderated mode
+            if (settings.ModMode) return Task.FromResult(PreconditionResult.FromError(FailModerated));
 
-        // Moderated mode check
-        if (settings.Moderated) return Task.FromResult(PreconditionResult.FromError(FailModerated));
-
-        // Block list check
-        var blockquery = db.BlocklistEntries.Where(entry => entry.GuildId == (long)guild.Id && entry.UserId == (long)user.Id);
-        if (blockquery.Any()) return Task.FromResult(PreconditionResult.FromError(FailBlocked));
+            // Check if user exists in blocklist
+            if (db.BlocklistEntries.Where(row => row.GuildId == (long)guild.Id && row.UserId == (long)user.Id).Any())
+                return Task.FromResult(PreconditionResult.FromError(FailBlocked));
+        }
 
         return Task.FromResult(PreconditionResult.FromSuccess());
     }

@@ -22,8 +22,10 @@ class RequireBotModeratorAttribute : PreconditionAttribute {
 
         if (user.GuildPermissions.ManageGuild) return Task.FromResult(PreconditionResult.FromSuccess());
         using var db = new BotDatabaseContext();
-        var settings = ((SocketGuild)context.Guild).GetConfigOrNew(db);
-        if (settings.ModeratorRole.HasValue && user.Roles.Any(r => r.Id == (ulong)settings.ModeratorRole.Value))
+        var checkRole = (ulong?)db.GuildConfigurations
+            .Where(g => g.GuildId == (long)((SocketGuild)context.Guild).Id)
+            .Select(g => g.RoleId).FirstOrDefault();
+        if (checkRole.HasValue && user.Roles.Any(r => r.Id == checkRole.Value))
             return Task.FromResult(PreconditionResult.FromSuccess());
 
         return Task.FromResult(PreconditionResult.FromError(Error));
