@@ -49,6 +49,7 @@ public sealed class ShardInstance : IDisposable {
         _interactionService = _services.GetRequiredService<InteractionService>();
         DiscordClient.InteractionCreated += DiscordClient_InteractionCreated;
         _interactionService.SlashCommandExecuted += InteractionService_SlashCommandExecuted;
+        DiscordClient.ModalSubmitted += modal => { return ModalResponder.DiscordClient_ModalSubmitted(this, modal); };
 
         // Background task constructor begins background processing immediately.
         _background = new ShardBackgroundWorker(this);
@@ -75,7 +76,7 @@ public sealed class ShardInstance : IDisposable {
         Log(nameof(ShardInstance), "Instance disposed.");
     }
 
-    public void Log(string source, string message) => Program.Log($"Shard {ShardId:00}] [{source}", message);
+    internal void Log(string source, string message) => Program.Log($"Shard {ShardId:00}] [{source}", message);
 
     private Task Client_Log(LogMessage arg) {
         // Suppress certain messages

@@ -23,6 +23,10 @@ public class ConfigModule : BotModuleBase {
         private const string HelpSubCmdMessage = "Modify the announcement message.";
         private const string HelpSubCmdPing = "Set whether to ping users mentioned in the announcement.";
 
+        internal const string ModalCidAnnounce = "edit-announce";
+        private const string ModalComCidSingle = "msg-single";
+        private const string ModalComCidMulti = "msg-multi";
+
         [SlashCommand("help", "Show information regarding announcement messages.")]
         public async Task CmdAnnounceHelp() {
             const string subcommands =
@@ -60,11 +64,49 @@ public class ConfigModule : BotModuleBase {
 
         [SlashCommand("set-message", HelpPfxModOnly + HelpSubCmdMessage)]
         public async Task CmdSetMessage() {
-            // TODO implement this
-            var pfx = TextCommands.CommandsCommon.CommandPrefix;
-            await RespondAsync(":x: Sorry, changing the announcement message via slash commands is not yet available. " +
-                "Please use the corresponding text command: " +
-                $"`{pfx}config message` for single, `{pfx}config message-pl` for multi.", ephemeral: true);
+            var gconf = await Context.Guild.GetConfigAsync().ConfigureAwait(false);
+
+            var txtSingle = new TextInputBuilder() {
+                Label = "Single - Message for one birthday",
+                CustomId = ModalComCidSingle,
+                Style = TextInputStyle.Paragraph,
+                MaxLength = 1500,
+                Required = false,
+                Placeholder = BackgroundServices.BirthdayRoleUpdate.DefaultAnnounce,
+                Value = gconf.AnnounceMessages.Item1 ?? ""
+            };
+            var txtMulti = new TextInputBuilder() {
+                Label = "Multi - Message for multiple birthdays",
+                CustomId = ModalComCidMulti,
+                Style = TextInputStyle.Paragraph,
+                MaxLength = 1500,
+                Required = false,
+                Placeholder = BackgroundServices.BirthdayRoleUpdate.DefaultAnnouncePl,
+                Value = gconf.AnnounceMessages.Item2 ?? ""
+            };
+
+            var form = new ModalBuilder()
+                .WithTitle("Edit announcement message")
+                .WithCustomId(ModalCidAnnounce)
+                .AddTextInput(txtSingle)
+                .AddTextInput(txtMulti)
+                .Build();
+
+            await RespondWithModalAsync(form).ConfigureAwait(false);
+        }
+
+        internal static async Task CmdSetMessageResponse(SocketModal modal, SocketGuildChannel channel,
+                                                         Dictionary<string, SocketMessageComponentData> data) {
+            string? newSingle = data[ModalComCidSingle].Value;
+            string? newMulti = data[ModalComCidMulti].Value;
+            if (string.IsNullOrWhiteSpace(newSingle)) newSingle = null;
+            if (string.IsNullOrWhiteSpace(newMulti)) newMulti = null;
+
+            var gconf = await channel.Guild.GetConfigAsync().ConfigureAwait(false);
+            gconf.AnnounceMessages = (newSingle, newMulti);
+            await gconf.UpdateAsync().ConfigureAwait(false);
+
+            await modal.RespondAsync(":white_check_mark: Announcement messages have been updated.");
         }
 
         [SlashCommand("set-ping", HelpPfxModOnly + HelpSubCmdPing)]
