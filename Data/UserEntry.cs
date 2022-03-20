@@ -23,4 +23,10 @@ public class UserEntry {
     [ForeignKey(nameof(GuildConfig.GuildId))]
     [InverseProperty(nameof(GuildConfig.UserEntries))]
     public GuildConfig Guild { get; set; } = null!;
+
+    /// <summary>
+    /// Gets if this instance is new and does not (yet) exist in the database.
+    /// </summary>
+    [NotMapped]
+    public bool IsNew { get; set; }
 }

@@ -36,4 +36,10 @@ public class GuildConfig {
     public ICollection<BlocklistEntry> BlockedUsers { get; set; }
     [InverseProperty(nameof(UserEntry.Guild))]
     public ICollection<UserEntry> UserEntries { get; set; }
+
+    /// <summary>
+    /// Gets if this instance is new and does not (yet) exist in the database.
+    /// </summary>
+    [NotMapped]
+    public bool IsNew { get; set; }
 }
