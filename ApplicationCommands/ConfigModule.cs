@@ -64,7 +64,8 @@ public class ConfigModule : BotModuleBase {
 
         [SlashCommand("set-message", HelpPfxModOnly + HelpSubCmdMessage)]
         public async Task CmdSetMessage() {
-            var gconf = await Context.Guild.GetConfigAsync().ConfigureAwait(false);
+            using var db = new BotDatabaseContext();
+            var settings = Context.Guild.GetConfigOrNew(db);
 
             var txtSingle = new TextInputBuilder() {
                 Label = "Single - Message for one birthday",
@@ -73,7 +74,7 @@ public class ConfigModule : BotModuleBase {
                 MaxLength = 1500,
                 Required = false,
                 Placeholder = BackgroundServices.BirthdayRoleUpdate.DefaultAnnounce,
-                Value = gconf.AnnounceMessages.Item1 ?? ""
+                Value = settings.AnnounceMessage ?? ""
             };
             var txtMulti = new TextInputBuilder() {
                 Label = "Multi - Message for multiple birthdays",
@@ -82,7 +83,7 @@ public class ConfigModule : BotModuleBase {
                 MaxLength = 1500,
                 Required = false,
                 Placeholder = BackgroundServices.BirthdayRoleUpdate.DefaultAnnouncePl,
-                Value = gconf.AnnounceMessages.Item2 ?? ""
+                Value = settings.AnnounceMessagePl ?? ""
             };
 
             var form = new ModalBuilder()
@@ -102,10 +103,12 @@ public class ConfigModule : BotModuleBase {
             if (string.IsNullOrWhiteSpace(newSingle)) newSingle = null;
             if (string.IsNullOrWhiteSpace(newMulti)) newMulti = null;
 
-            var gconf = await channel.Guild.GetConfigAsync().ConfigureAwait(false);
-            gconf.AnnounceMessages = (newSingle, newMulti);
-            await gconf.UpdateAsync().ConfigureAwait(false);
-
+            using var db = new BotDatabaseContext();
+            var settings = channel.Guild.GetConfigOrNew(db);
+            if (settings.IsNew) db.GuildConfigurations.Add(settings);
+            settings.AnnounceMessage = newSingle;
+            settings.AnnounceMessagePl = newMulti;
+            await db.SaveChangesAsync();
             await modal.RespondAsync(":white_check_mark: Announcement messages have been updated.");
         }
 
