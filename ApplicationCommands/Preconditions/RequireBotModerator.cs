@@ -13,17 +13,19 @@ class RequireBotModeratorAttribute : PreconditionAttribute {
 
     public override string ErrorMessage => Error;
 
-    public override async Task<PreconditionResult> CheckRequirementsAsync(
+    public override Task<PreconditionResult> CheckRequirementsAsync(
         IInteractionContext context, ICommandInfo commandInfo, IServiceProvider services) {
         // A bot moderator can only exist in a guild context, so we must do this check.
         // This check causes this precondition to become a functional equivalent to RequireGuildContextAttribute...
-        if (context.User is not SocketGuildUser user) return PreconditionResult.FromError(RequireGuildContextAttribute.Error);
+        if (context.User is not SocketGuildUser user)
+            return Task.FromResult(PreconditionResult.FromError(RequireGuildContextAttribute.Error));
 
-        if (user.GuildPermissions.ManageGuild) return PreconditionResult.FromSuccess();
-        var gconf = await ((SocketGuild)context.Guild).GetConfigAsync().ConfigureAwait(false);
-        if (gconf.ModeratorRole.HasValue && user.Roles.Any(r => r.Id == gconf.ModeratorRole.Value))
-            return PreconditionResult.FromSuccess();
+        if (user.GuildPermissions.ManageGuild) return Task.FromResult(PreconditionResult.FromSuccess());
+        using var db = new BotDatabaseContext();
+        var settings = ((SocketGuild)context.Guild).GetConfigOrNew(db);
+        if (settings.ModeratorRole.HasValue && user.Roles.Any(r => r.Id == (ulong)settings.ModeratorRole.Value))
+            return Task.FromResult(PreconditionResult.FromSuccess());
 
-        return PreconditionResult.FromError(Error);
+        return Task.FromResult(PreconditionResult.FromError(Error));
     }
 }

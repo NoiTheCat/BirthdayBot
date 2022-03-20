@@ -13,26 +13,29 @@ class EnforceBlockingAttribute : PreconditionAttribute {
     public const string ReplyModerated = ":x: This bot is in moderated mode, preventing you from using any bot commands in this server.";
     public const string ReplyBlocked = ":x: You have been blocked from using bot commands in this server.";
 
-    public override async Task<PreconditionResult> CheckRequirementsAsync(
+    public override Task<PreconditionResult> CheckRequirementsAsync(
         IInteractionContext context, ICommandInfo commandInfo, IServiceProvider services) {
         // Not in guild context, unaffected by blocking
-        if (context.Guild is not SocketGuild guild) return PreconditionResult.FromSuccess();
+        if (context.Guild is not SocketGuild guild) return Task.FromResult(PreconditionResult.FromSuccess());
 
         // Manage Guild permission overrides any blocks
         var user = (SocketGuildUser)context.User;
-        if (user.GuildPermissions.ManageGuild) return PreconditionResult.FromSuccess();
+        if (user.GuildPermissions.ManageGuild) return Task.FromResult(PreconditionResult.FromSuccess());
 
-        var gconf = await guild.GetConfigAsync().ConfigureAwait(false);
+        using var db = new BotDatabaseContext();
+        var settings = guild.GetConfigOrNew(db);
 
         // Bot moderators override any blocks
-        if (gconf.ModeratorRole.HasValue && user.Roles.Any(r => r.Id == gconf.ModeratorRole.Value)) return PreconditionResult.FromSuccess();
+        if (settings.ModeratorRole.HasValue && user.Roles.Any(r => r.Id == (ulong)settings.ModeratorRole.Value))
+            return Task.FromResult(PreconditionResult.FromSuccess());
 
         // Moderated mode check
-        if (gconf.IsModerated) return PreconditionResult.FromError(FailModerated);
+        if (settings.Moderated) return Task.FromResult(PreconditionResult.FromError(FailModerated));
 
         // Block list check
-        if (await gconf.IsUserInBlocklistAsync(user.Id)) return PreconditionResult.FromError(FailBlocked);
+        var blockquery = db.BlocklistEntries.Where(entry => entry.GuildId == (long)guild.Id && entry.UserId == (long)user.Id);
+        if (blockquery.Any()) return Task.FromResult(PreconditionResult.FromError(FailBlocked));
 
-        return PreconditionResult.FromSuccess();
+        return Task.FromResult(PreconditionResult.FromSuccess());
     }
 }
