@@ -77,6 +77,9 @@ class BirthdayRoleUpdate : BackgroundService {
     /// Gets all known users from the given guild and returns a list including only those who are
     /// currently experiencing a birthday in the respective time zone.
     /// </summary>
+#pragma warning disable 618
+    [Obsolete(Database.ObsoleteReason)]
+#pragma warning restore 618
     public static HashSet<ulong> GetGuildCurrentBirthdays(IEnumerable<GuildUserConfiguration> guildUsers, string? defaultTzStr) {
         var tzdb = DateTimeZoneProviders.Tzdb;
         DateTimeZone defaultTz = (defaultTzStr != null ? DateTimeZoneProviders.Tzdb.GetZoneOrNull(defaultTzStr) : null) ?? tzdb.GetZoneOrNull("UTC")!;
@@ -97,6 +100,35 @@ class BirthdayRoleUpdate : BackgroundService {
             }
             if (targetMonth == checkNow.Month && targetDay == checkNow.Day) {
                 birthdayUsers.Add(item.UserId);
+            }
+        }
+        return birthdayUsers;
+    }
+
+    /// <summary>
+    /// Gets all known users from the given guild and returns a list including only those who are
+    /// currently experiencing a birthday in the respective time zone.
+    /// </summary>
+    public static HashSet<ulong> GetGuildCurrentBirthdays(IEnumerable<UserEntry> guildUsers, string? defaultTzStr) {
+        var tzdb = DateTimeZoneProviders.Tzdb;
+        DateTimeZone defaultTz = (defaultTzStr != null ? DateTimeZoneProviders.Tzdb.GetZoneOrNull(defaultTzStr) : null) ?? tzdb.GetZoneOrNull("UTC")!;
+
+        var birthdayUsers = new HashSet<ulong>();
+        foreach (var item in guildUsers) {
+            // Determine final time zone to use for calculation
+            DateTimeZone tz = (item.TimeZone != null ? tzdb.GetZoneOrNull(item.TimeZone) : null) ?? defaultTz;
+
+            var targetMonth = item.BirthMonth;
+            var targetDay = item.BirthDay;
+
+            var checkNow = SystemClock.Instance.GetCurrentInstant().InZone(tz);
+            // Special case: If birthday is February 29 and it's not a leap year, recognize it on March 1st
+            if (targetMonth == 2 && targetDay == 29 && !DateTime.IsLeapYear(checkNow.Year)) {
+                targetMonth = 3;
+                targetDay = 1;
+            }
+            if (targetMonth == checkNow.Month && targetDay == checkNow.Day) {
+                birthdayUsers.Add((ulong)item.UserId);
             }
         }
         return birthdayUsers;

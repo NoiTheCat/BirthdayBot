@@ -24,8 +24,12 @@ public class BirthdayOverrideModule : BotModuleBase {
             return;
         }
 
-        var user = await target.GetConfigAsync().ConfigureAwait(false);
-        await user.UpdateAsync(inmonth, inday, user.TimeZone).ConfigureAwait(false);
+        using var db = new BotDatabaseContext();
+        var user = target.GetUserEntryOrNew(db);
+        if (user.IsNew) db.UserEntries.Add(user);
+        user.BirthMonth = inmonth;
+        user.BirthDay = inday;
+        await db.SaveChangesAsync();
 
         await RespondAsync($":white_check_mark: {Common.FormatName(target, false)}'s birthday has been set to " +
             $"**{FormatDate(inmonth, inday)}**.").ConfigureAwait(false);
@@ -34,30 +38,35 @@ public class BirthdayOverrideModule : BotModuleBase {
     [SlashCommand("set-timezone", HelpPfxModOnly + "Set a user's time zone on their behalf.")]
     public async Task OvSetTimezone([Summary(description: HelpOptOvTarget)]SocketGuildUser target,
                                     [Summary(description: HelpOptZone)]string zone) {
-        var user = await target.GetConfigAsync().ConfigureAwait(false);
-        if (!user.IsKnown) {
+        using var db = new BotDatabaseContext();
+
+        var user = target.GetUserEntryOrNew(db);
+        if (user.IsNew) {
             await RespondAsync($":x: {Common.FormatName(target, false)} does not have a birthday set.")
                 .ConfigureAwait(false);
             return;
         }
 
-        string inzone;
+        string newzone;
         try {
-            inzone = ParseTimeZone(zone);
+            newzone = ParseTimeZone(zone);
         } catch (FormatException e) {
             await RespondAsync(e.Message, ephemeral: true).ConfigureAwait(false);
             return;
         }
-        await user.UpdateAsync(user.BirthMonth, user.BirthDay, inzone).ConfigureAwait(false);
+        user.TimeZone = newzone;
+        await db.SaveChangesAsync();
         await RespondAsync($":white_check_mark: {Common.FormatName(target, false)}'s time zone has been set to " +
-            $"**{inzone}**.").ConfigureAwait(false);
+            $"**{newzone}**.").ConfigureAwait(false);
     }
 
     [SlashCommand("remove-birthday", HelpPfxModOnly + "Remove a user's birthday information on their behalf.")]
     public async Task OvRemove([Summary(description: HelpOptOvTarget)]SocketGuildUser target) {
-        var user = await target.GetConfigAsync().ConfigureAwait(false);
-        if (user.IsKnown) {
-            await user.DeleteAsync().ConfigureAwait(false);
+        using var db = new BotDatabaseContext();
+        var user = ((SocketGuildUser)Context.User).GetUserEntryOrNew(db);
+        if (!user.IsNew) {
+            db.UserEntries.Remove(user);
+            await db.SaveChangesAsync();
             await RespondAsync($":white_check_mark: {Common.FormatName(target, false)}'s birthday in this server has been removed.")
                 .ConfigureAwait(false);
         } else {

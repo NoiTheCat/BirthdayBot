@@ -53,9 +53,7 @@ public class ConfigModule : BotModuleBase {
 
         [SlashCommand("set-channel", HelpPfxModOnly + HelpSubCmdChannel + HelpPofxBlankUnset)]
         public async Task CmdSetChannel([Summary(description: HelpOptRole)] SocketTextChannel? channel = null) {
-            var gconf = await Context.Guild.GetConfigAsync().ConfigureAwait(false);
-            gconf.AnnounceChannelId = channel?.Id;
-            await gconf.UpdateAsync().ConfigureAwait(false);
+            await DoDatabaseUpdate(Context, s => s.ChannelAnnounceId = (long?)channel?.Id);
             await RespondAsync(":white_check_mark: The announcement channel has been " +
             (channel == null ? "unset." : $"set to **{channel.Name}**."));
         }
@@ -71,9 +69,7 @@ public class ConfigModule : BotModuleBase {
 
         [SlashCommand("set-ping", HelpPfxModOnly + HelpSubCmdPing)]
         public async Task CmdSetPing([Summary(description: "Set True to ping users, False to display them normally.")]bool option) {
-            var gconf = await Context.Guild.GetConfigAsync().ConfigureAwait(false);
-            gconf.AnnouncePing = option;
-            await gconf.UpdateAsync().ConfigureAwait(false);
+            await DoDatabaseUpdate(Context, s => s.AnnouncePing = option);
             await RespondAsync($":white_check_mark: Announcement pings are now **{(option ? "on" : "off")}**.").ConfigureAwait(false);
         }
     }
@@ -82,17 +78,13 @@ public class ConfigModule : BotModuleBase {
     public class SubCmdsConfigRole : BotModuleBase {
         [SlashCommand("set-birthday-role", HelpPfxModOnly + "Set the role given to users having a birthday.")]
         public async Task CmdSetBRole([Summary(description: HelpOptRole)] SocketRole role) {
-            var gconf = await Context.Guild.GetConfigAsync().ConfigureAwait(false);
-            gconf.RoleId = role.Id;
-            await gconf.UpdateAsync().ConfigureAwait(false);
+            await DoDatabaseUpdate(Context, s => s.RoleId = (long)role.Id);
             await RespondAsync($":white_check_mark: The birthday role has been set to **{role.Name}**.").ConfigureAwait(false);
         }
 
         [SlashCommand("set-moderator-role", HelpPfxModOnly + "Designate a role whose members can configure the bot." + HelpPofxBlankUnset)]
         public async Task CmdSetModRole([Summary(description: HelpOptRole)]SocketRole? role = null) {
-            var gconf = await Context.Guild.GetConfigAsync().ConfigureAwait(false);
-            gconf.ModeratorRole = role?.Id;
-            await gconf.UpdateAsync().ConfigureAwait(false);
+            await DoDatabaseUpdate(Context, s => s.ModeratorRole = (long?)role?.Id);
             await RespondAsync(":white_check_mark: The moderator role has been " +
                 (role == null ? "unset." : $"set to **{role.Name}**."));
         }
@@ -107,26 +99,36 @@ public class ConfigModule : BotModuleBase {
         public Task CmdDelBlock([Summary(description: "The user to unblock.")] SocketGuildUser user) => UpdateBlockAsync(user, false);
 
         private async Task UpdateBlockAsync(SocketGuildUser user, bool setting) {
-            var gconf = await Context.Guild.GetConfigAsync().ConfigureAwait(false);
-            bool already = setting == await gconf.IsUserBlockedAsync(user.Id).ConfigureAwait(false);
+            // setting: true to add (set), false to remove (unset)
+            using var db = new BotDatabaseContext();
+            var existing = db.BlocklistEntries
+                .Where(bl => bl.GuildId == (long)user.Guild.Id && bl.UserId == (long)user.Id).FirstOrDefault();
+
+            bool already = (existing != null) == setting;
             if (already) {
                 await RespondAsync($":white_check_mark: User is already {(setting ? "" : "not ")}blocked.").ConfigureAwait(false);
-            } else {
-                if (setting) await gconf.BlockUserAsync(user.Id).ConfigureAwait(false);
-                else await gconf.UnblockUserAsync(user.Id).ConfigureAwait(false);
-                await RespondAsync($":white_check_mark: {Common.FormatName(user, false)} has been {(setting ? "" : "un")}blocked.");
+                return;
             }
+
+            if (setting) db.BlocklistEntries.Add(new BlocklistEntry() { GuildId = (long)user.Guild.Id, UserId = (long)user.Id });
+            else db.Remove(existing!);
+            await db.SaveChangesAsync();
+
+            await RespondAsync($":white_check_mark: {Common.FormatName(user, false)} has been {(setting ? "" : "un")}blocked.");
         }
 
         [SlashCommand("set-moderated", HelpPfxModOnly + "Set moderated mode on the server.")]
-        public async Task CmdAddBlock([Summary(name: "enable", description: "The moderated mode setting.")] bool setting) {
-            var gconf = await Context.Guild.GetConfigAsync().ConfigureAwait(false);
-            bool already = setting == gconf.IsModerated;
+        public async Task CmdSetModerated([Summary(name: "enable", description: "The moderated mode setting.")] bool setting) {
+            bool current = false;
+            await DoDatabaseUpdate(Context, s => {
+                current = s.Moderated;
+                s.Moderated = setting;
+            });
+
+            bool already = setting == current;
             if (already) {
-                await RespondAsync($":white_check_mark: Moderated mode is already **{(setting ? "en" : "dis")}abled**.").ConfigureAwait(false);
+                await RespondAsync($":white_check_mark: Moderated mode is already **{(setting ? "en" : "dis")}abled**.");
             } else {
-                gconf.IsModerated = setting;
-                await gconf.UpdateAsync().ConfigureAwait(false);
                 await RespondAsync($":white_check_mark: Moderated mode is now **{(setting ? "en" : "dis")}abled**.").ConfigureAwait(false);
             }
         }
@@ -135,15 +137,19 @@ public class ConfigModule : BotModuleBase {
     [SlashCommand("check", HelpPfxModOnly + HelpCmdCheck)]
     public async Task CmdCheck() {
         static string DoTestFor(string label, Func<bool> test) => $"{label}: { (test() ? ":white_check_mark: Yes" : ":x: No") }";
-        var result = new StringBuilder();
+        
         SocketTextChannel channel = (SocketTextChannel)Context.Channel;
         var guild = Context.Guild;
-        var conf = await guild.GetConfigAsync().ConfigureAwait(false);
-        var usercfgs = await guild.GetUserConfigurationsAsync().ConfigureAwait(false);
+
+        using var db = new BotDatabaseContext();
+        var guildconf = guild.GetConfigOrNew(db);
+        await db.Entry(guildconf).Collection(t => t.UserEntries).LoadAsync();
+
+        var result = new StringBuilder();
 
         result.AppendLine($"Server ID: `{guild.Id}` | Bot shard ID: `{Shard.ShardId:00}`");
-        result.AppendLine($"Number of registered birthdays: `{ usercfgs.Count() }`");
-        result.AppendLine($"Server time zone: `{ (conf?.TimeZone ?? "Not set - using UTC") }`");
+        result.AppendLine($"Number of registered birthdays: `{ guildconf.UserEntries.Count() }`");
+        result.AppendLine($"Server time zone: `{ (guildconf.TimeZone ?? "Not set - using UTC") }`");
         result.AppendLine();
 
         bool hasMembers = Common.HasMostMembersDownloaded(guild);
@@ -152,7 +158,7 @@ public class ConfigModule : BotModuleBase {
         int bdayCount = -1;
         result.Append(DoTestFor("Birthday processing", delegate {
             if (!hasMembers) return false;
-            bdayCount = BackgroundServices.BirthdayRoleUpdate.GetGuildCurrentBirthdays(usercfgs, conf?.TimeZone).Count;
+            bdayCount = BackgroundServices.BirthdayRoleUpdate.GetGuildCurrentBirthdays(guildconf.UserEntries, guildconf.TimeZone).Count;
             return true;
         }));
         if (hasMembers) result.AppendLine($" - `{bdayCount}` user(s) currently having a birthday.");
@@ -160,13 +166,13 @@ public class ConfigModule : BotModuleBase {
         result.AppendLine();
 
         result.AppendLine(DoTestFor("Birthday role set with `bb.config role`", delegate {
-            if (conf == null) return false;
-            SocketRole? role = guild.GetRole(conf.RoleId ?? 0);
+            if (guildconf.IsNew) return false;
+            SocketRole? role = guild.GetRole((ulong)(guildconf.RoleId ?? 0));
             return role != null;
         }));
         result.AppendLine(DoTestFor("Birthday role can be managed by bot", delegate {
-            if (conf == null) return false;
-            SocketRole? role = guild.GetRole(conf.RoleId ?? 0);
+            if (guildconf.IsNew) return false;
+            SocketRole? role = guild.GetRole((ulong)(guildconf.RoleId ?? 0));
             if (role == null) return false;
             return guild.CurrentUser.GuildPermissions.ManageRoles && role.Position < guild.CurrentUser.Hierarchy;
         }));
@@ -174,8 +180,8 @@ public class ConfigModule : BotModuleBase {
 
         SocketTextChannel? announcech = null;
         result.AppendLine(DoTestFor("(Optional) Announcement channel set with `bb.config channel`", delegate {
-            if (conf == null) return false;
-            announcech = guild.GetTextChannel(conf.AnnounceChannelId ?? 0);
+            if (guildconf.IsNew) return false;
+            announcech = guild.GetTextChannel((ulong)(guildconf.ChannelAnnounceId ?? 0));
             return announcech != null;
         }));
         string disp = announcech == null ? "announcement channel" : $"<#{announcech.Id}>";
@@ -197,14 +203,14 @@ public class ConfigModule : BotModuleBase {
                 result.AppendLine($"> {line}");
             return result.ToString();
         }
-        if (conf != null && (conf.AnnounceMessages.Item1 != null || conf.AnnounceMessages.Item2 != null)) {
+        if (!guildconf.IsNew && (guildconf.AnnounceMessage != null || guildconf.AnnounceMessagePl != null)) {
             var em = new EmbedBuilder().WithAuthor(new EmbedAuthorBuilder() { Name = "Custom announce messages:" });
             var dispAnnounces = new StringBuilder("Custom announcement message(s):\n");
-            if (conf.AnnounceMessages.Item1 != null) {
-                em = em.AddField("Single", prepareAnnouncePreview(conf.AnnounceMessages.Item1));
+            if (guildconf.AnnounceMessage != null) {
+                em = em.AddField("Single", prepareAnnouncePreview(guildconf.AnnounceMessage));
             }
-            if (conf.AnnounceMessages.Item2 != null) {
-                em = em.AddField("Multi", prepareAnnouncePreview(conf.AnnounceMessages.Item2));
+            if (guildconf.AnnounceMessagePl != null) {
+                em = em.AddField("Multi", prepareAnnouncePreview(guildconf.AnnounceMessagePl));
             }
             await ReplyAsync(embed: em.Build()).ConfigureAwait(false);
         }
@@ -213,11 +219,9 @@ public class ConfigModule : BotModuleBase {
     [SlashCommand("set-timezone", HelpPfxModOnly + "Configure the time zone to use by default in the server." + HelpPofxBlankUnset)]
     public async Task CmdSetTimezone([Summary(description: HelpOptZone)] string? zone = null) {
         const string Response = ":white_check_mark: The server's time zone has been ";
-        var gconf = await Context.Guild.GetConfigAsync().ConfigureAwait(false);
 
         if (zone == null) {
-            gconf.TimeZone = null;
-            await gconf.UpdateAsync().ConfigureAwait(false);
+            await DoDatabaseUpdate(Context, s => s.TimeZone = null);
             await RespondAsync(Response + "unset.").ConfigureAwait(false);
         } else {
             string parsedZone;
@@ -228,9 +232,22 @@ public class ConfigModule : BotModuleBase {
                 return;
             }
 
-            gconf.TimeZone = parsedZone;
-            await gconf.UpdateAsync().ConfigureAwait(false);
-            await RespondAsync(Response + $"set to **{zone}**.").ConfigureAwait(false);
+            await DoDatabaseUpdate(Context, s => s.TimeZone = parsedZone);
+            await RespondAsync(Response + $"set to **{parsedZone}**.").ConfigureAwait(false);
         }
+    }
+
+    /// <summary>
+    /// Helper method for updating arbitrary <see cref="GuildConfig"/> values without all the boilerplate.
+    /// </summary>
+    /// <param name="valueUpdater">A delegate which modifies <see cref="GuildConfig"/> properties as needed.</param>
+    private static async Task DoDatabaseUpdate(SocketInteractionContext context, Action<GuildConfig> valueUpdater) {
+        using var db = new BotDatabaseContext();
+        var settings = context.Guild.GetConfigOrNew(db);
+
+        valueUpdater(settings);
+
+        if (settings.IsNew) db.GuildConfigurations.Add(settings);
+        await db.SaveChangesAsync();
     }
 }
