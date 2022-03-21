@@ -15,62 +15,51 @@ class BirthdayRoleUpdate : BackgroundService {
     /// Processes birthday updates for all available guilds synchronously.
     /// </summary>
     public override async Task OnTick(int tickCount, CancellationToken token) {
-        var exs = new List<Exception>();
-        foreach (var guild in ShardInstance.DiscordClient.Guilds) {
+        // For database efficiency, fetch all database information at once before proceeding
+        // and combine it into the guild IDs that will be processed
+        using var db = new BotDatabaseContext();
+        var shardGuilds = ShardInstance.DiscordClient.Guilds.Select(g => (long)g.Id).ToHashSet();
+        var settings = db.GuildConfigurations.Where(s => shardGuilds.Contains(s.GuildId));
+        var guildChecks = shardGuilds.Join(settings, o => o, i => i.GuildId, (id, conf) => new { Key = (ulong)id, Value = conf });
+
+        var exceptions = new List<Exception>();
+        foreach (var pair in guildChecks) {
+            var guild = ShardInstance.DiscordClient.GetGuild(pair.Key);
+            if (guild == null) continue; // A guild disappeared...?
+            var guildConf = pair.Value;
+
+            // Check task cancellation here. Processing during a single guild is never interrupted.
+            if (token.IsCancellationRequested) throw new TaskCanceledException();
+
             if (ShardInstance.DiscordClient.ConnectionState != Discord.ConnectionState.Connected) {
                 Log("Client is not connected. Stopping early.");
                 return;
             }
 
-            // Check task cancellation here. Processing during a single guild is never interrupted.
-            if (token.IsCancellationRequested) throw new TaskCanceledException();
-
             try {
-                await ProcessGuildAsync(guild).ConfigureAwait(false);
+                // Verify that role settings and permissions are usable
+                SocketRole? role = guild.GetRole((ulong)(guildConf.RoleId ?? 0));
+                if (role == null || !guild.CurrentUser.GuildPermissions.ManageRoles || role.Position >= guild.CurrentUser.Hierarchy) return;
+
+                // Load up user configs and begin processing birthdays
+                await db.Entry(guildConf).Collection(t => t.UserEntries).LoadAsync(CancellationToken.None);
+                var birthdays = GetGuildCurrentBirthdays(guildConf.UserEntries, guildConf.TimeZone);
+                // Note: Don't quit here if zero people are having birthdays. Roles may still need to be removed by BirthdayApply.
+
+                // Update roles as appropriate
+                var announcementList = await UpdateGuildBirthdayRoles(guild, role, birthdays);
+
+                // Birthday announcement
+                var channel = guild.GetTextChannel((ulong)(guildConf.ChannelAnnounceId ?? 0));
+                if (announcementList.Any()) {
+                    await AnnounceBirthdaysAsync(guildConf, channel, announcementList);
+                }
             } catch (Exception ex) {
                 // Catch all exceptions per-guild but continue processing, throw at end.
-                exs.Add(ex);
+                exceptions.Add(ex);
             }
         }
-        if (exs.Count != 0) throw new AggregateException(exs);
-    }
-
-    /// <summary>
-    /// Main method where actual guild processing occurs.
-    /// </summary>
-    private static async Task ProcessGuildAsync(SocketGuild guild) {
-        // Load guild information - stop if local cache is unavailable.
-        if (!Common.HasMostMembersDownloaded(guild)) return;
-        var gc = await GuildConfiguration.LoadAsync(guild.Id, true).ConfigureAwait(false);
-        if (gc == null) return;
-
-        // Check if role settings are correct before continuing with further processing
-        SocketRole? role = guild.GetRole(gc.RoleId ?? 0);
-        if (role == null || !guild.CurrentUser.GuildPermissions.ManageRoles || role.Position >= guild.CurrentUser.Hierarchy) return;
-
-        // Determine who's currently having a birthday
-        var users = await GuildUserConfiguration.LoadAllAsync(guild.Id).ConfigureAwait(false);
-        var tz = gc.TimeZone;
-        var birthdays = GetGuildCurrentBirthdays(users, tz);
-        // Note: Don't quit here if zero people are having birthdays. Roles may still need to be removed by BirthdayApply.
-
-        IEnumerable<SocketGuildUser> announcementList;
-        // Update roles as appropriate
-        try {
-            var updateResult = await UpdateGuildBirthdayRoles(guild, role, birthdays).ConfigureAwait(false);
-            announcementList = updateResult.Item1;
-        } catch (Discord.Net.HttpException) {
-            return;
-        }
-
-        // Birthday announcement
-        var announce = gc.AnnounceMessages;
-        var announceping = gc.AnnouncePing;
-        SocketTextChannel? channel = null;
-        if (gc.AnnounceChannelId.HasValue) channel = guild.GetTextChannel(gc.AnnounceChannelId.Value);
-        if (announcementList.Any()) {
-            await AnnounceBirthdaysAsync(announce, announceping, channel, announcementList).ConfigureAwait(false);
-        }
+        if (exceptions.Count != 0) throw new AggregateException(exceptions);
     }
 
     /// <summary>
@@ -82,7 +71,8 @@ class BirthdayRoleUpdate : BackgroundService {
 #pragma warning restore 618
     public static HashSet<ulong> GetGuildCurrentBirthdays(IEnumerable<GuildUserConfiguration> guildUsers, string? defaultTzStr) {
         var tzdb = DateTimeZoneProviders.Tzdb;
-        DateTimeZone defaultTz = (defaultTzStr != null ? DateTimeZoneProviders.Tzdb.GetZoneOrNull(defaultTzStr) : null) ?? tzdb.GetZoneOrNull("UTC")!;
+        DateTimeZone defaultTz = (defaultTzStr != null ? DateTimeZoneProviders.Tzdb.GetZoneOrNull(defaultTzStr) : null)
+            ?? tzdb.GetZoneOrNull("UTC")!;
 
         var birthdayUsers = new HashSet<ulong>();
         foreach (var item in guildUsers) {
@@ -138,11 +128,9 @@ class BirthdayRoleUpdate : BackgroundService {
     /// Sets the birthday role to all applicable users. Unsets it from all others who may have it.
     /// </summary>
     /// <returns>
-    /// First item: List of users who had the birthday role applied, used to announce.
-    /// Second item: Counts of users who have had roles added/removed, used for operation reporting.
+    /// List of users who had the birthday role applied, used to announce.
     /// </returns>
-    private static async Task<(IEnumerable<SocketGuildUser>, (int, int))> UpdateGuildBirthdayRoles(
-        SocketGuild g, SocketRole r, HashSet<ulong> names) {
+    private static async Task<IEnumerable<SocketGuildUser>> UpdateGuildBirthdayRoles(SocketGuild g, SocketRole r, HashSet<ulong> names) {
         // Check members currently with the role. Figure out which users to remove it from.
         var roleRemoves = new List<SocketGuildUser>();
         var roleKeeps = new HashSet<ulong>();
@@ -165,7 +153,7 @@ class BirthdayRoleUpdate : BackgroundService {
             newBirthdays.Add(member);
         }
 
-        return (newBirthdays, (newBirthdays.Count, roleRemoves.Count));
+        return newBirthdays;
     }
 
     public const string DefaultAnnounce = "Please wish a happy birthday to %n!";
@@ -174,21 +162,20 @@ class BirthdayRoleUpdate : BackgroundService {
     /// <summary>
     /// Attempts to send an announcement message.
     /// </summary>
-    private static async Task AnnounceBirthdaysAsync(
-        (string?, string?) announce, bool announcePing, SocketTextChannel? c, IEnumerable<SocketGuildUser> names) {
+    private static async Task AnnounceBirthdaysAsync(GuildConfig settings, SocketTextChannel? c, IEnumerable<SocketGuildUser> names) {
         if (c == null) return;
         if (!c.Guild.CurrentUser.GetPermissions(c).SendMessages) return;
 
         string announceMsg;
-        if (names.Count() == 1) announceMsg = announce.Item1 ?? announce.Item2 ?? DefaultAnnounce;
-        else announceMsg = announce.Item2 ?? announce.Item1 ?? DefaultAnnouncePl;
+        if (names.Count() == 1) announceMsg = settings.AnnounceMessage ?? settings.AnnounceMessagePl ?? DefaultAnnounce;
+        else announceMsg = settings.AnnounceMessagePl ?? settings.AnnounceMessage ?? DefaultAnnouncePl;
         announceMsg = announceMsg.TrimEnd();
         if (!announceMsg.Contains("%n")) announceMsg += " %n";
 
         // Build sorted name list
         var namestrings = new List<string>();
         foreach (var item in names)
-            namestrings.Add(Common.FormatName(item, announcePing));
+            namestrings.Add(Common.FormatName(item, settings.AnnouncePing));
         namestrings.Sort(StringComparer.OrdinalIgnoreCase);
 
         var namedisplay = new StringBuilder();

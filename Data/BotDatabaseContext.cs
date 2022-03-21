@@ -37,7 +37,8 @@ public class BotDatabaseContext : DbContext {
             entity.HasOne(d => d.Guild)
                 .WithMany(p => p.BlockedUsers)
                 .HasForeignKey(d => d.GuildId)
-                .HasConstraintName("banned_users_guild_id_fkey");
+                .HasConstraintName("banned_users_guild_id_fkey")
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<GuildConfig>(entity => {
@@ -58,7 +59,8 @@ public class BotDatabaseContext : DbContext {
             entity.HasOne(d => d.Guild)
                 .WithMany(p => p.UserEntries)
                 .HasForeignKey(d => d.GuildId)
-                .HasConstraintName("user_birthdays_guild_id_fkey");
+                .HasConstraintName("user_birthdays_guild_id_fkey")
+                .OnDelete(DeleteBehavior.Cascade);
         });
     }
 }

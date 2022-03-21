@@ -1,7 +1,4 @@
-﻿using System.Threading;
-using System.Threading.Tasks;
-
-namespace BirthdayBot.BackgroundServices;
+﻿namespace BirthdayBot.BackgroundServices;
 
 abstract class BackgroundService {
     protected ShardInstance ShardInstance { get; }
