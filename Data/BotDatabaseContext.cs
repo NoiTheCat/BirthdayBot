@@ -24,6 +24,9 @@ public class BotDatabaseContext : DbContext {
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
          => optionsBuilder
             .UseNpgsql(NpgsqlConnectionString)
+#if DEBUG
+            .LogTo((string line) => Program.Log("EF", line), Microsoft.Extensions.Logging.LogLevel.Information)
+#endif
             .UseSnakeCaseNamingConvention();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder) {
