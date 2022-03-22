@@ -55,7 +55,8 @@ class BirthdayRoleUpdate : BackgroundService {
                 exceptions.Add(ex);
             }
         }
-        if (exceptions.Count != 0) throw new AggregateException(exceptions);
+        if (exceptions.Count > 1) throw new AggregateException("Unhandled exceptions occurred when processing birthdays.", exceptions);
+        else if (exceptions.Count == 1) throw new Exception("An unhandled exception occurred when processing a birthday.", exceptions[0]);
     }
 
     /// <summary>
