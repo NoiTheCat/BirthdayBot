@@ -37,7 +37,9 @@ class BirthdayRoleUpdate : BackgroundService {
             try {
                 // Verify that role settings and permissions are usable
                 SocketRole? role = guild.GetRole((ulong)(settings.RoleId ?? 0));
-                if (role == null || !guild.CurrentUser.GuildPermissions.ManageRoles || role.Position >= guild.CurrentUser.Hierarchy) return;
+                if (role == null
+                    || !guild.CurrentUser.GuildPermissions.ManageRoles
+                    || role.Position >= guild.CurrentUser.Hierarchy) continue;
 
                 // Load up user configs and begin processing birthdays
                 await db.Entry(settings).Collection(t => t.UserEntries).LoadAsync(CancellationToken.None);
@@ -119,31 +121,32 @@ class BirthdayRoleUpdate : BackgroundService {
     /// <returns>
     /// List of users who had the birthday role applied, used to announce.
     /// </returns>
-    private async Task<IEnumerable<SocketGuildUser>> UpdateGuildBirthdayRoles(SocketGuild g, SocketRole r, HashSet<ulong> toApply) {
-        var removals = new List<SocketGuildUser>(); // TODO check if roles can be removed in-place instead of building a list first
-        var no_ops = new HashSet<ulong>();
+    private static async Task<IEnumerable<SocketGuildUser>> UpdateGuildBirthdayRoles(SocketGuild g, SocketRole r, HashSet<ulong> toApply) {
         var additions = new List<SocketGuildUser>();
+        try {
+            var removals = new List<SocketGuildUser>(); // TODO check if roles can be removed in-place instead of building a list first
+            var no_ops = new HashSet<ulong>();
 
-        // Scan role for members no longer needing it
-        foreach (var user in r.Members) {
-            if (!toApply.Contains(user.Id)) removals.Add(user);
-            else no_ops.Add(user.Id);
-        }
-        foreach (var user in removals) {
-            // TODO this gets hit with rate limits sometimes. figure something out.
-            await user.RemoveRoleAsync(r);
-        }
-
-        foreach (var target in toApply) {
-            if (no_ops.Contains(target)) continue;
-
-            var user = g.GetUser(target);
-            if (user == null) {
-                Log($"Encountered null user while processing guild {g.Id}. User: {target}.");
-                continue;
+            // Scan role for members no longer needing it
+            foreach (var user in r.Members) {
+                if (!toApply.Contains(user.Id)) removals.Add(user);
+                else no_ops.Add(user.Id);
             }
-            await user.AddRoleAsync(r);
-            additions.Add(user);
+            foreach (var user in removals) {
+                // TODO this gets hit with rate limits sometimes. figure something out.
+                await user.RemoveRoleAsync(r);
+            }
+
+            foreach (var target in toApply) {
+                if (no_ops.Contains(target)) continue;
+                var user = g.GetUser(target);
+                if (user == null) continue; // User existing in database but not in guild
+                await user.AddRoleAsync(r);
+                additions.Add(user);
+            }
+        } catch (Discord.Net.HttpException ex)
+            when (ex.DiscordCode is DiscordErrorCode.MissingPermissions or DiscordErrorCode.InsufficientPermissions) {
+            // Encountered access and/or permission issues despite earlier checks. Quit the loop here.
         }
         return additions;
     }
