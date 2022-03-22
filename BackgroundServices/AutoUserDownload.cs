@@ -28,6 +28,6 @@ class AutoUserDownload : BackgroundService {
             processed++;
         }
 
-        if (processed > 0) Log($"Explicit user list request processed for {processed} guild(s).");
+        if (processed > 100) Log($"Explicit user list request processed for {processed} guild(s).");
     }
 }
