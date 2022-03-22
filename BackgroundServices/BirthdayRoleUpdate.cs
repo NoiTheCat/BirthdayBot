@@ -16,43 +16,39 @@ class BirthdayRoleUpdate : BackgroundService {
     /// </summary>
     public override async Task OnTick(int tickCount, CancellationToken token) {
         // For database efficiency, fetch all database information at once before proceeding
-        // and combine it into the guild IDs that will be processed
         using var db = new BotDatabaseContext();
         var shardGuilds = ShardInstance.DiscordClient.Guilds.Select(g => (long)g.Id).ToHashSet();
-        var settings = db.GuildConfigurations.Where(s => shardGuilds.Contains(s.GuildId));
-        var guildChecks = shardGuilds.Join(settings, o => o, i => i.GuildId, (id, conf) => new { Key = (ulong)id, Value = conf });
+        var presentGuildSettings = db.GuildConfigurations.Where(s => shardGuilds.Contains(s.GuildId));
+        var guildChecks = presentGuildSettings.ToList().Select(s => new Tuple<ulong, GuildConfig>((ulong)s.GuildId, s));
 
         var exceptions = new List<Exception>();
-        foreach (var pair in guildChecks) {
-            var guild = ShardInstance.DiscordClient.GetGuild(pair.Key);
+        foreach (var (guildId, settings) in guildChecks) {
+            var guild = ShardInstance.DiscordClient.GetGuild(guildId);
             if (guild == null) continue; // A guild disappeared...?
-            var guildConf = pair.Value;
 
             // Check task cancellation here. Processing during a single guild is never interrupted.
             if (token.IsCancellationRequested) throw new TaskCanceledException();
 
-            if (ShardInstance.DiscordClient.ConnectionState != Discord.ConnectionState.Connected) {
+            if (ShardInstance.DiscordClient.ConnectionState != ConnectionState.Connected) {
                 Log("Client is not connected. Stopping early.");
                 return;
             }
 
             try {
                 // Verify that role settings and permissions are usable
-                SocketRole? role = guild.GetRole((ulong)(guildConf.RoleId ?? 0));
+                SocketRole? role = guild.GetRole((ulong)(settings.RoleId ?? 0));
                 if (role == null || !guild.CurrentUser.GuildPermissions.ManageRoles || role.Position >= guild.CurrentUser.Hierarchy) return;
 
                 // Load up user configs and begin processing birthdays
-                await db.Entry(guildConf).Collection(t => t.UserEntries).LoadAsync(CancellationToken.None);
-                var birthdays = GetGuildCurrentBirthdays(guildConf.UserEntries, guildConf.TimeZone);
-                // Note: Don't quit here if zero people are having birthdays. Roles may still need to be removed by BirthdayApply.
+                await db.Entry(settings).Collection(t => t.UserEntries).LoadAsync(CancellationToken.None);
+                var birthdays = GetGuildCurrentBirthdays(settings.UserEntries, settings.TimeZone);
 
-                // Update roles as appropriate
+                // Add or remove roles as appropriate
                 var announcementList = await UpdateGuildBirthdayRoles(guild, role, birthdays);
 
-                // Birthday announcement
-                var channel = guild.GetTextChannel((ulong)(guildConf.ChannelAnnounceId ?? 0));
+                // Process birthday announcement
                 if (announcementList.Any()) {
-                    await AnnounceBirthdaysAsync(guildConf, channel, announcementList);
+                    await AnnounceBirthdaysAsync(settings, guild, announcementList);
                 }
             } catch (Exception ex) {
                 // Catch all exceptions per-guild but continue processing, throw at end.
@@ -66,9 +62,7 @@ class BirthdayRoleUpdate : BackgroundService {
     /// Gets all known users from the given guild and returns a list including only those who are
     /// currently experiencing a birthday in the respective time zone.
     /// </summary>
-#pragma warning disable 618
     [Obsolete(Database.ObsoleteReason)]
-#pragma warning restore 618
     public static HashSet<ulong> GetGuildCurrentBirthdays(IEnumerable<GuildUserConfiguration> guildUsers, string? defaultTzStr) {
         var tzdb = DateTimeZoneProviders.Tzdb;
         DateTimeZone defaultTz = (defaultTzStr != null ? DateTimeZoneProviders.Tzdb.GetZoneOrNull(defaultTzStr) : null)
@@ -94,33 +88,27 @@ class BirthdayRoleUpdate : BackgroundService {
         }
         return birthdayUsers;
     }
-
     /// <summary>
     /// Gets all known users from the given guild and returns a list including only those who are
     /// currently experiencing a birthday in the respective time zone.
     /// </summary>
-    public static HashSet<ulong> GetGuildCurrentBirthdays(IEnumerable<UserEntry> guildUsers, string? defaultTzStr) {
-        var tzdb = DateTimeZoneProviders.Tzdb;
-        DateTimeZone defaultTz = (defaultTzStr != null ? DateTimeZoneProviders.Tzdb.GetZoneOrNull(defaultTzStr) : null) ?? tzdb.GetZoneOrNull("UTC")!;
-
+    public static HashSet<ulong> GetGuildCurrentBirthdays(IEnumerable<UserEntry> guildUsers, string? ServerDefaultTzId) {
         var birthdayUsers = new HashSet<ulong>();
-        foreach (var item in guildUsers) {
-            // Determine final time zone to use for calculation
-            DateTimeZone tz = (item.TimeZone != null ? tzdb.GetZoneOrNull(item.TimeZone) : null) ?? defaultTz;
 
-            var targetMonth = item.BirthMonth;
-            var targetDay = item.BirthDay;
+        foreach (var record in guildUsers) {
+            // Determine final time zone to use for calculation
+            DateTimeZone tz = DateTimeZoneProviders.Tzdb
+                .GetZoneOrNull(record.TimeZone ?? ServerDefaultTzId ?? "UTC")!;
 
             var checkNow = SystemClock.Instance.GetCurrentInstant().InZone(tz);
-            // Special case: If birthday is February 29 and it's not a leap year, recognize it on March 1st
-            if (targetMonth == 2 && targetDay == 29 && !DateTime.IsLeapYear(checkNow.Year)) {
-                targetMonth = 3;
-                targetDay = 1;
-            }
-            if (targetMonth == checkNow.Month && targetDay == checkNow.Day) {
-                birthdayUsers.Add((ulong)item.UserId);
+            // Special case: If user's birthday is 29-Feb and it's currently not a leap year, check against 1-Mar
+            if (!DateTime.IsLeapYear(checkNow.Year) && record.BirthMonth == 2 && record.BirthDay == 29) {
+                if (checkNow.Month == 3 && checkNow.Day == 1) birthdayUsers.Add((ulong)record.UserId);
+            } else if (record.BirthMonth == checkNow.Month && record.BirthDay== checkNow.Day) {
+                birthdayUsers.Add((ulong)record.UserId);
             }
         }
+
         return birthdayUsers;
     }
 
@@ -130,30 +118,33 @@ class BirthdayRoleUpdate : BackgroundService {
     /// <returns>
     /// List of users who had the birthday role applied, used to announce.
     /// </returns>
-    private static async Task<IEnumerable<SocketGuildUser>> UpdateGuildBirthdayRoles(SocketGuild g, SocketRole r, HashSet<ulong> names) {
-        // Check members currently with the role. Figure out which users to remove it from.
-        var roleRemoves = new List<SocketGuildUser>();
-        var roleKeeps = new HashSet<ulong>();
-        foreach (var member in r.Members) {
-            if (!names.Contains(member.Id)) roleRemoves.Add(member);
-            else roleKeeps.Add(member.Id);
+    private async Task<IEnumerable<SocketGuildUser>> UpdateGuildBirthdayRoles(SocketGuild g, SocketRole r, HashSet<ulong> toApply) {
+        var removals = new List<SocketGuildUser>(); // TODO check if roles can be removed in-place instead of building a list first
+        var no_ops = new HashSet<ulong>();
+        var additions = new List<SocketGuildUser>();
+
+        // Scan role for members no longer needing it
+        foreach (var user in r.Members) {
+            if (!toApply.Contains(user.Id)) removals.Add(user);
+            else no_ops.Add(user.Id);
+        }
+        foreach (var user in removals) {
+            // TODO this gets hit with rate limits sometimes. figure something out.
+            await user.RemoveRoleAsync(r);
         }
 
-        foreach (var user in roleRemoves) {
-            await user.RemoveRoleAsync(r).ConfigureAwait(false);
-        }
+        foreach (var target in toApply) {
+            if (no_ops.Contains(target)) continue;
 
-        // Apply role to members not already having it. Prepare announcement list.
-        var newBirthdays = new List<SocketGuildUser>();
-        foreach (var target in names) {
-            var member = g.GetUser(target);
-            if (member == null) continue;
-            if (roleKeeps.Contains(member.Id)) continue; // already has role - do nothing
-            await member.AddRoleAsync(r).ConfigureAwait(false);
-            newBirthdays.Add(member);
+            var user = g.GetUser(target);
+            if (user == null) {
+                Log($"Encountered null user while processing guild {g.Id}. User: {target}.");
+                continue;
+            }
+            await user.AddRoleAsync(r);
+            additions.Add(user);
         }
-
-        return newBirthdays;
+        return additions;
     }
 
     public const string DefaultAnnounce = "Please wish a happy birthday to %n!";
@@ -162,7 +153,8 @@ class BirthdayRoleUpdate : BackgroundService {
     /// <summary>
     /// Attempts to send an announcement message.
     /// </summary>
-    private static async Task AnnounceBirthdaysAsync(GuildConfig settings, SocketTextChannel? c, IEnumerable<SocketGuildUser> names) {
+    internal static async Task AnnounceBirthdaysAsync(GuildConfig settings, SocketGuild g, IEnumerable<SocketGuildUser> names) {
+        var c = g.GetTextChannel((ulong)(settings.ChannelAnnounceId ?? 0));
         if (c == null) return;
         if (!c.Guild.CurrentUser.GetPermissions(c).SendMessages) return;
 
