@@ -16,14 +16,18 @@ class AutoUserDownload : BackgroundService {
         // ...and if the guild contains any user data
         var mustFetch = db.UserEntries.Where(e => incompleteCaches.Contains(e.GuildId)).Select(e => e.GuildId).Distinct();
 
+        int processed = 0;
         foreach (var item in mustFetch) {
             // May cause a disconnect in certain situations. Cancel all further attempts until the next pass if it happens.
-            if (ShardInstance.DiscordClient.ConnectionState != ConnectionState.Connected) return;
+            if (ShardInstance.DiscordClient.ConnectionState != ConnectionState.Connected) break;
 
             var guild = ShardInstance.DiscordClient.GetGuild((ulong)item);
             if (guild == null) continue; // A guild disappeared...?
             await guild.DownloadUsersAsync().ConfigureAwait(false); // We're already on a seperate thread, no need to use Task.Run
             await Task.Delay(200, CancellationToken.None).ConfigureAwait(false); // Must delay, or else it seems to hang...
+            processed++;
         }
+
+        if (processed > 0) Log($"Explicit user list request processed for {processed} guild(s).");
     }
 }
