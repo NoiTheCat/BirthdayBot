@@ -221,7 +221,8 @@ public class BirthdayModule : BotModuleBase {
                         select new {
                             UserId = (ulong)row.UserId,
                             Month = row.BirthMonth,
-                            Day = row.BirthDay
+                            Day = row.BirthDay,
+                            Zone = row.TimeZone
                         };
 
         var result = new List<ListItem>();
@@ -234,7 +235,8 @@ public class BirthdayModule : BotModuleBase {
                 BirthDay = row.Day,
                 DateIndex = DateIndex(row.Month, row.Day),
                 UserId = guildUser.Id,
-                DisplayName = Common.FormatName(guildUser, false)
+                DisplayName = Common.FormatName(guildUser, false),
+                TimeZone = row.Zone
             });
         }
         return result;
@@ -254,6 +256,7 @@ public class BirthdayModule : BotModuleBase {
             writer.Write(item.UserId);
             writer.Write(" " + user.Username + "#" + user.Discriminator);
             if (user.Nickname != null) writer.Write(" - Nickname: " + user.Nickname);
+            if (item.TimeZone != null) writer.Write(" | Time zone: " + item.TimeZone);
             writer.WriteLine();
         }
         writer.Flush();
@@ -267,7 +270,7 @@ public class BirthdayModule : BotModuleBase {
         var writer = new StreamWriter(result, Encoding.UTF8);
 
         // Conforming to RFC 4180; with header
-        writer.Write("UserId,Username,Nickname,MonthDayDisp,Month,Day");
+        writer.Write("UserId,Username,Nickname,MonthDayDisp,Month,Day,TimeZone");
         writer.Write("\r\n"); // crlf line break is specified by the standard
         foreach (var item in list) {
             var user = guild.GetUser(item.UserId);
@@ -283,6 +286,8 @@ public class BirthdayModule : BotModuleBase {
             writer.Write(item.BirthMonth);
             writer.Write(',');
             writer.Write(item.BirthDay);
+            writer.Write(',');
+            writer.Write(item.TimeZone);
             writer.Write("\r\n");
         }
         writer.Flush();
@@ -325,6 +330,7 @@ public class BirthdayModule : BotModuleBase {
         public int BirthDay;
         public ulong UserId;
         public string DisplayName;
+        public string? TimeZone;
     }
     #endregion
 }
