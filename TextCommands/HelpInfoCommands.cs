@@ -34,7 +34,9 @@ internal class HelpInfoCommands : CommandsCommon {
         // Normal section
         var cmdField = new EmbedFieldBuilder() {
             Name = "Commands",
-            Value = $"{cpfx}help`, `{CommandPrefix}info`, `{CommandPrefix}help-tzdata`\n"
+            Value = "----\n**Notice**: Text commands will soon be __removed__. "
+                + "For a list of new commands, see this bot's `/help` command.\n----\n"
+                + $"{cpfx}help`, `{CommandPrefix}info`, `{CommandPrefix}help-tzdata`\n"
                 + $" » Help and informational messages.\n"
                 + ListingCommands.DocUpcoming.Export() + "\n"
                 + UserCommands.DocSet.Export() + "\n"
