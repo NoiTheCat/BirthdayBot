@@ -132,9 +132,10 @@ class BirthdayRoleUpdate : BackgroundService {
                 if (!toApply.Contains(user.Id)) removals.Add(user);
                 else no_ops.Add(user.Id);
             }
+            int removalAllowance = 15; // Limit removals per run, to not get continuously stuck on rate limits in misconfigured servers
             foreach (var user in removals) {
-                // TODO this gets hit with rate limits sometimes. figure something out.
                 await user.RemoveRoleAsync(r);
+                if (--removalAllowance == 0) break;
             }
 
             foreach (var target in toApply) {
@@ -146,7 +147,7 @@ class BirthdayRoleUpdate : BackgroundService {
             }
         } catch (Discord.Net.HttpException ex)
             when (ex.DiscordCode is DiscordErrorCode.MissingPermissions or DiscordErrorCode.InsufficientPermissions) {
-            // Encountered access and/or permission issues despite earlier checks. Quit the loop here.
+            // Encountered access and/or permission issues despite earlier checks. Quit the loop here, don't report error.
         }
         return additions;
     }

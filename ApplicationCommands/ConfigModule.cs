@@ -193,7 +193,7 @@ public class ConfigModule : BotModuleBase {
         var result = new StringBuilder();
 
         result.AppendLine($"Server ID: `{guild.Id}` | Bot shard ID: `{Shard.ShardId:00}`");
-        result.AppendLine($"Number of registered birthdays: `{ guildconf.UserEntries.Count() }`");
+        result.AppendLine($"Number of registered birthdays: `{ guildconf.UserEntries.Count }`");
         result.AppendLine($"Server time zone: `{ (guildconf.TimeZone ?? "Not set - using UTC") }`");
         result.AppendLine();
 
