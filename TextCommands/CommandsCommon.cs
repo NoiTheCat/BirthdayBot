@@ -1,4 +1,5 @@
-﻿using BirthdayBot.Data;
+﻿#pragma warning disable CS0618
+using BirthdayBot.Data;
 using NodaTime;
 using System.Collections.ObjectModel;
 using System.Text.RegularExpressions;

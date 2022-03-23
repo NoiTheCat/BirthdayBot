@@ -1,10 +1,12 @@
 ﻿using Npgsql;
-using System.Threading.Tasks;
 
 namespace BirthdayBot.Data;
 
+[Obsolete(ObsoleteReason, error: false)]
 internal static class Database {
-    public static string DBConnectionString { get; set; }
+    public const string ObsoleteReason = "Will be removed in favor of EF6 stuff when text commands are removed";
+
+    public static string DBConnectionString { get; set; } = null!;
 
     /// <summary>
     /// Sets up and opens a database connection.

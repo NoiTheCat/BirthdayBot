@@ -13,26 +13,31 @@ class EnforceBlockingAttribute : PreconditionAttribute {
     public const string ReplyModerated = ":x: This bot is in moderated mode, preventing you from using any bot commands in this server.";
     public const string ReplyBlocked = ":x: You have been blocked from using bot commands in this server.";
 
-    public override async Task<PreconditionResult> CheckRequirementsAsync(
+    public override Task<PreconditionResult> CheckRequirementsAsync(
         IInteractionContext context, ICommandInfo commandInfo, IServiceProvider services) {
         // Not in guild context, unaffected by blocking
-        if (context.Guild is not SocketGuild guild) return PreconditionResult.FromSuccess();
+        if (context.Guild is not SocketGuild guild) return Task.FromResult(PreconditionResult.FromSuccess());
 
         // Manage Guild permission overrides any blocks
         var user = (SocketGuildUser)context.User;
-        if (user.GuildPermissions.ManageGuild) return PreconditionResult.FromSuccess();
+        if (user.GuildPermissions.ManageGuild) return Task.FromResult(PreconditionResult.FromSuccess());
 
-        var gconf = await guild.GetConfigAsync().ConfigureAwait(false);
+        using var db = new BotDatabaseContext();
+        var settings = (from row in db.GuildConfigurations
+                       where row.GuildId == (long)guild.Id
+                       select new { ModRole = (ulong?)row.ModeratorRole, ModMode = row.Moderated }).FirstOrDefault();
+        if (settings != null) {
+            // Bot moderators override all blocking measures in place
+            if (user.Roles.Any(r => r.Id == settings.ModRole)) return Task.FromResult(PreconditionResult.FromSuccess());
 
-        // Bot moderators override any blocks
-        if (gconf.ModeratorRole.HasValue && user.Roles.Any(r => r.Id == gconf.ModeratorRole.Value)) return PreconditionResult.FromSuccess();
+            // Check for moderated mode
+            if (settings.ModMode) return Task.FromResult(PreconditionResult.FromError(FailModerated));
 
-        // Moderated mode check
-        if (gconf.IsModerated) return PreconditionResult.FromError(FailModerated);
+            // Check if user exists in blocklist
+            if (db.BlocklistEntries.Where(row => row.GuildId == (long)guild.Id && row.UserId == (long)user.Id).Any())
+                return Task.FromResult(PreconditionResult.FromError(FailBlocked));
+        }
 
-        // Block list check
-        if (await gconf.IsUserInBlocklistAsync(user.Id)) return PreconditionResult.FromError(FailBlocked);
-
-        return PreconditionResult.FromSuccess();
+        return Task.FromResult(PreconditionResult.FromSuccess());
     }
 }

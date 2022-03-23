@@ -41,8 +41,13 @@ public class BirthdayModule : BotModuleBase {
                 }
             }
 
-            var user = await ((SocketGuildUser)Context.User).GetConfigAsync().ConfigureAwait(false);
-            await user.UpdateAsync(inmonth, inday, inzone ?? user.TimeZone).ConfigureAwait(false);
+            using var db = new BotDatabaseContext();
+            var user = ((SocketGuildUser)Context.User).GetUserEntryOrNew(db);
+            if (user.IsNew) db.UserEntries.Add(user);
+            user.BirthMonth = inmonth;
+            user.BirthDay = inday;
+            user.TimeZone = inzone;
+            await db.SaveChangesAsync();
 
             await RespondAsync($":white_check_mark: Your birthday has been set to **{FormatDate(inmonth, inday)}**" +
                 (inzone == null ? "" : $", with time zone {inzone}") + ".").ConfigureAwait(false);
@@ -50,31 +55,35 @@ public class BirthdayModule : BotModuleBase {
 
         [SlashCommand("timezone", HelpCmdSetZone)]
         public async Task CmdSetZone([Summary(description: HelpOptZone)] string zone) {
-            var user = await ((SocketGuildUser)Context.User).GetConfigAsync().ConfigureAwait(false);
-            if (!user.IsKnown) {
+            using var db = new BotDatabaseContext();
+
+            var user = ((SocketGuildUser)Context.User).GetUserEntryOrNew(db);
+            if (user.IsNew) {
                 await RespondAsync(":x: You do not have a birthday set.", ephemeral: true).ConfigureAwait(false);
                 return;
             }
 
-            string inzone;
+            string newzone;
             try {
-                inzone = ParseTimeZone(zone);
+                newzone = ParseTimeZone(zone);
             } catch (FormatException e) {
                 await RespondAsync(e.Message, ephemeral: true).ConfigureAwait(false);
                 return;
             }
-            await user.UpdateAsync(user.BirthMonth, user.BirthDay, inzone).ConfigureAwait(false);
-            await RespondAsync($":white_check_mark: Your time zone has been set to **{inzone}**.").ConfigureAwait(false);
+            user.TimeZone = newzone;
+            await db.SaveChangesAsync();
+            await RespondAsync($":white_check_mark: Your time zone has been set to **{newzone}**.").ConfigureAwait(false);
         }
     }
 
     [SlashCommand("remove", HelpCmdRemove)]
     public async Task CmdRemove() {
-        var user = await ((SocketGuildUser)Context.User).GetConfigAsync().ConfigureAwait(false);
-        if (user.IsKnown) {
-            await user.DeleteAsync().ConfigureAwait(false);
-            await RespondAsync(":white_check_mark: Your birthday in this server has been removed.")
-                .ConfigureAwait(false);
+        using var db = new BotDatabaseContext();
+        var user = ((SocketGuildUser)Context.User).GetUserEntryOrNew(db);
+        if (!user.IsNew) {
+            db.UserEntries.Remove(user);
+            await db.SaveChangesAsync();
+            await RespondAsync(":white_check_mark: Your birthday in this server has been removed.");
         } else {
             await RespondAsync(":white_check_mark: Your birthday is not registered.")
                 .ConfigureAwait(false);
@@ -83,12 +92,15 @@ public class BirthdayModule : BotModuleBase {
 
     [SlashCommand("get", "Gets a user's birthday.")]
     public async Task CmdGetBday([Summary(description: "Optional: The user's birthday to look up.")] SocketGuildUser? user = null) {
-        var self = user is null;
-        if (self) user = (SocketGuildUser)Context.User;
-        var targetdata = await user!.GetConfigAsync().ConfigureAwait(false);
+        using var db = new BotDatabaseContext();
 
-        if (!targetdata.IsKnown) {
-            if (self) await RespondAsync(":x: You do not have your birthday registered.", ephemeral: true).ConfigureAwait(false);
+        var isSelf = user is null;
+        if (isSelf) user = (SocketGuildUser)Context.User;
+
+        var targetdata = user!.GetUserEntryOrNew(db);
+
+        if (targetdata.IsNew) {
+            if (isSelf) await RespondAsync(":x: You do not have your birthday registered.", ephemeral: true).ConfigureAwait(false);
             else await RespondAsync(":x: The given user does not have their birthday registered.", ephemeral: true).ConfigureAwait(false);
             return;
         }
@@ -111,7 +123,7 @@ public class BirthdayModule : BotModuleBase {
         var search = DateIndex(now.Month, now.Day) - 8; // begin search 8 days prior to current date UTC
         if (search <= 0) search = 366 - Math.Abs(search);
 
-        var query = await GetSortedUsersAsync(Context.Guild).ConfigureAwait(false);
+        var query = GetSortedUserList(Context.Guild);
 
         // TODO pagination instead of this workaround
         bool hasOutputOneLine = false;
@@ -182,7 +194,7 @@ public class BirthdayModule : BotModuleBase {
             return;
         }
 
-        var bdlist = await GetSortedUsersAsync(Context.Guild).ConfigureAwait(false);
+        var bdlist = GetSortedUserList(Context.Guild);
 
         var filename = "birthdaybot-" + Context.Guild.Id;
         Stream fileoutput;
@@ -201,27 +213,26 @@ public class BirthdayModule : BotModuleBase {
     /// Fetches all guild birthdays and places them into an easily usable structure.
     /// Users currently not in the guild are not included in the result.
     /// </summary>
-    private static async Task<List<ListItem>> GetSortedUsersAsync(SocketGuild guild) {
-        using var db = await Database.OpenConnectionAsync();
-        using var c = db.CreateCommand();
-        c.CommandText = "select user_id, birth_month, birth_day from " + GuildUserConfiguration.BackingTable
-            + " where guild_id = @Gid order by birth_month, birth_day";
-        c.Parameters.Add("@Gid", NpgsqlTypes.NpgsqlDbType.Bigint).Value = (long)guild.Id;
-        c.Prepare();
-        using var r = await c.ExecuteReaderAsync();
-        var result = new List<ListItem>();
-        while (await r.ReadAsync()) {
-            var id = (ulong)r.GetInt64(0);
-            var month = r.GetInt32(1);
-            var day = r.GetInt32(2);
+    private static List<ListItem> GetSortedUserList(SocketGuild guild) {
+        using var db = new BotDatabaseContext();
+        var query = from row in db.UserEntries
+                        where row.GuildId == (long)guild.Id
+                        orderby row.BirthMonth, row.BirthDay
+                        select new {
+                            UserId = (ulong)row.UserId,
+                            Month = row.BirthMonth,
+                            Day = row.BirthDay
+                        };
 
-            var guildUser = guild.GetUser(id);
+        var result = new List<ListItem>();
+        foreach (var row in query) {
+            var guildUser = guild.GetUser(row.UserId);
             if (guildUser == null) continue; // Skip user not in guild
 
             result.Add(new ListItem() {
-                BirthMonth = month,
-                BirthDay = day,
-                DateIndex = DateIndex(month, day),
+                BirthMonth = row.Month,
+                BirthDay = row.Day,
+                DateIndex = DateIndex(row.Month, row.Day),
                 UserId = guildUser.Id,
                 DisplayName = Common.FormatName(guildUser, false)
             });

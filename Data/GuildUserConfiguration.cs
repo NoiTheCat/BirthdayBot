@@ -7,6 +7,7 @@ namespace BirthdayBot.Data;
 /// <summary>
 /// Represents configuration for a guild user as may exist in the database.
 /// </summary>
+[Obsolete(Database.ObsoleteReason, error: false)]
 class GuildUserConfiguration {
     public ulong GuildId { get; }
     public ulong UserId { get; }
@@ -106,7 +107,6 @@ class GuildUserConfiguration {
     /// <summary>
     /// Attempts to retrieve a user's configuration. Returns a new, updateable instance if none is found.
     /// </summary>
-    [Obsolete("Migrate to using extension methods to retrieve necessary data instead.", false)]
     public static async Task<GuildUserConfiguration> LoadAsync(ulong guildId, ulong userId) {
         using var db = await Database.OpenConnectionAsync().ConfigureAwait(false);
         using var c = db.CreateCommand();
@@ -123,7 +123,6 @@ class GuildUserConfiguration {
     /// <summary>
     /// Gets all known user configuration records associated with the specified guild.
     /// </summary>
-    [Obsolete("Migrate to using extension methods to retrieve necessary data instead.", false)]
     public static async Task<IEnumerable<GuildUserConfiguration>> LoadAllAsync(ulong guildId) {
         using var db = await Database.OpenConnectionAsync().ConfigureAwait(false);
         using var c = db.CreateCommand();

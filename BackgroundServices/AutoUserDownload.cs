@@ -9,29 +9,25 @@ class AutoUserDownload : BackgroundService {
     public AutoUserDownload(ShardInstance instance) : base(instance) { }
 
     public override async Task OnTick(int tickCount, CancellationToken token) {
-        foreach (var guild in ShardInstance.DiscordClient.Guilds) {
-            // Has the potential to disconnect while in the middle of processing.
-            if (ShardInstance.DiscordClient.ConnectionState != ConnectionState.Connected) return;
+        using var db = new BotDatabaseContext();
 
-            // Determine if there is action to be taken...
-            if (!guild.HasAllMembers && await GuildUserAnyAsync(guild.Id).ConfigureAwait(false)) {
-                await guild.DownloadUsersAsync().ConfigureAwait(false); // This is already on a separate thread; no need to Task.Run
-                await Task.Delay(200, CancellationToken.None).ConfigureAwait(false); // Must delay, or else it seems to hang...
-            }
+        // Take action if a guild's cache is incomplete...
+        var incompleteCaches = ShardInstance.DiscordClient.Guilds.Where(g => !g.HasAllMembers).Select(g => (long)g.Id).ToHashSet();
+        // ...and if the guild contains any user data
+        var mustFetch = db.UserEntries.Where(e => incompleteCaches.Contains(e.GuildId)).Select(e => e.GuildId).Distinct();
+
+        int processed = 0;
+        foreach (var item in mustFetch) {
+            // May cause a disconnect in certain situations. Cancel all further attempts until the next pass if it happens.
+            if (ShardInstance.DiscordClient.ConnectionState != ConnectionState.Connected) break;
+
+            var guild = ShardInstance.DiscordClient.GetGuild((ulong)item);
+            if (guild == null) continue; // A guild disappeared...?
+            await guild.DownloadUsersAsync().ConfigureAwait(false); // We're already on a seperate thread, no need to use Task.Run
+            await Task.Delay(200, CancellationToken.None).ConfigureAwait(false); // Must delay, or else it seems to hang...
+            processed++;
         }
-    }
 
-    /// <summary>
-    /// Determines if the user database contains any entries corresponding to this guild.
-    /// </summary>
-    /// <returns>True if any entries exist.</returns>
-    private static async Task<bool> GuildUserAnyAsync(ulong guildId) {
-        using var db = await Database.OpenConnectionAsync().ConfigureAwait(false);
-        using var c = db.CreateCommand();
-        c.CommandText = $"select true from {GuildUserConfiguration.BackingTable} where guild_id = @Gid limit 1";
-        c.Parameters.Add("@Gid", NpgsqlTypes.NpgsqlDbType.Bigint).Value = (long)guildId;
-        await c.PrepareAsync(CancellationToken.None).ConfigureAwait(false);
-        using var r = await c.ExecuteReaderAsync(CancellationToken.None).ConfigureAwait(false);
-        return r.Read();
+        if (processed > 100) Log($"Explicit user list request processed for {processed} guild(s).");
     }
 }

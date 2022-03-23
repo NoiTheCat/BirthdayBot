@@ -26,6 +26,8 @@ class Configuration {
     public int ShardStart { get; }
     public int ShardAmount { get; }
     public int ShardTotal { get; }
+    
+    public string DatabaseConnectionString { get; }
 
     public Configuration(string[] args) {
         var cmdline = CmdLineOpts.Parse(args);
@@ -74,7 +76,7 @@ class Configuration {
         };
         var sqldb = ReadConfKey<string>(jc, KeySqlDatabase, false);
         if (sqldb != null) csb.Database = sqldb; // Optional database setting
-        Database.DBConnectionString = csb.ToString();
+        DatabaseConnectionString = csb.ToString();
     }
 
     private static T? ReadConfKey<T>(JObject jc, string key, [DoesNotReturnIf(true)] bool failOnEmpty) {

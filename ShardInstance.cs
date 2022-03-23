@@ -127,6 +127,7 @@ public sealed class ShardInstance : IDisposable {
 #endif
     }
 
+#pragma warning disable CS0618
     /// <summary>
     /// Determines if the incoming message is an incoming command, and dispatches to the appropriate handler if necessary.
     /// </summary>
@@ -166,6 +167,7 @@ public sealed class ShardInstance : IDisposable {
             }
         }
     }
+#pragma warning restore CS0618
 
     // Slash command preparation and invocation
     private async Task DiscordClient_InteractionCreated(SocketInteraction arg) {

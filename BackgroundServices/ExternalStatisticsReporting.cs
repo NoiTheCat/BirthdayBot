@@ -1,8 +1,4 @@
-﻿using System;
-using System.Net.Http;
-using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
+﻿using System.Text;
 
 namespace BirthdayBot.BackgroundServices;
 
@@ -11,7 +7,7 @@ namespace BirthdayBot.BackgroundServices;
 /// </summary>
 class ExternalStatisticsReporting : BackgroundService {
     const int ProcessInterval = 1200 / ShardBackgroundWorker.Interval; // Process every ~20 minutes
-    const int ProcessOffset = 300 / ShardBackgroundWorker.Interval; // Begin processing 5 minutes after shard start
+    const int ProcessOffset = 300 / ShardBackgroundWorker.Interval; // Begin processing ~5 minutes after shard start
 
     private static readonly HttpClient _httpClient = new();
 

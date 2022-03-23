@@ -8,6 +8,7 @@ namespace BirthdayBot.Data;
 /// Represents guild-specific configuration as exists in the database.
 /// Updating any property requires a call to <see cref="UpdateAsync"/> for changes to take effect.
 /// </summary>
+[Obsolete(Database.ObsoleteReason, error: false)]
 class GuildConfiguration {
     /// <summary>
     /// Gets this configuration's corresponding guild ID.
@@ -73,7 +74,6 @@ class GuildConfiguration {
     /// <summary>
     /// Checks if the specified user is blocked by current guild policy (block list or moderated mode).
     /// </summary>
-    [Obsolete("Block lists should be reimplemented in a more resource-efficient manner later.", false)]
     public async Task<bool> IsUserBlockedAsync(ulong userId) {
         if (IsModerated) return true;
         return await IsUserInBlocklistAsync(userId).ConfigureAwait(false);
@@ -82,7 +82,6 @@ class GuildConfiguration {
     /// <summary>
     /// Checks if the given user exists in the block list.
     /// </summary>
-    [Obsolete("Block lists should be reimplemented in a more resource-efficient manner later.", false)]
     public async Task<bool> IsUserInBlocklistAsync(ulong userId) {
         using var db = await Database.OpenConnectionAsync().ConfigureAwait(false);
         using var c = db.CreateCommand();
@@ -99,7 +98,6 @@ class GuildConfiguration {
     /// <summary>
     /// Adds the specified user to the block list corresponding to this guild.
     /// </summary>
-    [Obsolete("Block lists will be reimplemented in a more practical manner later.", false)]
     public async Task BlockUserAsync(ulong userId) {
         using var db = await Database.OpenConnectionAsync().ConfigureAwait(false);
         using var c = db.CreateCommand();
@@ -117,7 +115,6 @@ class GuildConfiguration {
     /// Removes the specified user from the block list corresponding to this guild.
     /// </summary>
     /// <returns>True if a user has been removed, false if the requested user was not in this list.</returns>
-    [Obsolete("Block lists will be reimplemented in a more practical manner later.", false)]
     public async Task<bool> UnblockUserAsync(ulong userId) {
         using var db = await Database.OpenConnectionAsync().ConfigureAwait(false);
         using var c = db.CreateCommand();
@@ -134,7 +131,6 @@ class GuildConfiguration {
     /// Checks if the given user can be considered a bot moderator.
     /// Checks for either the Manage Guild permission or if the user is within a predetermined role.
     /// </summary>
-    [Obsolete("Usage should be phased out when text commands are removed. Use PreconditionAttribute from now on.", error: false)]
     public bool IsBotModerator(SocketGuildUser user)
         => user.GuildPermissions.ManageGuild || (ModeratorRole.HasValue && user.Roles.Any(r => r.Id == ModeratorRole.Value));
 
@@ -142,6 +138,7 @@ class GuildConfiguration {
     public const string BackingTable = "settings";
     public const string BackingTableBans = "banned_users";
 
+    [Obsolete("DELETE THIS", error: true)]
     internal static async Task DatabaseSetupAsync(NpgsqlConnection db) {
         using (var c = db.CreateCommand()) {
             c.CommandText = $"create table if not exists {BackingTable} ("
@@ -175,7 +172,6 @@ class GuildConfiguration {
     /// If true, this method shall not create a new entry and will return null if the guild does
     /// not exist in the database.
     /// </param>
-    [Obsolete("Begin using extension method to retrieve necessary data instead.", false)]
     public static async Task<GuildConfiguration?> LoadAsync(ulong guildId, bool nullIfUnknown) {
         // TODO nullable static analysis problem: how to indicate non-null return when nullIfUnknown parameter is true?
         using (var db = await Database.OpenConnectionAsync().ConfigureAwait(false)) {

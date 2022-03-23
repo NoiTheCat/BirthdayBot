@@ -2,20 +2,18 @@
 
 internal static class Extensions {
     /// <summary>
-    /// Retrieves the database-backed bot configuration for this guild.
+    /// Gets the corresponding <see cref="GuildConfig"/> for this guild, or a new one if one does not exist.
+    /// If it doesn't exist in the database, <see cref="GuildConfig.IsNew"/> returns true.
     /// </summary>
-    internal static async Task<GuildConfiguration> GetConfigAsync(this SocketGuild guild)
-        => await GuildConfiguration.LoadAsync(guild.Id, false);
+    public static GuildConfig GetConfigOrNew(this SocketGuild guild, BotDatabaseContext db)
+        => db.GuildConfigurations.Where(g => g.GuildId == (long)guild.Id).FirstOrDefault() 
+            ?? new GuildConfig() { IsNew = true, GuildId = (long)guild.Id };
 
     /// <summary>
-    /// Retrieves a collection of all existing user configurations for this guild.
+    /// Gets the corresponding <see cref="UserEntry"/> for this user in this guild, or a new one if one does not exist.
+    /// If it doesn't exist in the database, <see cref="UserEntry.IsNew"/> returns true.
     /// </summary>
-    internal static async Task<IEnumerable<GuildUserConfiguration>> GetUserConfigurationsAsync(this SocketGuild guild)
-        => await GuildUserConfiguration.LoadAllAsync(guild.Id);
-
-    /// <summary>
-    /// Retrieves the database-backed bot configuration (birthday info) for this guild user.
-    /// </summary>
-    internal static async Task<GuildUserConfiguration> GetConfigAsync(this SocketGuildUser user)
-        => await GuildUserConfiguration.LoadAsync(user.Guild.Id, user.Id);
+    public static UserEntry GetUserEntryOrNew(this SocketGuildUser user, BotDatabaseContext db)
+        => db.UserEntries.Where(u => u.GuildId == (long)user.Guild.Id && u.UserId == (long)user.Id).FirstOrDefault()
+            ?? new UserEntry() { IsNew = true, GuildId = (long)user.Guild.Id, UserId = (long)user.Id };
 }
