@@ -122,13 +122,21 @@ public class ConfigModule : BotModuleBase {
     [Group("role", HelpPfxModOnly + HelpCmdRole)]
     public class SubCmdsConfigRole : BotModuleBase {
         [SlashCommand("set-birthday-role", HelpPfxModOnly + "Set the role given to users having a birthday.")]
-        public async Task CmdSetBRole([Summary(description: HelpOptRole)] SocketRole role) {
+        public async Task CmdSetBRole([Summary(description: HelpOptRole)]SocketRole role) {
+            if (role.IsEveryone || role.IsManaged) {
+                await RespondAsync(":x: This role cannot be used for this setting.", ephemeral: true);
+                return;
+            }
             await DoDatabaseUpdate(Context, s => s.RoleId = (long)role.Id);
             await RespondAsync($":white_check_mark: The birthday role has been set to **{role.Name}**.").ConfigureAwait(false);
         }
 
         [SlashCommand("set-moderator-role", HelpPfxModOnly + "Designate a role whose members can configure the bot." + HelpPofxBlankUnset)]
         public async Task CmdSetModRole([Summary(description: HelpOptRole)]SocketRole? role = null) {
+            if (role != null && (role.IsEveryone || role.IsManaged)) {
+                await RespondAsync(":x: This role cannot be used for this setting.", ephemeral: true);
+                return;
+            }
             await DoDatabaseUpdate(Context, s => s.ModeratorRole = (long?)role?.Id);
             await RespondAsync(":white_check_mark: The moderator role has been " +
                 (role == null ? "unset." : $"set to **{role.Name}**."));

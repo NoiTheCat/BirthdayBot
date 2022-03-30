@@ -40,6 +40,13 @@ class BirthdayRoleUpdate : BackgroundService {
                 if (role == null
                     || !guild.CurrentUser.GuildPermissions.ManageRoles
                     || role.Position >= guild.CurrentUser.Hierarchy) continue;
+                if (role.IsEveryone || role.IsManaged) {
+                    // Invalid role was configured. Clear the setting and quit.
+                    settings.RoleId = null;
+                    db.Update(settings);
+                    await db.SaveChangesAsync();
+                    continue;
+                }
 
                 // Load up user configs and begin processing birthdays
                 await db.Entry(settings).Collection(t => t.UserEntries).LoadAsync(CancellationToken.None);
