@@ -196,7 +196,7 @@ public class ConfigModule : BotModuleBase {
 
         using var db = new BotDatabaseContext();
         var guildconf = guild.GetConfigOrNew(db);
-        await db.Entry(guildconf).Collection(t => t.UserEntries).LoadAsync();
+        if (!guildconf.IsNew) await db.Entry(guildconf).Collection(t => t.UserEntries).LoadAsync();
 
         var result = new StringBuilder();
 
@@ -208,14 +208,16 @@ public class ConfigModule : BotModuleBase {
         bool hasMembers = Common.HasMostMembersDownloaded(guild);
         result.Append(DoTestFor("Bot has obtained the user list", () => hasMembers));
         result.AppendLine($" - Has `{guild.DownloadedMemberCount}` of `{guild.MemberCount}` members.");
-        int bdayCount = -1;
+        int bdayCount = default;
         result.Append(DoTestFor("Birthday processing", delegate {
             if (!hasMembers) return false;
+            if (guildconf.IsNew) return false;
             bdayCount = BackgroundServices.BirthdayRoleUpdate.GetGuildCurrentBirthdays(guildconf.UserEntries, guildconf.TimeZone).Count;
             return true;
         }));
-        if (hasMembers) result.AppendLine($" - `{bdayCount}` user(s) currently having a birthday.");
-        else result.AppendLine(" - Previous step failed.");
+        if (!hasMembers) result.AppendLine(" - Previous step failed.");
+        else if (guildconf.IsNew) result.AppendLine(" - No data.");
+        else result.AppendLine($" - `{bdayCount}` user(s) currently having a birthday.");
         result.AppendLine();
 
         result.AppendLine(DoTestFor("Birthday role set with `bb.config role`", delegate {
