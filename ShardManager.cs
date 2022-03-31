@@ -113,7 +113,7 @@ class ShardManager : IDisposable {
             ShardId = shardId,
             TotalShards = Config.ShardTotal,
             LogLevel = LogSeverity.Info,
-            DefaultRetryMode = RetryMode.AlwaysRetry,
+            DefaultRetryMode = RetryMode.Retry502 | RetryMode.RetryTimeouts,
             GatewayIntents = GatewayIntents.Guilds | GatewayIntents.GuildMembers | GatewayIntents.GuildMessages
         };
         var services = new ServiceCollection()

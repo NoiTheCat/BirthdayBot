@@ -139,10 +139,8 @@ class BirthdayRoleUpdate : BackgroundService {
                 if (!toApply.Contains(user.Id)) removals.Add(user);
                 else no_ops.Add(user.Id);
             }
-            int removalAllowance = 15; // Limit removals per run, to not get continuously stuck on rate limits in misconfigured servers
             foreach (var user in removals) {
                 await user.RemoveRoleAsync(r);
-                if (--removalAllowance == 0) break;
             }
 
             foreach (var target in toApply) {
