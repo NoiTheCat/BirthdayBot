@@ -29,7 +29,13 @@ public class BirthdayOverrideModule : BotModuleBase {
         if (user.IsNew) db.UserEntries.Add(user);
         user.BirthMonth = inmonth;
         user.BirthDay = inday;
-        await db.SaveChangesAsync();
+        try {
+            await db.SaveChangesAsync();
+        } catch (Microsoft.EntityFrameworkCore.DbUpdateException e)
+            when (e.InnerException is Npgsql.PostgresException ex && ex.SqlState == Npgsql.PostgresErrorCodes.ForeignKeyViolation) {
+            await RespondAsync(BirthdayModule.ErrNotSetFk);
+            return;
+        }
 
         await RespondAsync($":white_check_mark: {Common.FormatName(target, false)}'s birthday has been set to " +
             $"**{FormatDate(inmonth, inday)}**.").ConfigureAwait(false);

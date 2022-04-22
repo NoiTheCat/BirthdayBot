@@ -92,14 +92,18 @@ public sealed class ShardInstance : IDisposable {
                 case "Disconnected":
                 case "Resumed previous session":
                 case "Failed to resume previous session":
-                case "Discord.WebSocket.GatewayReconnectException: Server requested a reconnect":
+                case "Serializer Error": // The exception associated with this log appears a lot as of v3.2-ish
                     return Task.CompletedTask;
             }
-
             Log("Discord.Net", $"{arg.Severity}: {arg.Message}");
         }
 
-        if (arg.Exception != null) Log("Discord.Net exception", arg.Exception.ToString());
+        if (arg.Exception != null) {
+            if (arg.Exception is GatewayReconnectException
+                || arg.Exception.Message == "WebSocket connection was closed") return Task.CompletedTask;
+
+            Log("Discord.Net exception", arg.Exception.ToString());
+        }
 
         return Task.CompletedTask;
     }

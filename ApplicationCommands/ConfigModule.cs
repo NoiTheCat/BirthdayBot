@@ -122,13 +122,21 @@ public class ConfigModule : BotModuleBase {
     [Group("role", HelpPfxModOnly + HelpCmdRole)]
     public class SubCmdsConfigRole : BotModuleBase {
         [SlashCommand("set-birthday-role", HelpPfxModOnly + "Set the role given to users having a birthday.")]
-        public async Task CmdSetBRole([Summary(description: HelpOptRole)] SocketRole role) {
+        public async Task CmdSetBRole([Summary(description: HelpOptRole)]SocketRole role) {
+            if (role.IsEveryone || role.IsManaged) {
+                await RespondAsync(":x: This role cannot be used for this setting.", ephemeral: true);
+                return;
+            }
             await DoDatabaseUpdate(Context, s => s.RoleId = (long)role.Id);
             await RespondAsync($":white_check_mark: The birthday role has been set to **{role.Name}**.").ConfigureAwait(false);
         }
 
         [SlashCommand("set-moderator-role", HelpPfxModOnly + "Designate a role whose members can configure the bot." + HelpPofxBlankUnset)]
         public async Task CmdSetModRole([Summary(description: HelpOptRole)]SocketRole? role = null) {
+            if (role != null && (role.IsEveryone || role.IsManaged)) {
+                await RespondAsync(":x: This role cannot be used for this setting.", ephemeral: true);
+                return;
+            }
             await DoDatabaseUpdate(Context, s => s.ModeratorRole = (long?)role?.Id);
             await RespondAsync(":white_check_mark: The moderator role has been " +
                 (role == null ? "unset." : $"set to **{role.Name}**."));
@@ -188,7 +196,7 @@ public class ConfigModule : BotModuleBase {
 
         using var db = new BotDatabaseContext();
         var guildconf = guild.GetConfigOrNew(db);
-        await db.Entry(guildconf).Collection(t => t.UserEntries).LoadAsync();
+        if (!guildconf.IsNew) await db.Entry(guildconf).Collection(t => t.UserEntries).LoadAsync();
 
         var result = new StringBuilder();
 
@@ -200,14 +208,16 @@ public class ConfigModule : BotModuleBase {
         bool hasMembers = Common.HasMostMembersDownloaded(guild);
         result.Append(DoTestFor("Bot has obtained the user list", () => hasMembers));
         result.AppendLine($" - Has `{guild.DownloadedMemberCount}` of `{guild.MemberCount}` members.");
-        int bdayCount = -1;
+        int bdayCount = default;
         result.Append(DoTestFor("Birthday processing", delegate {
             if (!hasMembers) return false;
+            if (guildconf.IsNew) return false;
             bdayCount = BackgroundServices.BirthdayRoleUpdate.GetGuildCurrentBirthdays(guildconf.UserEntries, guildconf.TimeZone).Count;
             return true;
         }));
-        if (hasMembers) result.AppendLine($" - `{bdayCount}` user(s) currently having a birthday.");
-        else result.AppendLine(" - Previous step failed.");
+        if (!hasMembers) result.AppendLine(" - Previous step failed.");
+        else if (guildconf.IsNew) result.AppendLine(" - No data.");
+        else result.AppendLine($" - `{bdayCount}` user(s) currently having a birthday.");
         result.AppendLine();
 
         result.AppendLine(DoTestFor("Birthday role set with `bb.config role`", delegate {

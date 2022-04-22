@@ -14,6 +14,7 @@ public class BirthdayModule : BotModuleBase {
     public const string HelpCmdGet = "Gets a user's birthday.";
     public const string HelpCmdNearest = "Get a list of users who recently had or will have a birthday.";
     public const string HelpCmdExport = "Generates a text file with all known and available birthdays.";
+    public const string ErrNotSetFk = $":x: The bot has not yet been set up. Please configure a birthday role."; // foreign key violation
 
     // Note that these methods have largely been copied to BirthdayOverrideModule. Changes here should be reflected there as needed.
 
@@ -47,10 +48,16 @@ public class BirthdayModule : BotModuleBase {
             user.BirthMonth = inmonth;
             user.BirthDay = inday;
             user.TimeZone = inzone;
-            await db.SaveChangesAsync();
+            try {
+                await db.SaveChangesAsync();
+            } catch (Microsoft.EntityFrameworkCore.DbUpdateException e)
+                when (e.InnerException is Npgsql.PostgresException ex && ex.SqlState == Npgsql.PostgresErrorCodes.ForeignKeyViolation) {
+                await RespondAsync(ErrNotSetFk);
+                return;
+            }
 
             await RespondAsync($":white_check_mark: Your birthday has been set to **{FormatDate(inmonth, inday)}**" +
-                (inzone == null ? "" : $", with time zone {inzone}") + ".").ConfigureAwait(false);
+                (inzone == null ? "" : $" at time zone **{inzone}**") + ".").ConfigureAwait(false);
         }
 
         [SlashCommand("timezone", HelpCmdSetZone)]

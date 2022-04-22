@@ -40,6 +40,13 @@ class BirthdayRoleUpdate : BackgroundService {
                 if (role == null
                     || !guild.CurrentUser.GuildPermissions.ManageRoles
                     || role.Position >= guild.CurrentUser.Hierarchy) continue;
+                if (role.IsEveryone || role.IsManaged) {
+                    // Invalid role was configured. Clear the setting and quit.
+                    settings.RoleId = null;
+                    db.Update(settings);
+                    await db.SaveChangesAsync();
+                    continue;
+                }
 
                 // Load up user configs and begin processing birthdays
                 await db.Entry(settings).Collection(t => t.UserEntries).LoadAsync(CancellationToken.None);
@@ -132,10 +139,8 @@ class BirthdayRoleUpdate : BackgroundService {
                 if (!toApply.Contains(user.Id)) removals.Add(user);
                 else no_ops.Add(user.Id);
             }
-            int removalAllowance = 15; // Limit removals per run, to not get continuously stuck on rate limits in misconfigured servers
             foreach (var user in removals) {
                 await user.RemoveRoleAsync(r);
-                if (--removalAllowance == 0) break;
             }
 
             foreach (var target in toApply) {
