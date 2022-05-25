@@ -1,5 +1,6 @@
 ﻿using BirthdayBot.Data;
 using Discord.Interactions;
+using static BirthdayBot.Common;
 
 namespace BirthdayBot.ApplicationCommands;
 
@@ -37,7 +38,7 @@ public class BirthdayOverrideModule : BotModuleBase {
             return;
         }
 
-        await RespondAsync($":white_check_mark: {Common.FormatName(target, false)}'s birthday has been set to " +
+        await RespondAsync($":white_check_mark: {FormatName(target, false)}'s birthday has been set to " +
             $"**{FormatDate(inmonth, inday)}**.").ConfigureAwait(false);
     }
 
@@ -48,7 +49,7 @@ public class BirthdayOverrideModule : BotModuleBase {
 
         var user = target.GetUserEntryOrNew(db);
         if (user.IsNew) {
-            await RespondAsync($":x: {Common.FormatName(target, false)} does not have a birthday set.")
+            await RespondAsync($":x: {FormatName(target, false)} does not have a birthday set.")
                 .ConfigureAwait(false);
             return;
         }
@@ -62,21 +63,21 @@ public class BirthdayOverrideModule : BotModuleBase {
         }
         user.TimeZone = newzone;
         await db.SaveChangesAsync();
-        await RespondAsync($":white_check_mark: {Common.FormatName(target, false)}'s time zone has been set to " +
+        await RespondAsync($":white_check_mark: {FormatName(target, false)}'s time zone has been set to " +
             $"**{newzone}**.").ConfigureAwait(false);
     }
 
     [SlashCommand("remove-birthday", HelpPfxModOnly + "Remove a user's birthday information on their behalf.")]
     public async Task OvRemove([Summary(description: HelpOptOvTarget)]SocketGuildUser target) {
         using var db = new BotDatabaseContext();
-        var user = ((SocketGuildUser)Context.User).GetUserEntryOrNew(db);
+        var user = target.GetUserEntryOrNew(db);
         if (!user.IsNew) {
             db.UserEntries.Remove(user);
             await db.SaveChangesAsync();
-            await RespondAsync($":white_check_mark: {Common.FormatName(target, false)}'s birthday in this server has been removed.")
+            await RespondAsync($":white_check_mark: {FormatName(target, false)}'s birthday in this server has been removed.")
                 .ConfigureAwait(false);
         } else {
-            await RespondAsync($":white_check_mark: {Common.FormatName(target, false)}'s birthday is not registered.")
+            await RespondAsync($":white_check_mark: {FormatName(target, false)}'s birthday is not registered.")
                 .ConfigureAwait(false);
         }
     }
