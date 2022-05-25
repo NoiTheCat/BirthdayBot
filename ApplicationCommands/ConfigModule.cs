@@ -220,7 +220,7 @@ public class ConfigModule : BotModuleBase {
         else result.AppendLine($" - `{bdayCount}` user(s) currently having a birthday.");
         result.AppendLine();
 
-        result.AppendLine(DoTestFor("Birthday role set with `bb.config role`", delegate {
+        result.AppendLine(DoTestFor("Birthday role set with `/config role set-birthday-role`", delegate {
             if (guildconf.IsNew) return false;
             SocketRole? role = guild.GetRole((ulong)(guildconf.RoleId ?? 0));
             return role != null;
