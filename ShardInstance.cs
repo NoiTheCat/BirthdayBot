@@ -81,10 +81,7 @@ public sealed class ShardInstance : IDisposable {
     private Task Client_Log(LogMessage arg) {
         // Suppress certain messages
         if (arg.Message != null) {
-            // These warnings appear often as of Discord.Net v3...
-            if (arg.Message.StartsWith("Unknown Dispatch ") || arg.Message.StartsWith("Unknown Channel")) return Task.CompletedTask;
-            switch (arg.Message) // Connection status messages replaced by ShardManager's output
-            {
+            switch (arg.Message) {
                 case "Connecting":
                 case "Connected":
                 case "Ready":

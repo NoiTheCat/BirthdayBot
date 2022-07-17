@@ -114,7 +114,9 @@ class ShardManager : IDisposable {
             TotalShards = Config.ShardTotal,
             LogLevel = LogSeverity.Info,
             DefaultRetryMode = RetryMode.Retry502 | RetryMode.RetryTimeouts,
-            GatewayIntents = GatewayIntents.Guilds | GatewayIntents.GuildMembers | GatewayIntents.GuildMessages
+            GatewayIntents = GatewayIntents.Guilds | GatewayIntents.GuildMembers | GatewayIntents.GuildMessages,
+            SuppressUnknownDispatchWarnings = true,
+            LogGatewayIntentWarnings = false
         };
         var services = new ServiceCollection()
             .AddSingleton(s => new ShardInstance(this, s, _textCommands))
