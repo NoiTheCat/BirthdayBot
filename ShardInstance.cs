@@ -162,6 +162,7 @@ public sealed class ShardInstance : IDisposable {
 
             // Execute the command
             try {
+                NoiTheCat.TextCommandRemovalWarning.Intercept(msg, channel.Guild.Id);
                 Log("Command", $"{channel.Guild.Name}/{author.Username}#{author.Discriminator}: {msg.Content}");
                 await command(this, gconf, csplit, channel, author);
             } catch (Exception ex) {
