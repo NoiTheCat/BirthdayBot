@@ -14,21 +14,20 @@ class Program {
     static async Task Main(string[] args) {
         Configuration? cfg = null;
         try {
-            cfg = new Configuration(args);
+            cfg = new Configuration();
         } catch (Exception ex) {
             Console.WriteLine(ex);
             Environment.Exit((int)ExitCodes.ConfigError);
         }
 
-        BotDatabaseContext.NpgsqlConnectionString = cfg.DatabaseConnectionString;
-
-        Database.DBConnectionString = cfg.DatabaseConnectionString;
-        try {
-            await Database.DoInitialDatabaseSetupAsync();
-        } catch (Npgsql.NpgsqlException e) {
-            Console.WriteLine("Error when attempting to connect to database: " + e.Message);
-            Environment.Exit((int)ExitCodes.DatabaseError);
-        }
+        Database.DBConnectionString = new Npgsql.NpgsqlConnectionStringBuilder() {
+            Host = cfg.SqlHost ?? "localhost", // default to localhost
+            Database = cfg.SqlDatabase,
+            Username = cfg.SqlUsername,
+            Password = cfg.SqlPassword,
+            ApplicationName = cfg.SqlApplicationName,
+            MaxPoolSize = Math.Max((int)Math.Ceiling(cfg.ShardAmount * 2 * 0.6), 8)
+        }.ToString();
 
         Console.CancelKeyPress += OnCancelKeyPressed;
         _bot = new ShardManager(cfg);
