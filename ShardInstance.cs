@@ -116,14 +116,19 @@ public sealed class ShardInstance : IDisposable {
 #if !DEBUG
         // Update slash/interaction commands
         if (ShardId == 0) {
-            await _interactionService.RegisterCommandsGloballyAsync(true).ConfigureAwait(false);
+            await _interactionService.RegisterCommandsGloballyAsync(true);
             Log(nameof(ShardInstance), "Updated global command registration.");
         }
 #else
         // Debug: Register our commands locally instead, in each guild we're in
-        foreach (var g in DiscordClient.Guilds) {
-            await _interactionService.RegisterCommandsToGuildAsync(g.Id, true).ConfigureAwait(false);
-            Log(nameof(ShardInstance), $"Updated DEBUG command registration in guild {g.Id}.");
+        if (DiscordClient.Guilds.Count > 5) {
+            Program.Log(nameof(ShardInstance), "Are you debugging in production?! Skipping DEBUG command registration.");
+            return;
+        } else {
+            foreach (var g in DiscordClient.Guilds) {
+                await _interactionService.RegisterCommandsToGuildAsync(g.Id, true).ConfigureAwait(false);
+                Log(nameof(ShardInstance), $"Updated DEBUG command registration in guild {g.Id}.");
+            }
         }
 #endif
     }
