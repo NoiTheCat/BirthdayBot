@@ -39,10 +39,10 @@ class Program {
     /// Sends a formatted message to console.
     /// </summary>
     public static void Log(string source, string message) {
-        var ts = DateTime.UtcNow;
+        var ts = DateTime.Now;
         var ls = new string[] { "\r\n", "\n" };
         foreach (var item in message.Split(ls, StringSplitOptions.None))
-            Console.WriteLine($"{ts:u} [{source}] {item}");
+            Console.WriteLine($"{ts:s} [{source}] {item}");
     }
 
     private static void OnCancelKeyPressed(object? sender, ConsoleCancelEventArgs e) {
