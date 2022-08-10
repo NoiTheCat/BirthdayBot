@@ -2,13 +2,12 @@
 using System.Text;
 
 namespace BirthdayBot.BackgroundServices;
-
 /// <summary>
 /// Automatically removes database information for guilds that have not been accessed in a long time.
 /// </summary>
 class DataRetention : BackgroundService {
-    private static readonly SemaphoreSlim _updateLock = new(ShardManager.MaxConcurrentOperations);
     const int ProcessInterval = 5400 / ShardBackgroundWorker.Interval; // Process about once per hour and a half
+
     // Amount of days without updates before data is considered stale and up for deletion.
     const int StaleGuildThreshold = 180;
     const int StaleUserThreashold = 360;
@@ -19,6 +18,17 @@ class DataRetention : BackgroundService {
         // On each tick, run only a set group of guilds, each group still processed every ProcessInterval ticks.
         if ((tickCount + ShardInstance.ShardId) % ProcessInterval != 0) return;
 
+        try {
+            await DbConcurrentOperationsLock.WaitAsync(token);
+            await RemoveStaleEntriesAsync();
+        } finally {
+            try {
+                DbConcurrentOperationsLock.Release();
+            } catch (ObjectDisposedException) { }
+        }
+    }
+
+    private async Task RemoveStaleEntriesAsync() {
         using var db = new BotDatabaseContext();
         var now = DateTimeOffset.UtcNow;
         int updatedGuilds = 0, updatedUsers = 0;

@@ -1,5 +1,4 @@
 ﻿namespace BirthdayBot.BackgroundServices;
-
 /// <summary>
 /// Handles the execution of periodic background tasks specific to each shard.
 /// </summary>
@@ -54,7 +53,7 @@ class ShardBackgroundWorker : IDisposable {
                 await Task.Delay(Interval * 1000, _workerCanceller.Token).ConfigureAwait(false);
 
                 // Skip this round of task execution if the client is not connected
-                if (Instance.DiscordClient.ConnectionState != Discord.ConnectionState.Connected) continue;
+                if (Instance.DiscordClient.ConnectionState != ConnectionState.Connected) continue;
 
                 // Execute tasks sequentially
                 foreach (var service in _workers) {
@@ -62,8 +61,9 @@ class ShardBackgroundWorker : IDisposable {
                     try {
                         if (_workerCanceller.IsCancellationRequested) break;
                         _tickCount++;
-                        await service.OnTick(_tickCount, _workerCanceller.Token).ConfigureAwait(false);
-                    } catch (Exception ex) when (ex is not TaskCanceledException) {
+                        await service.OnTick(_tickCount, _workerCanceller.Token);
+                    } catch (Exception ex) when (ex is not
+                                                    (TaskCanceledException or OperationCanceledException or ObjectDisposedException)) {
                         Instance.Log(CurrentExecutingService, ex.ToString());
                     }
                 }

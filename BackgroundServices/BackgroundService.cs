@@ -1,6 +1,7 @@
 ﻿namespace BirthdayBot.BackgroundServices;
 
 abstract class BackgroundService {
+    protected static SemaphoreSlim DbConcurrentOperationsLock { get; } = new(ShardManager.MaxConcurrentOperations);
     protected ShardInstance ShardInstance { get; }
 
     public BackgroundService(ShardInstance instance) => ShardInstance = instance;
