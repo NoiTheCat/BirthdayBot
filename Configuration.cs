@@ -1,8 +1,6 @@
-﻿using BirthdayBot.Data;
-using CommandLine;
-using CommandLine.Text;
+﻿using CommandLine;
+using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
-using Npgsql;
 using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using System.Text.RegularExpressions;
@@ -13,10 +11,6 @@ namespace BirthdayBot;
 /// Loads and holds configuration values.
 /// </summary>
 class Configuration {
-    const string KeySqlHost = "SqlHost";
-    const string KeySqlUsername = "SqlUsername";
-    const string KeySqlPassword = "SqlPassword";
-    const string KeySqlDatabase = "SqlDatabase";
     const string KeyShardRange = "ShardRange";
 
     public string BotToken { get; }
@@ -27,32 +21,44 @@ class Configuration {
     public int ShardAmount { get; }
     public int ShardTotal { get; }
     
-    public string DatabaseConnectionString { get; }
+    public string? SqlHost { get; }
+    public string? SqlDatabase { get; }
+    public string SqlUsername { get; }
+    public string SqlPassword { get; }
+    internal string SqlApplicationName { get; }
 
-    public Configuration(string[] args) {
-        var cmdline = CmdLineOpts.Parse(args);
+    public Configuration() {
+        var args = CommandLineParameters.Parse(Environment.GetCommandLineArgs());
+        var path = args?.ConfigFile ?? Path.GetDirectoryName(Assembly.GetEntryAssembly()!.Location)
+            + Path.DirectorySeparatorChar + "." + Path.DirectorySeparatorChar + "settings.json";
 
         // Looks for configuration file
-        var confPath = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location) + Path.DirectorySeparatorChar;
-        confPath += cmdline.Config!;
-        if (!File.Exists(confPath)) throw new Exception("Settings file not found in path: " + confPath);
+        JObject jc;
+        try {
+            var conftxt = File.ReadAllText(path);
+            jc = JObject.Parse(conftxt);
+        } catch (Exception ex) {
+            string pfx;
+            if (ex is JsonException) pfx = "Unable to parse configuration: ";
+            else pfx = "Unable to access configuration: ";
 
-        var jc = JObject.Parse(File.ReadAllText(confPath));
+            throw new Exception(pfx + ex.Message, ex);
+        }
 
         BotToken = ReadConfKey<string>(jc, nameof(BotToken), true);
         DBotsToken = ReadConfKey<string>(jc, nameof(DBotsToken), false);
         QuitOnFails = ReadConfKey<bool?>(jc, nameof(QuitOnFails), false) ?? false;
 
-        ShardTotal = cmdline.ShardTotal ?? ReadConfKey<int?>(jc, nameof(ShardTotal), false) ?? 1;
+        ShardTotal = args.ShardTotal ?? ReadConfKey<int?>(jc, nameof(ShardTotal), false) ?? 1;
         if (ShardTotal < 1) throw new Exception($"'{nameof(ShardTotal)}' must be a positive integer.");
 
-        string shardRangeInput = cmdline.ShardRange ?? ReadConfKey<string>(jc, KeyShardRange, false);
+        var shardRangeInput = args.ShardRange ?? ReadConfKey<string>(jc, KeyShardRange, false);
         if (!string.IsNullOrWhiteSpace(shardRangeInput)) {
             Regex srPicker = new(@"(?<low>\d{1,2})[-,]{1}(?<high>\d{1,2})");
             var m = srPicker.Match(shardRangeInput);
             if (m.Success) {
                 ShardStart = int.Parse(m.Groups["low"].Value);
-                int high = int.Parse(m.Groups["high"].Value);
+                var high = int.Parse(m.Groups["high"].Value);
                 ShardAmount = high - (ShardStart - 1);
             } else {
                 throw new Exception($"Shard range not properly formatted in '{KeyShardRange}'.");
@@ -63,20 +69,11 @@ class Configuration {
             ShardAmount = ShardTotal;
         }
 
-        var sqlhost = ReadConfKey<string>(jc, KeySqlHost, false) ?? "localhost"; // Default to localhost
-        var sqluser = ReadConfKey<string>(jc, KeySqlUsername, false);
-        var sqlpass = ReadConfKey<string>(jc, KeySqlPassword, false);
-        if (string.IsNullOrWhiteSpace(sqluser) || string.IsNullOrWhiteSpace(sqlpass))
-            throw new Exception("'SqlUsername', 'SqlPassword' must be specified.");
-        var csb = new NpgsqlConnectionStringBuilder() {
-            Host = sqlhost,
-            Username = sqluser,
-            Password = sqlpass,
-            ApplicationName = $"ClientShard{ShardStart}+{ShardAmount}"
-        };
-        var sqldb = ReadConfKey<string>(jc, KeySqlDatabase, false);
-        if (sqldb != null) csb.Database = sqldb; // Optional database setting
-        DatabaseConnectionString = csb.ToString();
+        SqlHost = ReadConfKey<string>(jc, nameof(SqlHost), false);
+        SqlDatabase = ReadConfKey<string?>(jc, nameof(SqlDatabase), false);
+        SqlUsername = ReadConfKey<string>(jc, nameof(SqlUsername), true);
+        SqlPassword = ReadConfKey<string>(jc, nameof(SqlPassword), true);
+        SqlApplicationName = $"ClientShard{ShardStart}+{ShardAmount}";
     }
 
     private static T? ReadConfKey<T>(JObject jc, string key, [DoesNotReturnIf(true)] bool failOnEmpty) {
@@ -85,33 +82,27 @@ class Configuration {
         return default;
     }
 
-    private class CmdLineOpts {
-        [Option('c', "config", Default = "settings.json",
-            HelpText = "Custom path to instance configuration, relative from executable directory.")]
-        public string? Config { get; set; }
+    class CommandLineParameters {
+        [Option('c', "config")]
+        public string? ConfigFile { get; set; }
 
-        [Option("shardtotal",
-            HelpText = "Total number of shards online. MUST be the same for all instances.\n"
-            + "This value overrides the config file value.")]
+        [Option("shardtotal")]
         public int? ShardTotal { get; set; }
 
-        [Option("shardrange", HelpText = "Shard range for this instance to handle.\n"
-            + "This value overrides the config file value.")]
+        [Option("shardrange")]
         public string? ShardRange { get; set; }
 
-        public static CmdLineOpts Parse(string[] args) {
-            // Do not automatically print help message
-            var clp = new Parser(c => c.HelpWriter = null);
+        public static CommandLineParameters? Parse(string[] args) {
+            CommandLineParameters? result = null;
 
-            CmdLineOpts? result = null;
-            var r = clp.ParseArguments<CmdLineOpts>(args);
-            r.WithParsed(parsed => result = parsed);
-            r.WithNotParsed(err => {
-                    var ht = HelpText.AutoBuild(r);
-                    Console.WriteLine(ht.ToString());
-                    Environment.Exit((int)Program.ExitCodes.BadCommand);
-                });
-            return result!;
+            new Parser(settings => {
+                settings.IgnoreUnknownArguments = true;
+                settings.AutoHelp = false;
+                settings.AutoVersion = false;
+            }).ParseArguments<CommandLineParameters>(args)
+                .WithParsed(p => result = p)
+                .WithNotParsed(e => { /* ignore */ });
+            return result;
         }
     }
 }

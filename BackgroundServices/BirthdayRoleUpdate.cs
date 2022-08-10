@@ -3,7 +3,6 @@ using NodaTime;
 using System.Text;
 
 namespace BirthdayBot.BackgroundServices;
-
 /// <summary>
 /// Core automatic functionality of the bot. Manages role memberships based on birthday information,
 /// and optionally sends the announcement message to appropriate guilds.
@@ -15,11 +14,22 @@ class BirthdayRoleUpdate : BackgroundService {
     /// Processes birthday updates for all available guilds synchronously.
     /// </summary>
     public override async Task OnTick(int tickCount, CancellationToken token) {
+        try {
+            await DbConcurrentOperationsLock.WaitAsync(token);
+            await ProcessBirthdaysAsync(token);
+        } finally {
+            try {
+                DbConcurrentOperationsLock.Release();
+            } catch (ObjectDisposedException) { }
+        }
+    }
+
+    private async Task ProcessBirthdaysAsync(CancellationToken token) {
         // For database efficiency, fetch all database information at once before proceeding
         using var db = new BotDatabaseContext();
         var shardGuilds = ShardInstance.DiscordClient.Guilds.Select(g => (long)g.Id).ToHashSet();
         var presentGuildSettings = db.GuildConfigurations.Where(s => shardGuilds.Contains(s.GuildId));
-        var guildChecks = presentGuildSettings.ToList().Select(s => new Tuple<ulong, GuildConfig>((ulong)s.GuildId, s));
+        var guildChecks = presentGuildSettings.ToList().Select(s => Tuple.Create((ulong)s.GuildId, s));
 
         var exceptions = new List<Exception>();
         foreach (var (guildId, settings) in guildChecks) {
@@ -44,7 +54,7 @@ class BirthdayRoleUpdate : BackgroundService {
                     // Invalid role was configured. Clear the setting and quit.
                     settings.RoleId = null;
                     db.Update(settings);
-                    await db.SaveChangesAsync();
+                    await db.SaveChangesAsync(CancellationToken.None);
                     continue;
                 }
 
@@ -102,13 +112,13 @@ class BirthdayRoleUpdate : BackgroundService {
     /// Gets all known users from the given guild and returns a list including only those who are
     /// currently experiencing a birthday in the respective time zone.
     /// </summary>
-    public static HashSet<ulong> GetGuildCurrentBirthdays(IEnumerable<UserEntry> guildUsers, string? ServerDefaultTzId) {
+    public static HashSet<ulong> GetGuildCurrentBirthdays(IEnumerable<UserEntry> guildUsers, string? serverDefaultTzId) {
         var birthdayUsers = new HashSet<ulong>();
 
         foreach (var record in guildUsers) {
             // Determine final time zone to use for calculation
             DateTimeZone tz = DateTimeZoneProviders.Tzdb
-                .GetZoneOrNull(record.TimeZone ?? ServerDefaultTzId ?? "UTC")!;
+                .GetZoneOrNull(record.TimeZone ?? serverDefaultTzId ?? "UTC")!;
 
             var checkNow = SystemClock.Instance.GetCurrentInstant().InZone(tz);
             // Special case: If user's birthday is 29-Feb and it's currently not a leap year, check against 1-Mar
