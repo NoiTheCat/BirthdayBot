@@ -1,14 +1,11 @@
 ﻿global using Discord;
 global using Discord.WebSocket;
 using BirthdayBot.BackgroundServices;
-using BirthdayBot.TextCommands;
 using Discord.Interactions;
 using Microsoft.Extensions.DependencyInjection;
 using System.Text;
-using static BirthdayBot.TextCommands.CommandsCommon;
 
 namespace BirthdayBot;
-
 /// <summary>
 /// More or less the main class for the program. Handles individual shards and provides frequent
 /// status reports regarding the overall health of the application.
@@ -45,8 +42,6 @@ class ShardManager : IDisposable {
     /// </summary>
     private readonly Dictionary<int, ShardInstance?> _shards;
 
-    private readonly Dictionary<string, CommandHandler> _textCommands;
-
     private readonly Task _statusTask;
     private readonly CancellationTokenSource _mainCancel;
     private int _destroyedShards = 0;
@@ -59,20 +54,9 @@ class ShardManager : IDisposable {
 
         Config = cfg;
 
-        // Command handler setup
-        _textCommands = new Dictionary<string, CommandHandler>(StringComparer.OrdinalIgnoreCase);
-        var cmdsUser = new UserCommands(cfg);
-        foreach (var item in cmdsUser.Commands) _textCommands.Add(item.Item1, item.Item2);
-        var cmdsListing = new ListingCommands(cfg);
-        foreach (var item in cmdsListing.Commands) _textCommands.Add(item.Item1, item.Item2);
-        var cmdsHelp = new TextCommands.HelpInfoCommands(cfg);
-        foreach (var item in cmdsHelp.Commands) _textCommands.Add(item.Item1, item.Item2);
-        var cmdsMods = new ManagerCommands(cfg, cmdsUser.Commands);
-        foreach (var item in cmdsMods.Commands) _textCommands.Add(item.Item1, item.Item2);
-
         // Allocate shards based on configuration
         _shards = new Dictionary<int, ShardInstance?>();
-        for (int i = Config.ShardStart; i < (Config.ShardStart + Config.ShardAmount); i++) {
+        for (var i = Config.ShardStart; i < (Config.ShardStart + Config.ShardAmount); i++) {
             _shards.Add(i, null);
         }
 
@@ -114,12 +98,12 @@ class ShardManager : IDisposable {
             TotalShards = Config.ShardTotal,
             LogLevel = LogSeverity.Info,
             DefaultRetryMode = RetryMode.Retry502 | RetryMode.RetryTimeouts,
-            GatewayIntents = GatewayIntents.Guilds | GatewayIntents.GuildMembers | GatewayIntents.GuildMessages,
+            GatewayIntents = GatewayIntents.Guilds | GatewayIntents.GuildMembers,
             SuppressUnknownDispatchWarnings = true,
             LogGatewayIntentWarnings = false
         };
         var services = new ServiceCollection()
-            .AddSingleton(s => new ShardInstance(this, s, _textCommands))
+            .AddSingleton(s => new ShardInstance(this, s))
             .AddSingleton(s => new DiscordSocketClient(clientConf))
             .AddSingleton(s => new InteractionService(s.GetRequiredService<DiscordSocketClient>()))
             .BuildServiceProvider();
@@ -144,7 +128,7 @@ class ShardManager : IDisposable {
         public string? ExecutingTask;
     }
 
-    private string StatusDisplay(IEnumerable<int> guildList, Dictionary<int, GuildStatusData> guildInfo, bool showDetail) {
+    private static string StatusDisplay(IEnumerable<int> guildList, Dictionary<int, GuildStatusData> guildInfo, bool showDetail) {
         if (!guildList.Any()) return "--";
         var result = new StringBuilder();
         foreach (var item in guildList) {
@@ -223,7 +207,7 @@ class ShardManager : IDisposable {
                     Program.ProgramStop();
                 } else {
                     // Start up any missing shards
-                    int startAllowance = MaxConcurrentOperations;
+                    var startAllowance = MaxConcurrentOperations;
                     foreach (var id in nullShards) {
                         // To avoid possible issues with resources strained over so many shards starting at once,
                         // initialization is spread out by only starting a few at a time.

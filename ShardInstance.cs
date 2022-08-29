@@ -1,21 +1,16 @@
 ﻿using BirthdayBot.ApplicationCommands;
 using BirthdayBot.BackgroundServices;
-using BirthdayBot.Data;
 using Discord.Interactions;
-using Discord.Net;
 using Microsoft.Extensions.DependencyInjection;
 using System.Reflection;
-using static BirthdayBot.TextCommands.CommandsCommon;
 
 namespace BirthdayBot;
-
 /// <summary>
 /// Single shard instance for Birthday Bot. This shard independently handles all input and output to Discord.
 /// </summary>
 public sealed class ShardInstance : IDisposable {
     private readonly ShardManager _manager;
     private readonly ShardBackgroundWorker _background;
-    private readonly Dictionary<string, CommandHandler> _textDispatch;
     private readonly InteractionService _interactionService;
     private readonly IServiceProvider _services;
 
@@ -36,15 +31,13 @@ public sealed class ShardInstance : IDisposable {
     /// <summary>
     /// Prepares and configures the shard instances, but does not yet start its connection.
     /// </summary>
-    internal ShardInstance(ShardManager manager, IServiceProvider services, Dictionary<string, CommandHandler> textCmds) {
+    internal ShardInstance(ShardManager manager, IServiceProvider services) {
         _manager = manager;
         _services = services;
-        _textDispatch = textCmds;
 
         DiscordClient = _services.GetRequiredService<DiscordSocketClient>();
         DiscordClient.Log += Client_Log;
         DiscordClient.Ready += Client_Ready;
-        DiscordClient.MessageReceived += Client_MessageReceived;
 
         _interactionService = _services.GetRequiredService<InteractionService>();
         DiscordClient.InteractionCreated += DiscordClient_InteractionCreated;
@@ -105,14 +98,7 @@ public sealed class ShardInstance : IDisposable {
         return Task.CompletedTask;
     }
 
-    /// <summary>
-    /// Registers all available slash commands.
-    /// Additionally, sets the shard's status to display the help command.
-    /// </summary>
     private async Task Client_Ready() {
-        // TODO get rid of this eventually? or change it to something fun...
-        await DiscordClient.SetGameAsync("/help");
-
 #if !DEBUG
         // Update slash/interaction commands
         if (ShardId == 0) {
@@ -132,49 +118,6 @@ public sealed class ShardInstance : IDisposable {
         }
 #endif
     }
-
-#pragma warning disable CS0618
-    /// <summary>
-    /// Determines if the incoming message is an incoming command, and dispatches to the appropriate handler if necessary.
-    /// </summary>
-    private async Task Client_MessageReceived(SocketMessage msg) {
-        if (msg.Channel is not SocketTextChannel channel) return;
-        if (msg.Author.IsBot || msg.Author.IsWebhook) return;
-        if (((IMessage)msg).Type != MessageType.Default) return;
-        var author = (SocketGuildUser)msg.Author;
-
-        // Limit 3:
-        // For all cases: base command, 2 parameters.
-        // Except this case: "bb.config", subcommand name, subcommand parameters in a single string
-        var csplit = msg.Content.Split(" ", 3, StringSplitOptions.RemoveEmptyEntries);
-        if (csplit.Length > 0 && csplit[0].StartsWith(CommandPrefix, StringComparison.OrdinalIgnoreCase)) {
-            // Determine if it's something we're listening for.
-            if (!_textDispatch.TryGetValue(csplit[0][CommandPrefix.Length..], out CommandHandler? command)) return;
-
-            // Load guild information here
-            var gconf = await GuildConfiguration.LoadAsync(channel.Guild.Id, false);
-
-            // Ban check
-            if (!gconf!.IsBotModerator(author)) // skip check if user is a moderator
-            {
-                if (await gconf.IsUserBlockedAsync(author.Id)) return; // silently ignore
-            }
-
-            // Execute the command
-            try {
-                NoiTheCat.TextCommandRemovalWarning.Intercept(msg, channel.Guild.Id);
-                Log("Command", $"{channel.Guild.Name}/{author.Username}#{author.Discriminator}: {msg.Content}");
-                await command(this, gconf, csplit, channel, author);
-            } catch (Exception ex) {
-                if (ex is HttpException) return;
-                Log("Command", ex.ToString());
-                try {
-                    channel.SendMessageAsync(InternalError).Wait();
-                } catch (HttpException) { } // Fail silently
-            }
-        }
-    }
-#pragma warning restore CS0618
 
     // Slash command preparation and invocation
     private async Task DiscordClient_InteractionCreated(SocketInteraction arg) {
@@ -208,7 +151,7 @@ public sealed class ShardInstance : IDisposable {
 
             // Specific responses to errors, if necessary
             if (result.Error == InteractionCommandError.UnmetPrecondition) {
-                string errReply = result.ErrorReason switch {
+                var errReply = result.ErrorReason switch {
                     RequireBotModeratorAttribute.Error => RequireBotModeratorAttribute.Reply,
                     EnforceBlockingAttribute.FailBlocked => EnforceBlockingAttribute.ReplyBlocked,
                     EnforceBlockingAttribute.FailModerated => EnforceBlockingAttribute.ReplyModerated,

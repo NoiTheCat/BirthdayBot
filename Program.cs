@@ -1,7 +1,4 @@
-﻿using BirthdayBot.Data;
-
-namespace BirthdayBot;
-
+﻿namespace BirthdayBot;
 class Program {
     private static ShardManager? _bot;
     private static readonly DateTimeOffset _botStartTime = DateTimeOffset.UtcNow;
@@ -11,7 +8,7 @@ class Program {
     /// </summary>
     public static string BotUptime => (DateTimeOffset.UtcNow - _botStartTime).ToString("d' days, 'hh':'mm':'ss");
 
-    static async Task Main(string[] args) {
+    static async Task Main() {
         Configuration? cfg = null;
         try {
             cfg = new Configuration();
@@ -19,15 +16,6 @@ class Program {
             Console.WriteLine(ex);
             Environment.Exit((int)ExitCodes.ConfigError);
         }
-
-        Database.DBConnectionString = new Npgsql.NpgsqlConnectionStringBuilder() {
-            Host = cfg.SqlHost ?? "localhost", // default to localhost
-            Database = cfg.SqlDatabase,
-            Username = cfg.SqlUsername,
-            Password = cfg.SqlPassword,
-            ApplicationName = cfg.SqlApplicationName,
-            MaxPoolSize = Math.Max((int)Math.Ceiling(cfg.ShardAmount * 2 * 0.6), 8)
-        }.ToString();
 
         Console.CancelKeyPress += OnCancelKeyPressed;
         _bot = new ShardManager(cfg);
