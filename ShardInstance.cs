@@ -127,7 +127,6 @@ public sealed class ShardInstance : IDisposable {
             await _interactionService.ExecuteCommandAsync(context, _services).ConfigureAwait(false);
         } catch (Exception e) {
             Log(nameof(DiscordClient_InteractionCreated), $"Unhandled exception. {e}");
-            // TODO when implementing proper application error logging, see here
             if (arg.Type == InteractionType.ApplicationCommand) {
                 if (arg.HasResponded) await arg.ModifyOriginalResponseAsync(prop => prop.Content = InternalError);
                 else await arg.RespondAsync(InternalError);
@@ -161,7 +160,6 @@ public sealed class ShardInstance : IDisposable {
                 await context.Interaction.RespondAsync(errReply, ephemeral: true).ConfigureAwait(false);
             } else {
                 // Generic error response
-                // TODO when implementing proper application error logging, see here
                 var ia = context.Interaction;
                 if (ia.HasResponded) await ia.ModifyOriginalResponseAsync(p => p.Content = InternalError).ConfigureAwait(false);
                 else await ia.RespondAsync(InternalError).ConfigureAwait(false);

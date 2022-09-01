@@ -27,7 +27,6 @@ static class ModalResponder {
             await handler(arg, channel, data).ConfigureAwait(false);
         } catch (Exception e) {
             inst.Log(nameof(ModalResponder), $"Unhandled exception. {e}");
-            // TODO when implementing proper application error logging, see here
             await arg.RespondAsync(ShardInstance.InternalError);
         }
     }

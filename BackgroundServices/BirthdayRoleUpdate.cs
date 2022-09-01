@@ -111,7 +111,7 @@ class BirthdayRoleUpdate : BackgroundService {
     private static async Task<IEnumerable<SocketGuildUser>> UpdateGuildBirthdayRoles(SocketGuild g, SocketRole r, HashSet<ulong> toApply) {
         var additions = new List<SocketGuildUser>();
         try {
-            var removals = new List<SocketGuildUser>(); // TODO check if roles can be removed in-place instead of building a list first
+            var removals = new List<SocketGuildUser>();
             var no_ops = new HashSet<ulong>();
 
             // Scan role for members no longer needing it
