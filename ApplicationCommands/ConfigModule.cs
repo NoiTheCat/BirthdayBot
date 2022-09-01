@@ -3,7 +3,6 @@ using Discord.Interactions;
 using System.Text;
 
 namespace BirthdayBot.ApplicationCommands;
-
 [RequireBotModerator]
 [Group("config", HelpCmdConfig)]
 public class ConfigModule : BotModuleBase {
@@ -98,8 +97,8 @@ public class ConfigModule : BotModuleBase {
 
         internal static async Task CmdSetMessageResponse(SocketModal modal, SocketGuildChannel channel,
                                                          Dictionary<string, SocketMessageComponentData> data) {
-            string? newSingle = data[ModalComCidSingle].Value;
-            string? newMulti = data[ModalComCidMulti].Value;
+            var newSingle = data[ModalComCidSingle].Value;
+            var newMulti = data[ModalComCidMulti].Value;
             if (string.IsNullOrWhiteSpace(newSingle)) newSingle = null;
             if (string.IsNullOrWhiteSpace(newMulti)) newMulti = null;
 
@@ -157,7 +156,7 @@ public class ConfigModule : BotModuleBase {
             var existing = db.BlocklistEntries
                 .Where(bl => bl.GuildId == (long)user.Guild.Id && bl.UserId == (long)user.Id).FirstOrDefault();
 
-            bool already = (existing != null) == setting;
+            var already = (existing != null) == setting;
             if (already) {
                 await RespondAsync($":white_check_mark: User is already {(setting ? "" : "not ")}blocked.").ConfigureAwait(false);
                 return;
@@ -172,13 +171,13 @@ public class ConfigModule : BotModuleBase {
 
         [SlashCommand("set-moderated", HelpPfxModOnly + "Set moderated mode on the server.")]
         public async Task CmdSetModerated([Summary(name: "enable", description: "The moderated mode setting.")] bool setting) {
-            bool current = false;
+            var current = false;
             await DoDatabaseUpdate(Context, s => {
                 current = s.Moderated;
                 s.Moderated = setting;
             });
 
-            bool already = setting == current;
+            var already = setting == current;
             if (already) {
                 await RespondAsync($":white_check_mark: Moderated mode is already **{(setting ? "en" : "dis")}abled**.");
             } else {
@@ -205,7 +204,7 @@ public class ConfigModule : BotModuleBase {
         result.AppendLine($"Server time zone: `{ (guildconf.TimeZone ?? "Not set - using UTC") }`");
         result.AppendLine();
 
-        bool hasMembers = Common.HasMostMembersDownloaded(guild);
+        var hasMembers = Common.HasMostMembersDownloaded(guild);
         result.Append(DoTestFor("Bot has obtained the user list", () => hasMembers));
         result.AppendLine($" - Has `{guild.DownloadedMemberCount}` of `{guild.MemberCount}` members.");
         int bdayCount = default;
@@ -239,7 +238,7 @@ public class ConfigModule : BotModuleBase {
             announcech = guild.GetTextChannel((ulong)(guildconf.ChannelAnnounceId ?? 0));
             return announcech != null;
         }));
-        string disp = announcech == null ? "announcement channel" : $"<#{announcech.Id}>";
+        var disp = announcech == null ? "announcement channel" : $"<#{announcech.Id}>";
         result.AppendLine(DoTestFor($"(Optional) Bot can send messages into { disp }", delegate {
             if (announcech == null) return false;
             return guild.CurrentUser.GetPermissions(announcech).SendMessages;
@@ -252,7 +251,7 @@ public class ConfigModule : BotModuleBase {
 
         const int announceMsgPreviewLimit = 350;
         static string prepareAnnouncePreview(string announce) {
-            string trunc = announce.Length > announceMsgPreviewLimit ? announce[..announceMsgPreviewLimit] + "`(...)`" : announce;
+            var trunc = announce.Length > announceMsgPreviewLimit ? announce[..announceMsgPreviewLimit] + "`(...)`" : announce;
             var result = new StringBuilder();
             foreach (var line in trunc.Split('\n'))
                 result.AppendLine($"> {line}");

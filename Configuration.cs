@@ -6,7 +6,6 @@ using System.Reflection;
 using System.Text.RegularExpressions;
 
 namespace BirthdayBot;
-
 /// <summary>
 /// Loads and holds configuration values.
 /// </summary>

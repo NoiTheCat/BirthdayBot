@@ -39,7 +39,7 @@ public abstract class BotModuleBase : InteractionModuleBase<SocketInteractionCon
     /// throwing a FormatException if the input is not recognized.
     /// </summary>
     protected static string ParseTimeZone(string tzinput) {
-        if (!TzNameMap.TryGetValue(tzinput, out string? tz))
+        if (!TzNameMap.TryGetValue(tzinput, out var tz))
             throw new FormatException(":x: Unknown time zone name.\n" +
                 "To find your time zone, please refer to: https://kevinnovak.github.io/Time-Zone-Picker/");
         return tz!;

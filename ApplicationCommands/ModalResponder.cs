@@ -1,5 +1,4 @@
 ﻿namespace BirthdayBot.ApplicationCommands;
-
 /// <summary>
 /// An instance-less class meant to handle incoming submitted modals.
 /// </summary>

@@ -2,7 +2,6 @@
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace BirthdayBot.Data;
-
 [Table("settings")]
 public class GuildConfig {
     public GuildConfig() {

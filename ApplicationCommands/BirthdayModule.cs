@@ -3,7 +3,6 @@ using Discord.Interactions;
 using System.Text;
 
 namespace BirthdayBot.ApplicationCommands;
-
 [RequireGuildContext]
 [Group("birthday", HelpCmdBirthday)]
 public class BirthdayModule : BotModuleBase {
@@ -133,7 +132,7 @@ public class BirthdayModule : BotModuleBase {
         var query = GetSortedUserList(Context.Guild);
 
         // TODO pagination instead of this workaround
-        bool hasOutputOneLine = false;
+        var hasOutputOneLine = false;
         // First output is shown as an interaction response, followed then as regular channel messages
         async Task doOutput(string msg) {
             if (!hasOutputOneLine) {
@@ -147,8 +146,7 @@ public class BirthdayModule : BotModuleBase {
         var output = new StringBuilder();
         var resultCount = 0;
         output.AppendLine("Recent and upcoming birthdays:");
-        for (int count = 0; count <= 21; count++) // cover 21 days total (7 prior, current day, 14 upcoming)
-        {
+        for (var count = 0; count <= 21; count++) { // cover 21 days total (7 prior, current day, 14 upcoming)
             var results = from item in query
                           where item.DateIndex == search
                           select item;

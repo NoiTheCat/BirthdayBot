@@ -2,7 +2,6 @@
 using Discord.Interactions;
 
 namespace BirthdayBot.ApplicationCommands;
-
 /// <summary>
 /// Precondition requiring the executing user be recognized as a bot moderator.<br/>
 /// A bot moderator has either the Manage Server permission or is a member of the designated bot moderator role.

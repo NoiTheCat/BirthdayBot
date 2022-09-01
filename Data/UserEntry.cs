@@ -2,7 +2,6 @@
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace BirthdayBot.Data;
-
 [Table("user_birthdays")]
 public class UserEntry {
     [Key]

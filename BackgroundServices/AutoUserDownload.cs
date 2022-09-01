@@ -1,7 +1,6 @@
 ﻿using BirthdayBot.Data;
 
 namespace BirthdayBot.BackgroundServices;
-
 /// <summary>
 /// Proactively fills the user cache for guilds in which any birthday data already exists.
 /// </summary>
@@ -16,7 +15,7 @@ class AutoUserDownload : BackgroundService {
         // ...and if the guild contains any user data
         var mustFetch = db.UserEntries.Where(e => incompleteCaches.Contains(e.GuildId)).Select(e => e.GuildId).Distinct();
 
-        int processed = 0;
+        var processed = 0;
         foreach (var item in mustFetch) {
             // May cause a disconnect in certain situations. Cancel all further attempts until the next pass if it happens.
             if (ShardInstance.DiscordClient.ConnectionState != ConnectionState.Connected) break;

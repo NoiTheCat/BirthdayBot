@@ -1,7 +1,6 @@
 ﻿using Discord.Interactions;
 
 namespace BirthdayBot.ApplicationCommands;
-
 /// <summary>
 /// Implements the included precondition from Discord.Net, requiring a guild context while using our custom error message.<br/><br/>
 /// Combining this with <see cref="RequireBotModeratorAttribute"/> is redundant. If possible, only use the latter instead.
