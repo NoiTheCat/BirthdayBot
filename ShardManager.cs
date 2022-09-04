@@ -14,12 +14,7 @@ class ShardManager : IDisposable {
     /// <summary>
     /// Number of seconds between each time the status task runs, in seconds.
     /// </summary>
-    private const int StatusInterval = 60;
-
-    /// <summary>
-    /// Number of shards allowed to be destroyed before the program may close itself, if configured.
-    /// </summary>
-    private const int MaxDestroyedShards = 10; // TODO make configurable
+    private const int StatusInterval = 90;
 
     /// <summary>
     /// Number of concurrent shard startups to happen on each check.
@@ -29,8 +24,7 @@ class ShardManager : IDisposable {
 
     /// <summary>
     /// Amount of time without a completed background service run before a shard instance
-    /// is considered "dead" and tasked to be removed. A fraction of this value is also used
-    /// to determine when a shard is "slow".
+    /// is considered "dead" and tasked to be removed.
     /// </summary>
     private static readonly TimeSpan DeadShardThreshold = new(0, 20, 0);
 
@@ -44,7 +38,6 @@ class ShardManager : IDisposable {
 
     private readonly Task _statusTask;
     private readonly CancellationTokenSource _mainCancel;
-    private int _destroyedShards = 0;
 
     internal Configuration Config { get; }
 
@@ -63,7 +56,7 @@ class ShardManager : IDisposable {
         // Start status reporting thread
         _mainCancel = new CancellationTokenSource();
         _statusTask = Task.Factory.StartNew(StatusLoop, _mainCancel.Token,
-                                              TaskCreationOptions.LongRunning, TaskScheduler.Default);
+                                            TaskCreationOptions.LongRunning, TaskScheduler.Default);
     }
 
     public void Dispose() {
@@ -91,8 +84,6 @@ class ShardManager : IDisposable {
     /// Creates and sets up a new shard instance.
     /// </summary>
     private async Task<ShardInstance> InitializeShard(int shardId) {
-        ShardInstance newInstance;
-
         var clientConf = new DiscordSocketConfig() {
             ShardId = shardId,
             TotalShards = Config.ShardTotal,
@@ -107,8 +98,8 @@ class ShardManager : IDisposable {
             .AddSingleton(s => new DiscordSocketClient(clientConf))
             .AddSingleton(s => new InteractionService(s.GetRequiredService<DiscordSocketClient>()))
             .BuildServiceProvider();
-        newInstance = services.GetRequiredService<ShardInstance>();
-        await newInstance.StartAsync().ConfigureAwait(false);
+        var newInstance = services.GetRequiredService<ShardInstance>();
+        await newInstance.StartAsync();
 
         return newInstance;
     }
@@ -121,105 +112,62 @@ class ShardManager : IDisposable {
         return null;
     }
 
-    #region Status checking and display
-    private struct GuildStatusData {
-        public int GuildCount;
-        public TimeSpan LastTaskRunTime;
-        public string? ExecutingTask;
-    }
-
-    private static string StatusDisplay(IEnumerable<int> guildList, Dictionary<int, GuildStatusData> guildInfo, bool showDetail) {
-        if (!guildList.Any()) return "--";
-        var result = new StringBuilder();
-        foreach (var item in guildList) {
-            result.Append(item.ToString("00") + " ");
-            if (showDetail) {
-                result.Remove(result.Length - 1, 1);
-                result.Append($"[{Math.Floor(guildInfo[item].LastTaskRunTime.TotalSeconds):000}s");
-                if (guildInfo[item].ExecutingTask != null)
-                    result.Append($" {guildInfo[item].ExecutingTask}");
-                result.Append("] ");
-            }
-        }
-        if (result.Length > 0) result.Remove(result.Length - 1, 1);
-        return result.ToString();
-    }
-
     private async Task StatusLoop() {
         try {
             while (!_mainCancel.IsCancellationRequested) {
-                Log($"Bot uptime: {Program.BotUptime}");
+                Log($"Uptime: {Program.BotUptime}");
 
-                // Iterate through shard list, extract data
-                var guildInfo = new Dictionary<int, GuildStatusData>();
-                var now = DateTimeOffset.UtcNow;
+                // Iterate through shards, create report on each
+                var shardStatuses = new StringBuilder();
                 var nullShards = new List<int>();
-                foreach (var item in _shards) {
-                    if (item.Value == null) {
-                        nullShards.Add(item.Key);
+                var deadShards = new List<int>();
+                for (var i = 0; i < _shards.Count; i++) {
+                    shardStatuses.Append($"Shard {i:00}: ");
+
+                    if (_shards[i] == null) {
+                        shardStatuses.AppendLine("Inactive.");
+                        nullShards.Add(i);
                         continue;
                     }
-                    var shard = item.Value;
 
-                    guildInfo[item.Key] = new GuildStatusData {
-                        GuildCount = shard.DiscordClient.Guilds.Count,
-                        LastTaskRunTime = now - shard.LastBackgroundRun,
-                        ExecutingTask = shard.CurrentExecutingService
-                    };
-                }
-
-                // Process info
-                var guildCounts = guildInfo.Select(i => i.Value.GuildCount);
-                var guildTotal = guildCounts.Sum();
-                var guildAverage = guildCounts.Any() ? guildCounts.Average() : 0;
-                Log($"Currently in {guildTotal} guilds. Average shard load: {guildAverage:0.0}.");
-
-                // Health report
-                var goodShards = new List<int>();
-                var badShards = new List<int>(); // shards with low connection score OR long time since last work
-                var deadShards = new List<int>(); // shards to destroy and reinitialize
-                foreach (var item in guildInfo) {
-                    var lastRun = item.Value.LastTaskRunTime;
-
+                    var shard = _shards[i]!;
+                    var client = shard.DiscordClient;
+                    shardStatuses.Append($"{Enum.GetName(typeof(ConnectionState), client.ConnectionState)} ({client.Latency:000}ms).");
+                    shardStatuses.Append($" Guilds: {client.Guilds.Count}.");
+                    shardStatuses.Append($" Background: {shard.CurrentExecutingService ?? "Idle"}");
+                    var lastRun = DateTimeOffset.UtcNow - shard.LastBackgroundRun;
                     if (lastRun > DeadShardThreshold / 3) {
-                        badShards.Add(item.Key);
-
-                        // Consider a shard dead after a long span without background activity
-                        if (lastRun > DeadShardThreshold)
-                            deadShards.Add(item.Key);
+                        // Formerly known as a 'slow' shard
+                        shardStatuses.Append($", heartbeat {Math.Floor(lastRun.TotalMinutes):00}m ago.");
                     } else {
-                        goodShards.Add(item.Key);
+                        shardStatuses.Append('.');
+                    }
+                    
+                    shardStatuses.AppendLine();
+
+                    if (lastRun > DeadShardThreshold) {
+                        shardStatuses.AppendLine($"Shard {i:00} marked for disposal.");
+                        deadShards.Add(i);
                     }
                 }
-                Log("Online: " + StatusDisplay(goodShards, guildInfo, false));
-                if (badShards.Count > 0) Log("Slow: " + StatusDisplay(badShards, guildInfo, true));
-                if (deadShards.Count > 0) Log("Dead: " + StatusDisplay(deadShards, guildInfo, false));
-                if (nullShards.Count > 0) Log("Offline: " + StatusDisplay(nullShards, guildInfo, false));
+                Log(shardStatuses.ToString().TrimEnd());
 
                 // Remove dead shards
                 foreach (var dead in deadShards) {
                     _shards[dead]!.Dispose();
                     _shards[dead] = null;
-                    _destroyedShards++;
-                }
-                if (Config.QuitOnFails && _destroyedShards > MaxDestroyedShards) {
-                    Environment.ExitCode = (int)Program.ExitCodes.DeadShardThreshold;
-                    Program.ProgramStop();
-                } else {
-                    // Start up any missing shards
-                    var startAllowance = MaxConcurrentOperations;
-                    foreach (var id in nullShards) {
-                        // To avoid possible issues with resources strained over so many shards starting at once,
-                        // initialization is spread out by only starting a few at a time.
-                        if (startAllowance-- > 0) {
-                            _shards[id] = await InitializeShard(id).ConfigureAwait(false);
-                        } else break;
-                    }
                 }
 
-                await Task.Delay(StatusInterval * 1000, _mainCancel.Token).ConfigureAwait(false);
+                // Start null shards, a few at at time
+                var startAllowance = MaxConcurrentOperations;
+                foreach (var id in nullShards) {
+                    if (startAllowance-- > 0) {
+                        _shards[id] = await InitializeShard(id);
+                    } else break;
+                }
+
+                await Task.Delay(StatusInterval * 1000, _mainCancel.Token);
             }
         } catch (TaskCanceledException) { }
     }
-    #endregion
 }

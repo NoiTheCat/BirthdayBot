@@ -46,7 +46,6 @@ public sealed class ShardInstance : IDisposable {
 
         // Background task constructor begins background processing immediately.
         _background = new ShardBackgroundWorker(this);
-        Log(nameof(ShardInstance), "Instance created.");
     }
 
     /// <summary>
@@ -66,7 +65,6 @@ public sealed class ShardInstance : IDisposable {
         DiscordClient.LogoutAsync().Wait(5000);
         DiscordClient.Dispose();
         _interactionService.Dispose();
-        Log(nameof(ShardInstance), "Instance disposed.");
     }
 
     internal void Log(string source, string message) => Program.Log($"Shard {ShardId:00}] [{source}", message);
