@@ -3,7 +3,6 @@ using Discord.Interactions;
 using System.Text;
 
 namespace BirthdayBot.ApplicationCommands;
-
 [RequireGuildContext]
 [Group("birthday", HelpCmdBirthday)]
 public class BirthdayModule : BotModuleBase {
@@ -47,7 +46,7 @@ public class BirthdayModule : BotModuleBase {
             if (user.IsNew) db.UserEntries.Add(user);
             user.BirthMonth = inmonth;
             user.BirthDay = inday;
-            user.TimeZone = inzone;
+            user.TimeZone = inzone ?? user.TimeZone;
             try {
                 await db.SaveChangesAsync();
             } catch (Microsoft.EntityFrameworkCore.DbUpdateException e)
