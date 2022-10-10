@@ -2,7 +2,6 @@
 using Discord.Interactions;
 
 namespace BirthdayBot.ApplicationCommands;
-
 /// <summary>
 /// Precondition requiring the executing user be recognized as a bot moderator.<br/>
 /// A bot moderator has either the Manage Server permission or is a member of the designated bot moderator role.
@@ -24,7 +23,7 @@ class RequireBotModeratorAttribute : PreconditionAttribute {
         using var db = new BotDatabaseContext();
         var checkRole = (ulong?)db.GuildConfigurations
             .Where(g => g.GuildId == (long)((SocketGuild)context.Guild).Id)
-            .Select(g => g.RoleId).FirstOrDefault();
+            .Select(g => g.ModeratorRole).FirstOrDefault();
         if (checkRole.HasValue && user.Roles.Any(r => r.Id == checkRole.Value))
             return Task.FromResult(PreconditionResult.FromSuccess());
 

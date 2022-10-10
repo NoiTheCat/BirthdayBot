@@ -2,7 +2,6 @@
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace BirthdayBot.Data;
-
 [Table("settings")]
 public class GuildConfig {
     public GuildConfig() {
@@ -14,11 +13,11 @@ public class GuildConfig {
     [Column("guild_id")]
     public long GuildId { get; set; }
     [Column("role_id")]
-    public long? RoleId { get; set; }
+    public long? BirthdayRole { get; set; }
     [Column("channel_announce_id")]
-    public long? ChannelAnnounceId { get; set; }
+    public long? AnnouncementChannel { get; set; }
     [Column("time_zone")]
-    public string? TimeZone { get; set; }
+    public string? GuildTimeZone { get; set; }
     [Column("moderated")]
     public bool Moderated { get; set; }
     [Column("moderator_role")]
