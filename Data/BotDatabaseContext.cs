@@ -15,7 +15,12 @@ public class BotDatabaseContext : DbContext {
             Username = conf.SqlUsername,
             Password = conf.SqlPassword,
             ApplicationName = conf.SqlApplicationName,
-            MaxPoolSize = Math.Max((int)Math.Ceiling(conf.ShardAmount * 2 * 0.6), 8)
+
+            // Let's see if this works?
+            ConnectionIdleLifetime = 60,
+            MaxPoolSize = Math.Max(
+                (int)Math.Ceiling(conf.ShardAmount * 2 * 0.75),
+                (int)Math.Ceiling(ShardManager.MaxConcurrentOperations * 2.5))
         }.ToString();
     }
 
