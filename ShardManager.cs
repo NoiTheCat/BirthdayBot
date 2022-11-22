@@ -24,7 +24,7 @@ class ShardManager : IDisposable {
     /// Number of concurrent shard startups to happen on each check.
     /// This value also determines the maximum amount of concurrent background database operations.
     /// </summary>
-    public const int MaxConcurrentOperations = 3;
+    public const int MaxConcurrentOperations = 4;
 
     /// <summary>
     /// Amount of time without a completed background service run before a shard instance
