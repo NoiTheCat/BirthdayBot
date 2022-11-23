@@ -23,8 +23,8 @@ class EnforceBlockingAttribute : PreconditionAttribute {
 
         using var db = new BotDatabaseContext();
         var settings = (from row in db.GuildConfigurations
-                       where row.GuildId == (long)guild.Id
-                       select new { ModRole = (ulong?)row.ModeratorRole, ModMode = row.Moderated }).FirstOrDefault();
+                       where row.GuildId == guild.Id
+                       select new { ModRole = row.ModeratorRole, ModMode = row.Moderated }).FirstOrDefault();
         if (settings != null) {
             // Bot moderators override all blocking measures in place
             if (user.Roles.Any(r => r.Id == settings.ModRole)) return Task.FromResult(PreconditionResult.FromSuccess());
@@ -33,7 +33,7 @@ class EnforceBlockingAttribute : PreconditionAttribute {
             if (settings.ModMode) return Task.FromResult(PreconditionResult.FromError(FailModerated));
 
             // Check if user exists in blocklist
-            if (db.BlocklistEntries.Where(row => row.GuildId == (long)guild.Id && row.UserId == (long)user.Id).Any())
+            if (db.BlocklistEntries.Where(row => row.GuildId == guild.Id && row.UserId == user.Id).Any())
                 return Task.FromResult(PreconditionResult.FromError(FailBlocked));
         }
 

@@ -56,7 +56,7 @@ public class ConfigModule : BotModuleBase {
 
         [SlashCommand("set-channel", HelpPfxModOnly + HelpSubCmdChannel + HelpPofxBlankUnset)]
         public async Task CmdSetChannel([Summary(description: HelpOptChannel)] SocketTextChannel? channel = null) {
-            await DoDatabaseUpdate(Context, s => s.ChannelAnnounceId = (long?)channel?.Id);
+            await DoDatabaseUpdate(Context, s => s.AnnouncementChannel = channel?.Id);
             await RespondAsync(":white_check_mark: The announcement channel has been " +
             (channel == null ? "unset." : $"set to **{channel.Name}**."));
         }
@@ -126,7 +126,7 @@ public class ConfigModule : BotModuleBase {
                 await RespondAsync(":x: This role cannot be used for this setting.", ephemeral: true);
                 return;
             }
-            await DoDatabaseUpdate(Context, s => s.RoleId = (long)role.Id);
+            await DoDatabaseUpdate(Context, s => s.BirthdayRole = role.Id);
             await RespondAsync($":white_check_mark: The birthday role has been set to **{role.Name}**.").ConfigureAwait(false);
         }
 
@@ -136,7 +136,7 @@ public class ConfigModule : BotModuleBase {
                 await RespondAsync(":x: This role cannot be used for this setting.", ephemeral: true);
                 return;
             }
-            await DoDatabaseUpdate(Context, s => s.ModeratorRole = (long?)role?.Id);
+            await DoDatabaseUpdate(Context, s => s.ModeratorRole = role?.Id);
             await RespondAsync(":white_check_mark: The moderator role has been " +
                 (role == null ? "unset." : $"set to **{role.Name}**."));
         }
@@ -154,7 +154,7 @@ public class ConfigModule : BotModuleBase {
             // setting: true to add (set), false to remove (unset)
             using var db = new BotDatabaseContext();
             var existing = db.BlocklistEntries
-                .Where(bl => bl.GuildId == (long)user.Guild.Id && bl.UserId == (long)user.Id).FirstOrDefault();
+                .Where(bl => bl.GuildId == user.Guild.Id && bl.UserId == user.Id).FirstOrDefault();
 
             var already = (existing != null) == setting;
             if (already) {
@@ -162,7 +162,7 @@ public class ConfigModule : BotModuleBase {
                 return;
             }
 
-            if (setting) db.BlocklistEntries.Add(new BlocklistEntry() { GuildId = (long)user.Guild.Id, UserId = (long)user.Id });
+            if (setting) db.BlocklistEntries.Add(new BlocklistEntry() { GuildId = user.Guild.Id, UserId = user.Id });
             else db.Remove(existing!);
             await db.SaveChangesAsync();
 
@@ -201,7 +201,7 @@ public class ConfigModule : BotModuleBase {
 
         result.AppendLine($"Server ID: `{guild.Id}` | Bot shard ID: `{Shard.ShardId:00}`");
         result.AppendLine($"Number of registered birthdays: `{ guildconf.UserEntries.Count }`");
-        result.AppendLine($"Server time zone: `{ (guildconf.TimeZone ?? "Not set - using UTC") }`");
+        result.AppendLine($"Server time zone: `{ (guildconf.GuildTimeZone ?? "Not set - using UTC") }`");
         result.AppendLine();
 
         var hasMembers = Common.HasMostMembersDownloaded(guild);
@@ -211,7 +211,7 @@ public class ConfigModule : BotModuleBase {
         result.Append(DoTestFor("Birthday processing", delegate {
             if (!hasMembers) return false;
             if (guildconf.IsNew) return false;
-            bdayCount = BackgroundServices.BirthdayRoleUpdate.GetGuildCurrentBirthdays(guildconf.UserEntries, guildconf.TimeZone).Count;
+            bdayCount = BackgroundServices.BirthdayRoleUpdate.GetGuildCurrentBirthdays(guildconf.UserEntries, guildconf.GuildTimeZone).Count;
             return true;
         }));
         if (!hasMembers) result.AppendLine(" - Previous step failed.");
@@ -221,12 +221,12 @@ public class ConfigModule : BotModuleBase {
 
         result.AppendLine(DoTestFor("Birthday role set with `/config role set-birthday-role`", delegate {
             if (guildconf.IsNew) return false;
-            SocketRole? role = guild.GetRole((ulong)(guildconf.RoleId ?? 0));
+            SocketRole? role = guild.GetRole((ulong)(guildconf.BirthdayRole ?? 0));
             return role != null;
         }));
         result.AppendLine(DoTestFor("Birthday role can be managed by bot", delegate {
             if (guildconf.IsNew) return false;
-            SocketRole? role = guild.GetRole((ulong)(guildconf.RoleId ?? 0));
+            SocketRole? role = guild.GetRole((ulong)(guildconf.BirthdayRole ?? 0));
             if (role == null) return false;
             return guild.CurrentUser.GuildPermissions.ManageRoles && role.Position < guild.CurrentUser.Hierarchy;
         }));
@@ -235,7 +235,7 @@ public class ConfigModule : BotModuleBase {
         SocketTextChannel? announcech = null;
         result.AppendLine(DoTestFor("(Optional) Announcement channel set with `bb.config channel`", delegate {
             if (guildconf.IsNew) return false;
-            announcech = guild.GetTextChannel((ulong)(guildconf.ChannelAnnounceId ?? 0));
+            announcech = guild.GetTextChannel((ulong)(guildconf.AnnouncementChannel ?? 0));
             return announcech != null;
         }));
         var disp = announcech == null ? "announcement channel" : $"<#{announcech.Id}>";
@@ -275,7 +275,7 @@ public class ConfigModule : BotModuleBase {
         const string Response = ":white_check_mark: The server's time zone has been ";
 
         if (zone == null) {
-            await DoDatabaseUpdate(Context, s => s.TimeZone = null);
+            await DoDatabaseUpdate(Context, s => s.GuildTimeZone = null);
             await RespondAsync(Response + "unset.").ConfigureAwait(false);
         } else {
             string parsedZone;
@@ -286,7 +286,7 @@ public class ConfigModule : BotModuleBase {
                 return;
             }
 
-            await DoDatabaseUpdate(Context, s => s.TimeZone = parsedZone);
+            await DoDatabaseUpdate(Context, s => s.GuildTimeZone = parsedZone);
             await RespondAsync(Response + $"set to **{parsedZone}**.").ConfigureAwait(false);
         }
     }

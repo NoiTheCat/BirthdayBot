@@ -1,4 +1,5 @@
 ﻿using BirthdayBot.Data;
+using Microsoft.EntityFrameworkCore;
 
 namespace BirthdayBot.BackgroundServices;
 /// <summary>
@@ -8,13 +9,22 @@ class AutoUserDownload : BackgroundService {
     public AutoUserDownload(ShardInstance instance) : base(instance) { }
 
     public override async Task OnTick(int tickCount, CancellationToken token) {
-        using var db = new BotDatabaseContext();
-
         // Take action if a guild's cache is incomplete...
-        var incompleteCaches = ShardInstance.DiscordClient.Guilds.Where(g => !g.HasAllMembers).Select(g => (long)g.Id).ToHashSet();
+        var incompleteCaches = ShardInstance.DiscordClient.Guilds.Where(g => !g.HasAllMembers).Select(g => g.Id).ToHashSet();
         // ...and if the guild contains any user data
-        var mustFetch = db.UserEntries.Where(e => incompleteCaches.Contains(e.GuildId)).Select(e => e.GuildId).Distinct();
-
+        IEnumerable<ulong> mustFetch;
+        try {
+            await DbConcurrentOperationsLock.WaitAsync(token);
+            using var db = new BotDatabaseContext();
+            mustFetch = db.UserEntries.AsNoTracking()
+                .Where(e => incompleteCaches.Contains(e.GuildId)).Select(e => e.GuildId).Distinct()
+                .ToList();
+        } finally {
+            try {
+                DbConcurrentOperationsLock.Release();
+            } catch (ObjectDisposedException) { }
+        }
+        
         var processed = 0;
         foreach (var item in mustFetch) {
             // May cause a disconnect in certain situations. Cancel all further attempts until the next pass if it happens.
@@ -27,6 +37,6 @@ class AutoUserDownload : BackgroundService {
             processed++;
         }
 
-        if (processed > 100) Log($"Explicit user list request processed for {processed} guild(s).");
+        if (processed > 25) Log($"Explicit user list request processed for {processed} guild(s).");
     }
 }

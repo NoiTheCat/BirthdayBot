@@ -27,9 +27,9 @@ class BirthdayRoleUpdate : BackgroundService {
     private async Task ProcessBirthdaysAsync(CancellationToken token) {
         // For database efficiency, fetch all database information at once before proceeding
         using var db = new BotDatabaseContext();
-        var shardGuilds = ShardInstance.DiscordClient.Guilds.Select(g => (long)g.Id).ToHashSet();
+        var shardGuilds = ShardInstance.DiscordClient.Guilds.Select(g => g.Id).ToHashSet();
         var presentGuildSettings = db.GuildConfigurations.Where(s => shardGuilds.Contains(s.GuildId));
-        var guildChecks = presentGuildSettings.ToList().Select(s => Tuple.Create((ulong)s.GuildId, s));
+        var guildChecks = presentGuildSettings.ToList().Select(s => Tuple.Create(s.GuildId, s));
 
         var exceptions = new List<Exception>();
         foreach (var (guildId, settings) in guildChecks) {
@@ -46,13 +46,13 @@ class BirthdayRoleUpdate : BackgroundService {
 
             try {
                 // Verify that role settings and permissions are usable
-                SocketRole? role = guild.GetRole((ulong)(settings.RoleId ?? 0));
+                SocketRole? role = guild.GetRole((ulong)(settings.BirthdayRole ?? 0));
                 if (role == null
                     || !guild.CurrentUser.GuildPermissions.ManageRoles
                     || role.Position >= guild.CurrentUser.Hierarchy) continue;
                 if (role.IsEveryone || role.IsManaged) {
                     // Invalid role was configured. Clear the setting and quit.
-                    settings.RoleId = null;
+                    settings.BirthdayRole = null;
                     db.Update(settings);
                     await db.SaveChangesAsync(CancellationToken.None);
                     continue;
@@ -60,7 +60,7 @@ class BirthdayRoleUpdate : BackgroundService {
 
                 // Load up user configs and begin processing birthdays
                 await db.Entry(settings).Collection(t => t.UserEntries).LoadAsync(CancellationToken.None);
-                var birthdays = GetGuildCurrentBirthdays(settings.UserEntries, settings.TimeZone);
+                var birthdays = GetGuildCurrentBirthdays(settings.UserEntries, settings.GuildTimeZone);
 
                 // Add or remove roles as appropriate
                 var announcementList = await UpdateGuildBirthdayRoles(guild, role, birthdays);
@@ -144,7 +144,7 @@ class BirthdayRoleUpdate : BackgroundService {
     /// Attempts to send an announcement message.
     /// </summary>
     internal static async Task AnnounceBirthdaysAsync(GuildConfig settings, SocketGuild g, IEnumerable<SocketGuildUser> names) {
-        var c = g.GetTextChannel((ulong)(settings.ChannelAnnounceId ?? 0));
+        var c = g.GetTextChannel((ulong)(settings.AnnouncementChannel ?? 0));
         if (c == null) return;
         if (!c.Guild.CurrentUser.GetPermissions(c).SendMessages) return;
 

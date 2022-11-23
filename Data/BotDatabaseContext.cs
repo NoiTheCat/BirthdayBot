@@ -13,8 +13,7 @@ public class BotDatabaseContext : DbContext {
             Database = conf.SqlDatabase,
             Username = conf.SqlUsername,
             Password = conf.SqlPassword,
-            ApplicationName = conf.SqlApplicationName,
-            MaxPoolSize = Math.Max((int)Math.Ceiling(conf.ShardAmount * 2 * 0.6), 8)
+            ApplicationName = conf.SqlApplicationName
         }.ToString();
     }
 

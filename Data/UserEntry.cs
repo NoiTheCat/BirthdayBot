@@ -5,18 +5,16 @@ namespace BirthdayBot.Data;
 [Table("user_birthdays")]
 public class UserEntry {
     [Key]
-    [Column("guild_id")]
-    public long GuildId { get; set; }
+    public ulong GuildId { get; set; }
     [Key]
-    [Column("user_id")]
-    public long UserId { get; set; }
-    [Column("birth_month")]
+    public ulong UserId { get; set; }
+    
     public int BirthMonth { get; set; }
-    [Column("birth_day")]
+    
     public int BirthDay { get; set; }
-    [Column("time_zone")]
+    
     public string? TimeZone { get; set; }
-    [Column("last_seen")]
+    
     public DateTimeOffset LastSeen { get; set; }
 
     [ForeignKey(nameof(GuildConfig.GuildId))]

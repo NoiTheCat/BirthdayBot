@@ -46,7 +46,7 @@ public class BirthdayModule : BotModuleBase {
             if (user.IsNew) db.UserEntries.Add(user);
             user.BirthMonth = inmonth;
             user.BirthDay = inday;
-            user.TimeZone = inzone;
+            user.TimeZone = inzone ?? user.TimeZone;
             try {
                 await db.SaveChangesAsync();
             } catch (Microsoft.EntityFrameworkCore.DbUpdateException e)
@@ -221,10 +221,10 @@ public class BirthdayModule : BotModuleBase {
     private static List<ListItem> GetSortedUserList(SocketGuild guild) {
         using var db = new BotDatabaseContext();
         var query = from row in db.UserEntries
-                        where row.GuildId == (long)guild.Id
+                        where row.GuildId == guild.Id
                         orderby row.BirthMonth, row.BirthDay
                         select new {
-                            UserId = (ulong)row.UserId,
+                            row.UserId,
                             Month = row.BirthMonth,
                             Day = row.BirthDay,
                             Zone = row.TimeZone

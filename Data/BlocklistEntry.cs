@@ -6,11 +6,9 @@ namespace BirthdayBot.Data;
 [Table("banned_users")]
 public class BlocklistEntry {
     [Key]
-    [Column("guild_id")]
-    public long GuildId { get; set; }
+    public ulong GuildId { get; set; }
     [Key]
-    [Column("user_id")]
-    public long UserId { get; set; }
+    public ulong UserId { get; set; }
 
     [ForeignKey(nameof(GuildConfig.GuildId))]
     [InverseProperty(nameof(GuildConfig.BlockedUsers))]
