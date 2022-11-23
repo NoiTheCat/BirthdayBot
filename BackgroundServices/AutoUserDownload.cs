@@ -10,9 +10,9 @@ class AutoUserDownload : BackgroundService {
 
     public override async Task OnTick(int tickCount, CancellationToken token) {
         // Take action if a guild's cache is incomplete...
-        var incompleteCaches = ShardInstance.DiscordClient.Guilds.Where(g => !g.HasAllMembers).Select(g => (long)g.Id).ToHashSet();
+        var incompleteCaches = ShardInstance.DiscordClient.Guilds.Where(g => !g.HasAllMembers).Select(g => g.Id).ToHashSet();
         // ...and if the guild contains any user data
-        IEnumerable<long> mustFetch;
+        IEnumerable<ulong> mustFetch;
         try {
             await DbConcurrentOperationsLock.WaitAsync(token);
             using var db = new BotDatabaseContext();

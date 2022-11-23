@@ -10,25 +10,27 @@ public class GuildConfig {
     }
 
     [Key]
-    [Column("guild_id")]
-    public long GuildId { get; set; }
+    public ulong GuildId { get; set; }
+
     [Column("role_id")]
-    public long? BirthdayRole { get; set; }
+    public ulong? BirthdayRole { get; set; }
+
     [Column("channel_announce_id")]
-    public long? AnnouncementChannel { get; set; }
+    public ulong? AnnouncementChannel { get; set; }
+
     [Column("time_zone")]
     public string? GuildTimeZone { get; set; }
-    [Column("moderated")]
+
     public bool Moderated { get; set; }
-    [Column("moderator_role")]
-    public long? ModeratorRole { get; set; }
-    [Column("announce_message")]
+
+    public ulong? ModeratorRole { get; set; }
+
     public string? AnnounceMessage { get; set; }
-    [Column("announce_message_pl")]
+
     public string? AnnounceMessagePl { get; set; }
-    [Column("announce_ping")]
+
     public bool AnnouncePing { get; set; }
-    [Column("last_seen")]
+    
     public DateTimeOffset LastSeen { get; set; }
 
     [InverseProperty(nameof(BlocklistEntry.Guild))]

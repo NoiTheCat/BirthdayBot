@@ -34,7 +34,7 @@ class DataRetention : BackgroundService {
         var now = DateTimeOffset.UtcNow;
 
         // Update guilds
-        var localGuilds = ShardInstance.DiscordClient.Guilds.Select(g => (long)g.Id).ToList();
+        var localGuilds = ShardInstance.DiscordClient.Guilds.Select(g => g.Id).ToList();
         var updatedGuilds = await db.GuildConfigurations
             .Where(g => localGuilds.Contains(g.GuildId))
             .ExecuteUpdateAsync(upd => upd.SetProperty(p => p.LastSeen, now));
@@ -42,9 +42,9 @@ class DataRetention : BackgroundService {
         // Update guild users
         var updatedUsers = 0;
         foreach (var guild in ShardInstance.DiscordClient.Guilds) {
-            var localUsers = guild.Users.Select(u => (long)u.Id).ToList();
+            var localUsers = guild.Users.Select(u => u.Id).ToList();
             updatedUsers += await db.UserEntries
-                .Where(gu => gu.GuildId == (long)guild.Id)
+                .Where(gu => gu.GuildId == guild.Id)
                 .Where(gu => localUsers.Contains(gu.UserId))
                 .ExecuteUpdateAsync(upd => upd.SetProperty(p => p.LastSeen, now));
         }

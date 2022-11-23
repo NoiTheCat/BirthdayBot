@@ -56,7 +56,7 @@ public class ConfigModule : BotModuleBase {
 
         [SlashCommand("set-channel", HelpPfxModOnly + HelpSubCmdChannel + HelpPofxBlankUnset)]
         public async Task CmdSetChannel([Summary(description: HelpOptChannel)] SocketTextChannel? channel = null) {
-            await DoDatabaseUpdate(Context, s => s.AnnouncementChannel = (long?)channel?.Id);
+            await DoDatabaseUpdate(Context, s => s.AnnouncementChannel = channel?.Id);
             await RespondAsync(":white_check_mark: The announcement channel has been " +
             (channel == null ? "unset." : $"set to **{channel.Name}**."));
         }
@@ -126,7 +126,7 @@ public class ConfigModule : BotModuleBase {
                 await RespondAsync(":x: This role cannot be used for this setting.", ephemeral: true);
                 return;
             }
-            await DoDatabaseUpdate(Context, s => s.BirthdayRole = (long)role.Id);
+            await DoDatabaseUpdate(Context, s => s.BirthdayRole = role.Id);
             await RespondAsync($":white_check_mark: The birthday role has been set to **{role.Name}**.").ConfigureAwait(false);
         }
 
@@ -136,7 +136,7 @@ public class ConfigModule : BotModuleBase {
                 await RespondAsync(":x: This role cannot be used for this setting.", ephemeral: true);
                 return;
             }
-            await DoDatabaseUpdate(Context, s => s.ModeratorRole = (long?)role?.Id);
+            await DoDatabaseUpdate(Context, s => s.ModeratorRole = role?.Id);
             await RespondAsync(":white_check_mark: The moderator role has been " +
                 (role == null ? "unset." : $"set to **{role.Name}**."));
         }
@@ -154,7 +154,7 @@ public class ConfigModule : BotModuleBase {
             // setting: true to add (set), false to remove (unset)
             using var db = new BotDatabaseContext();
             var existing = db.BlocklistEntries
-                .Where(bl => bl.GuildId == (long)user.Guild.Id && bl.UserId == (long)user.Id).FirstOrDefault();
+                .Where(bl => bl.GuildId == user.Guild.Id && bl.UserId == user.Id).FirstOrDefault();
 
             bool already = (existing != null) == setting;
             if (already) {
@@ -162,7 +162,7 @@ public class ConfigModule : BotModuleBase {
                 return;
             }
 
-            if (setting) db.BlocklistEntries.Add(new BlocklistEntry() { GuildId = (long)user.Guild.Id, UserId = (long)user.Id });
+            if (setting) db.BlocklistEntries.Add(new BlocklistEntry() { GuildId = user.Guild.Id, UserId = user.Id });
             else db.Remove(existing!);
             await db.SaveChangesAsync();
 
