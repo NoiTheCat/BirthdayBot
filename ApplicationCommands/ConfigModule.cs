@@ -142,6 +142,11 @@ public class ConfigModule : BotModuleBase {
         }
     }
 
+    public const string ObsoleteAttrReason = "Made redundant by Discord's built-in command permissions. Will be removed eventually.";
+    const string ObsoleteNotice = ":x: This feature shall be removed in the near future, and no further blocks will be accepted. "
+        + "Please use Discord's equivalent built-in features to limit access to your users.\n"
+        + "For more information: https://discord.com/blog/slash-commands-permissions-discord-apps-bots.";
+    [Obsolete(ObsoleteAttrReason)]
     [Group("block", HelpCmdBlocking)]
     public class SubCmdsConfigBlocking : BotModuleBase {
         [SlashCommand("add-block", HelpPfxModOnly + "Add a user to the block list.")]
@@ -162,8 +167,10 @@ public class ConfigModule : BotModuleBase {
                 return;
             }
 
-            if (setting) db.BlocklistEntries.Add(new BlocklistEntry() { GuildId = user.Guild.Id, UserId = user.Id });
-            else db.Remove(existing!);
+            if (setting) {
+                await RespondAsync(ObsoleteNotice);
+                return;
+            } else db.Remove(existing!);
             await db.SaveChangesAsync();
 
             await RespondAsync($":white_check_mark: {Common.FormatName(user, false)} has been {(setting ? "" : "un")}blocked.");
@@ -171,6 +178,11 @@ public class ConfigModule : BotModuleBase {
 
         [SlashCommand("set-moderated", HelpPfxModOnly + "Set moderated mode on the server.")]
         public async Task CmdSetModerated([Summary(name: "enable", description: "The moderated mode setting.")] bool setting) {
+            if (setting == true) {
+                await RespondAsync(ObsoleteNotice);
+                return;
+            }
+
             var current = false;
             await DoDatabaseUpdate(Context, s => {
                 current = s.Moderated;

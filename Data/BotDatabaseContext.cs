@@ -17,6 +17,7 @@ public class BotDatabaseContext : DbContext {
         }.ToString();
     }
 
+    [Obsolete(ApplicationCommands.ConfigModule.ObsoleteAttrReason)]
     public DbSet<BlocklistEntry> BlocklistEntries { get; set; } = null!;
     public DbSet<GuildConfig> GuildConfigurations { get; set; } = null!;
     public DbSet<UserEntry> UserEntries { get; set; } = null!;

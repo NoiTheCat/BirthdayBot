@@ -6,6 +6,7 @@ namespace BirthdayBot.ApplicationCommands;
 /// Only users not on the blocklist or affected by moderator mode may use the command.<br/>
 /// This is used in the <see cref="BotModuleBase"/> base class. Manually using it anywhere else is unnecessary.
 /// </summary>
+[Obsolete(ConfigModule.ObsoleteAttrReason)]
 class EnforceBlockingAttribute : PreconditionAttribute {
     public const string FailModerated = "Guild has moderator mode enabled.";
     public const string FailBlocked = "User is in the guild's block list.";

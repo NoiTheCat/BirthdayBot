@@ -3,6 +3,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace BirthdayBot.Data;
 
+[Obsolete(ApplicationCommands.ConfigModule.ObsoleteAttrReason)]
 [Table("banned_users")]
 public class BlocklistEntry {
     [Key]
