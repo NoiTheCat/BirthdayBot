@@ -27,9 +27,9 @@ class BirthdayRoleUpdate : BackgroundService {
     private async Task ProcessBirthdaysAsync(CancellationToken token) {
         // For database efficiency, fetch all database information at once before proceeding
         using var db = new BotDatabaseContext();
-        var shardGuilds = ShardInstance.DiscordClient.Guilds.Select(g => (long)g.Id).ToHashSet();
+        var shardGuilds = ShardInstance.DiscordClient.Guilds.Select(g => g.Id).ToHashSet();
         var presentGuildSettings = db.GuildConfigurations.Where(s => shardGuilds.Contains(s.GuildId));
-        var guildChecks = presentGuildSettings.ToList().Select(s => Tuple.Create((ulong)s.GuildId, s));
+        var guildChecks = presentGuildSettings.ToList().Select(s => Tuple.Create(s.GuildId, s));
 
         var exceptions = new List<Exception>();
         foreach (var (guildId, settings) in guildChecks) {

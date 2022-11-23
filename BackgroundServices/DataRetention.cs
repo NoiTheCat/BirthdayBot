@@ -1,4 +1,5 @@
 ﻿using BirthdayBot.Data;
+using Microsoft.EntityFrameworkCore;
 using System.Text;
 
 namespace BirthdayBot.BackgroundServices;
@@ -31,34 +32,32 @@ class DataRetention : BackgroundService {
     private async Task RemoveStaleEntriesAsync() {
         using var db = new BotDatabaseContext();
         var now = DateTimeOffset.UtcNow;
-        int updatedGuilds = 0, updatedUsers = 0;
 
+        // Update guilds
+        var localGuilds = ShardInstance.DiscordClient.Guilds.Select(g => g.Id).ToList();
+        var updatedGuilds = await db.GuildConfigurations
+            .Where(g => localGuilds.Contains(g.GuildId))
+            .ExecuteUpdateAsync(upd => upd.SetProperty(p => p.LastSeen, now));
+
+        // Update guild users
+        var updatedUsers = 0;
         foreach (var guild in ShardInstance.DiscordClient.Guilds) {
-            // Update guild, fetch users from database
-            var dbGuild = db.GuildConfigurations.Where(s => s.GuildId == (long)guild.Id).FirstOrDefault();
-            if (dbGuild == null) continue;
-            dbGuild.LastSeen = now;
-            updatedGuilds++;
-
-            // Update users
-            var localIds = guild.Users.Select(u => (long)u.Id);
-            var dbSavedIds = db.UserEntries.Where(e => e.GuildId == (long)guild.Id).Select(e => e.UserId);
-            var usersToUpdate = localIds.Intersect(dbSavedIds).ToHashSet();
-            foreach (var user in db.UserEntries.Where(e => e.GuildId == (long)guild.Id && usersToUpdate.Contains(e.UserId))) {
-                user.LastSeen = now;
-                updatedUsers++;
-            }
+            var localUsers = guild.Users.Select(u => u.Id).ToList();
+            updatedUsers += await db.UserEntries
+                .Where(gu => gu.GuildId == guild.Id)
+                .Where(gu => localUsers.Contains(gu.UserId))
+                .ExecuteUpdateAsync(upd => upd.SetProperty(p => p.LastSeen, now));
         }
 
         // And let go of old data
-        var staleGuilds = db.GuildConfigurations.Where(s => now - TimeSpan.FromDays(StaleGuildThreshold) > s.LastSeen);
-        var staleUsers = db.UserEntries.Where(e => now - TimeSpan.FromDays(StaleUserThreashold) > e.LastSeen);
-        int staleGuildCount = staleGuilds.Count(), staleUserCount = staleUsers.Count();
-        db.GuildConfigurations.RemoveRange(staleGuilds);
-        db.UserEntries.RemoveRange(staleUsers);
-
-        await db.SaveChangesAsync(CancellationToken.None);
+        var staleGuildCount = await db.GuildConfigurations
+            .Where(g => now - TimeSpan.FromDays(StaleGuildThreshold) > g.LastSeen)
+            .ExecuteDeleteAsync();
+        var staleUserCount = await db.UserEntries
+            .Where(gu => now - TimeSpan.FromDays(StaleUserThreashold) > gu.LastSeen)
+            .ExecuteDeleteAsync();
             
+        // Build report
         var resultText = new StringBuilder();
         resultText.Append($"Updated {updatedGuilds} guilds, {updatedUsers} users.");
         if (staleGuildCount != 0 || staleUserCount != 0) {

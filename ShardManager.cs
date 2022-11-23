@@ -1,6 +1,5 @@
 ﻿global using Discord;
 global using Discord.WebSocket;
-using BirthdayBot.BackgroundServices;
 using Discord.Interactions;
 using Microsoft.Extensions.DependencyInjection;
 using System.Text;
@@ -23,7 +22,7 @@ class ShardManager : IDisposable {
 
     /// <summary>
     /// Number of concurrent shard startups to happen on each check.
-    /// This value is also used in <see cref="DataRetention"/>.
+    /// This value also determines the maximum amount of concurrent background database operations.
     /// </summary>
     public const int MaxConcurrentOperations = 4;
 

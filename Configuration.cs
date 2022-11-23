@@ -73,7 +73,7 @@ class Configuration {
         SqlDatabase = ReadConfKey<string?>(jc, nameof(SqlDatabase), false);
         SqlUsername = ReadConfKey<string>(jc, nameof(SqlUsername), true);
         SqlPassword = ReadConfKey<string>(jc, nameof(SqlPassword), true);
-        SqlApplicationName = $"ClientShard{ShardStart}+{ShardAmount}";
+        SqlApplicationName = $"Shard{ShardStart:00}-{ShardStart + ShardAmount - 1:00}";
     }
 
     private static T? ReadConfKey<T>(JObject jc, string key, [DoesNotReturnIf(true)] bool failOnEmpty) {
