@@ -1,5 +1,4 @@
 ﻿namespace BirthdayBot.Data;
-
 internal static class Extensions {
     /// <summary>
     /// Gets the corresponding <see cref="GuildConfig"/> for this guild, or a new one if one does not exist.

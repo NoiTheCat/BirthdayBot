@@ -2,7 +2,6 @@
 using Npgsql;
 
 namespace BirthdayBot.Data;
-
 public class BotDatabaseContext : DbContext {
     private static readonly string _connectionString;
 

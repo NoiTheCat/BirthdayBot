@@ -6,7 +6,6 @@ using System.Reflection;
 using System.Text.RegularExpressions;
 
 namespace BirthdayBot;
-
 /// <summary>
 /// Loads and holds configuration values.
 /// </summary>
@@ -15,7 +14,6 @@ class Configuration {
 
     public string BotToken { get; }
     public string? DBotsToken { get; }
-    public bool QuitOnFails { get; }
 
     public int ShardStart { get; }
     public int ShardAmount { get; }
@@ -47,7 +45,6 @@ class Configuration {
 
         BotToken = ReadConfKey<string>(jc, nameof(BotToken), true);
         DBotsToken = ReadConfKey<string>(jc, nameof(DBotsToken), false);
-        QuitOnFails = ReadConfKey<bool?>(jc, nameof(QuitOnFails), false) ?? false;
 
         ShardTotal = args.ShardTotal ?? ReadConfKey<int?>(jc, nameof(ShardTotal), false) ?? 1;
         if (ShardTotal < 1) throw new Exception($"'{nameof(ShardTotal)}' must be a positive integer.");

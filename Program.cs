@@ -43,13 +43,14 @@ class Program {
     public static void ProgramStop() {
         if (_stopping) return;
         _stopping = true;
-        Log("Shutdown", "Commencing shutdown...");
+        Log(nameof(Program), "Shutting down...");
 
         var dispose = Task.Run(_bot!.Dispose);
-        if (!dispose.Wait(90000)) {
-            Log("Shutdown", "Normal shutdown has not concluded after 90 seconds. Will force quit.");
+        if (!dispose.Wait(30000)) {
+            Log(nameof(Program), "Disconnection is taking too long. Will force exit.");
             Environment.ExitCode &= (int)ExitCodes.ForcedExit;
         }
+        Log(nameof(Program), $"Uptime: {BotUptime}");
         Environment.Exit(Environment.ExitCode);
     }
 

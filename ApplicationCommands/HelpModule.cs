@@ -1,7 +1,6 @@
 ﻿using Discord.Interactions;
 
 namespace BirthdayBot.ApplicationCommands;
-
 public class HelpModule : BotModuleBase {
     private const string TopMessage =
         "Thank you for using Birthday Bot!\n" +
@@ -33,12 +32,10 @@ public class HelpModule : BotModuleBase {
     public async Task CmdHelp() {
         const string DMWarn = "Please note that this bot works in servers only. " +
             "The bot will not respond to any other commands within a DM.";
-
-        string ver =
 #if DEBUG
-            "DEBUG flag set";
+        var ver = "DEBUG flag set";
 #else
-            "v" + System.Reflection.Assembly.GetExecutingAssembly().GetName().Version!.ToString(3);
+        var ver = "v" + System.Reflection.Assembly.GetExecutingAssembly().GetName().Version!.ToString(3);
 #endif
         var result = new EmbedBuilder()
             .WithAuthor("Help & About")
@@ -48,6 +45,6 @@ public class HelpModule : BotModuleBase {
             .AddField("Commands", RegularCommandsField)
             .AddField("Moderator commands", ModCommandsField)
             .Build();
-        await RespondAsync(text: (Context.Channel is IDMChannel ? DMWarn : null), embed: result).ConfigureAwait(false);
+        await RespondAsync(text: Context.Channel is IDMChannel ? DMWarn : null, embed: result).ConfigureAwait(false);
     }
 }

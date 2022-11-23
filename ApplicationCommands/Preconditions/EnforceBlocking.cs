@@ -2,7 +2,6 @@
 using Discord.Interactions;
 
 namespace BirthdayBot.ApplicationCommands;
-
 /// <summary>
 /// Only users not on the blocklist or affected by moderator mode may use the command.<br/>
 /// This is used in the <see cref="BotModuleBase"/> base class. Manually using it anywhere else is unnecessary.

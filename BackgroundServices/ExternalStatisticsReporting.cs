@@ -1,7 +1,6 @@
 ﻿using System.Text;
 
 namespace BirthdayBot.BackgroundServices;
-
 /// <summary>
 /// Reports user count statistics to external services on a shard by shard basis.
 /// </summary>
