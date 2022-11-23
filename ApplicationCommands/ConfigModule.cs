@@ -55,7 +55,7 @@ public class ConfigModule : BotModuleBase {
         }
 
         [SlashCommand("set-channel", HelpPfxModOnly + HelpSubCmdChannel + HelpPofxBlankUnset)]
-        public async Task CmdSetChannel([Summary(description: HelpOptRole)] SocketTextChannel? channel = null) {
+        public async Task CmdSetChannel([Summary(description: HelpOptChannel)] SocketTextChannel? channel = null) {
             await DoDatabaseUpdate(Context, s => s.ChannelAnnounceId = (long?)channel?.Id);
             await RespondAsync(":white_check_mark: The announcement channel has been " +
             (channel == null ? "unset." : $"set to **{channel.Name}**."));
