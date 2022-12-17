@@ -120,7 +120,7 @@ class ShardManager : IDisposable {
                 var shardStatuses = new StringBuilder();
                 var nullShards = new List<int>();
                 var deadShards = new List<int>();
-                for (var i = 0; i < _shards.Count; i++) {
+                foreach (var i in _shards.Keys) {
                     shardStatuses.Append($"Shard {i:00}: ");
 
                     if (_shards[i] == null) {
@@ -137,7 +137,7 @@ class ShardManager : IDisposable {
                     var lastRun = DateTimeOffset.UtcNow - shard.LastBackgroundRun;
                     if (lastRun > DeadShardThreshold / 3) {
                         // Formerly known as a 'slow' shard
-                        shardStatuses.Append($", heartbeat {Math.Floor(lastRun.TotalMinutes):00}m ago.");
+                        shardStatuses.Append($", heartbeat {lastRun.TotalMinutes:00.0}m ago.");
                     } else {
                         shardStatuses.Append('.');
                     }
