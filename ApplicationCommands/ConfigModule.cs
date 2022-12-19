@@ -143,8 +143,9 @@ public class ConfigModule : BotModuleBase {
     }
 
     public const string ObsoleteAttrReason = "Made redundant by Discord's built-in command permissions. Will be removed eventually.";
-    const string ObsoleteNotice = ":x: This feature shall be removed in the near future, and no further blocks will be accepted. "
-        + "Please use Discord's equivalent built-in features to limit access to your users.\n"
+    const string ObsoleteNotice = ":x: This feature has been deprecated, and the setting of blocks has been disabled. "
+        + "All existing blocks that have been previously set up will cease to function in the near future.\n"
+        + "Please use Discord's equivalent built-in features to limit access to your users. "
         + "For more information: https://discord.com/blog/slash-commands-permissions-discord-apps-bots.";
     [Obsolete(ObsoleteAttrReason)]
     [Group("block", HelpCmdBlocking)]
