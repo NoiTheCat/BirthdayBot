@@ -188,11 +188,10 @@ public class ConfigModule : BotModuleBase {
 
     [SlashCommand("check", HelpPfxModOnly + HelpCmdCheck)]
     public async Task CmdCheck() {
-        static string DoTestFor(string label, Func<bool> test) => $"{label}: { (test() ? ":white_check_mark: Yes" : ":x: No") }";
+        static string DoTestFor(string label, Func<bool> test)
+            => $"{label}: { (test() ? ":white_check_mark: Yes" : ":x: No") }";
         
-        SocketTextChannel channel = (SocketTextChannel)Context.Channel;
         var guild = Context.Guild;
-
         using var db = new BotDatabaseContext();
         var guildconf = guild.GetConfigOrNew(db);
         if (!guildconf.IsNew) await db.Entry(guildconf).Collection(t => t.UserEntries).LoadAsync();
@@ -201,7 +200,7 @@ public class ConfigModule : BotModuleBase {
 
         result.AppendLine($"Server ID: `{guild.Id}` | Bot shard ID: `{Shard.ShardId:00}`");
         result.AppendLine($"Number of registered birthdays: `{ guildconf.UserEntries.Count }`");
-        result.AppendLine($"Server time zone: `{ (guildconf.GuildTimeZone ?? "Not set - using UTC") }`");
+        result.AppendLine($"Server time zone: `{ guildconf.GuildTimeZone ?? "Not set - using UTC" }`");
         result.AppendLine();
 
         var hasMembers = Common.HasMostMembersDownloaded(guild);
@@ -221,12 +220,12 @@ public class ConfigModule : BotModuleBase {
 
         result.AppendLine(DoTestFor("Birthday role set with `/config role set-birthday-role`", delegate {
             if (guildconf.IsNew) return false;
-            SocketRole? role = guild.GetRole((ulong)(guildconf.BirthdayRole ?? 0));
+            SocketRole? role = guild.GetRole(guildconf.BirthdayRole ?? 0);
             return role != null;
         }));
         result.AppendLine(DoTestFor("Birthday role can be managed by bot", delegate {
             if (guildconf.IsNew) return false;
-            SocketRole? role = guild.GetRole((ulong)(guildconf.BirthdayRole ?? 0));
+            SocketRole? role = guild.GetRole(guildconf.BirthdayRole ?? 0);
             if (role == null) return false;
             return guild.CurrentUser.GuildPermissions.ManageRoles && role.Position < guild.CurrentUser.Hierarchy;
         }));
@@ -235,7 +234,7 @@ public class ConfigModule : BotModuleBase {
         SocketTextChannel? announcech = null;
         result.AppendLine(DoTestFor("(Optional) Announcement channel set with `bb.config channel`", delegate {
             if (guildconf.IsNew) return false;
-            announcech = guild.GetTextChannel((ulong)(guildconf.AnnouncementChannel ?? 0));
+            announcech = guild.GetTextChannel(guildconf.AnnouncementChannel ?? 0);
             return announcech != null;
         }));
         var disp = announcech == null ? "announcement channel" : $"<#{announcech.Id}>";
@@ -248,26 +247,6 @@ public class ConfigModule : BotModuleBase {
             Author = new EmbedAuthorBuilder() { Name = "Status and config check" },
             Description = result.ToString()
         }.Build()).ConfigureAwait(false);
-
-        const int announceMsgPreviewLimit = 350;
-        static string prepareAnnouncePreview(string announce) {
-            var trunc = announce.Length > announceMsgPreviewLimit ? announce[..announceMsgPreviewLimit] + "`(...)`" : announce;
-            var result = new StringBuilder();
-            foreach (var line in trunc.Split('\n'))
-                result.AppendLine($"> {line}");
-            return result.ToString();
-        }
-        if (!guildconf.IsNew && (guildconf.AnnounceMessage != null || guildconf.AnnounceMessagePl != null)) {
-            var em = new EmbedBuilder().WithAuthor(new EmbedAuthorBuilder() { Name = "Custom announce messages:" });
-            var dispAnnounces = new StringBuilder("Custom announcement message(s):\n");
-            if (guildconf.AnnounceMessage != null) {
-                em = em.AddField("Single", prepareAnnouncePreview(guildconf.AnnounceMessage));
-            }
-            if (guildconf.AnnounceMessagePl != null) {
-                em = em.AddField("Multi", prepareAnnouncePreview(guildconf.AnnounceMessagePl));
-            }
-            await ReplyAsync(embed: em.Build()).ConfigureAwait(false);
-        }
     }
 
     [SlashCommand("set-timezone", HelpPfxModOnly + "Configure the time zone to use by default in the server." + HelpPofxBlankUnset)]
