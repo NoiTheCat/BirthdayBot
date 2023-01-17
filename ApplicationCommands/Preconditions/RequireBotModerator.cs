@@ -6,6 +6,7 @@ namespace BirthdayBot.ApplicationCommands;
 /// Precondition requiring the executing user be recognized as a bot moderator.<br/>
 /// A bot moderator has either the Manage Server permission or is a member of the designated bot moderator role.
 /// </summary>
+[Obsolete("Replace with appropriate DefaultMemberPermissionsAttribute")]
 class RequireBotModeratorAttribute : PreconditionAttribute {
     public const string Error = "User did not pass the mod check.";
     public const string Reply = ":x: You must be a moderator to use this command.";
