@@ -17,8 +17,6 @@ public class BotDatabaseContext : DbContext {
         }.ToString();
     }
 
-    [Obsolete(ApplicationCommands.ConfigModule.ObsoleteAttrReason)]
-    public DbSet<BlocklistEntry> BlocklistEntries { get; set; } = null!;
     public DbSet<GuildConfig> GuildConfigurations { get; set; } = null!;
     public DbSet<UserEntry> UserEntries { get; set; } = null!;
 
@@ -28,17 +26,6 @@ public class BotDatabaseContext : DbContext {
             .UseSnakeCaseNamingConvention();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder) {
-        modelBuilder.Entity<BlocklistEntry>(entity => {
-            entity.HasKey(e => new { e.GuildId, e.UserId })
-                .HasName("banned_users_pkey");
-
-            entity.HasOne(d => d.Guild)
-                .WithMany(p => p.BlockedUsers)
-                .HasForeignKey(d => d.GuildId)
-                .HasConstraintName("banned_users_guild_id_fkey")
-                .OnDelete(DeleteBehavior.Cascade);
-        });
-
         modelBuilder.Entity<GuildConfig>(entity => {
             entity.HasKey(e => e.GuildId)
                 .HasName("settings_pkey");
