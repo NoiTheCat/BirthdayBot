@@ -150,8 +150,6 @@ public sealed class ShardInstance : IDisposable {
             if (result.Error == InteractionCommandError.UnmetPrecondition) {
                 var errReply = result.ErrorReason switch {
                     RequireBotModeratorAttribute.Error => RequireBotModeratorAttribute.Reply,
-                    EnforceBlockingAttribute.FailBlocked => EnforceBlockingAttribute.ReplyBlocked,
-                    EnforceBlockingAttribute.FailModerated => EnforceBlockingAttribute.ReplyModerated,
                     RequireGuildContextAttribute.Error => RequireGuildContextAttribute.Reply,
                     _ => result.ErrorReason
                 };

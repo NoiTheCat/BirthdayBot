@@ -4,11 +4,6 @@ using System.ComponentModel.DataAnnotations.Schema;
 namespace BirthdayBot.Data;
 [Table("settings")]
 public class GuildConfig {
-    public GuildConfig() {
-        BlockedUsers = new HashSet<BlocklistEntry>();
-        UserEntries = new HashSet<UserEntry>();
-    }
-
     [Key]
     public ulong GuildId { get; set; }
 
@@ -23,6 +18,7 @@ public class GuildConfig {
 
     public bool Moderated { get; set; }
 
+    [Obsolete("To be removed when RequireBotModeratorAttribute is also removed")]
     public ulong? ModeratorRole { get; set; }
 
     public string? AnnounceMessage { get; set; }
@@ -33,10 +29,8 @@ public class GuildConfig {
     
     public DateTimeOffset LastSeen { get; set; }
 
-    [InverseProperty(nameof(BlocklistEntry.Guild))]
-    public ICollection<BlocklistEntry> BlockedUsers { get; set; }
     [InverseProperty(nameof(UserEntry.Guild))]
-    public ICollection<UserEntry> UserEntries { get; set; }
+    public ICollection<UserEntry> UserEntries { get; set; } = null!;
 
     /// <summary>
     /// Gets if this instance is new and does not (yet) exist in the database.

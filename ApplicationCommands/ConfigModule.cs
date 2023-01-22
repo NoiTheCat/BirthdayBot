@@ -142,50 +142,6 @@ public class ConfigModule : BotModuleBase {
         }
     }
 
-    [Group("block", HelpCmdBlocking)]
-    public class SubCmdsConfigBlocking : BotModuleBase {
-        [SlashCommand("add-block", HelpPfxModOnly + "Add a user to the block list.")]
-        public Task CmdAddBlock([Summary(description: "The user to block.")] SocketGuildUser user) => UpdateBlockAsync(user, true);
-
-        [SlashCommand("remove-block", HelpPfxModOnly + "Remove a user from the block list.")]
-        public Task CmdDelBlock([Summary(description: "The user to unblock.")] SocketGuildUser user) => UpdateBlockAsync(user, false);
-
-        private async Task UpdateBlockAsync(SocketGuildUser user, bool setting) {
-            // setting: true to add (set), false to remove (unset)
-            using var db = new BotDatabaseContext();
-            var existing = db.BlocklistEntries
-                .Where(bl => bl.GuildId == user.Guild.Id && bl.UserId == user.Id).FirstOrDefault();
-
-            var already = (existing != null) == setting;
-            if (already) {
-                await RespondAsync($":white_check_mark: User is already {(setting ? "" : "not ")}blocked.").ConfigureAwait(false);
-                return;
-            }
-
-            if (setting) db.BlocklistEntries.Add(new BlocklistEntry() { GuildId = user.Guild.Id, UserId = user.Id });
-            else db.Remove(existing!);
-            await db.SaveChangesAsync();
-
-            await RespondAsync($":white_check_mark: {Common.FormatName(user, false)} has been {(setting ? "" : "un")}blocked.");
-        }
-
-        [SlashCommand("set-moderated", HelpPfxModOnly + "Set moderated mode on the server.")]
-        public async Task CmdSetModerated([Summary(name: "enable", description: "The moderated mode setting.")] bool setting) {
-            var current = false;
-            await DoDatabaseUpdate(Context, s => {
-                current = s.Moderated;
-                s.Moderated = setting;
-            });
-
-            var already = setting == current;
-            if (already) {
-                await RespondAsync($":white_check_mark: Moderated mode is already **{(setting ? "en" : "dis")}abled**.");
-            } else {
-                await RespondAsync($":white_check_mark: Moderated mode is now **{(setting ? "en" : "dis")}abled**.").ConfigureAwait(false);
-            }
-        }
-    }
-
     [SlashCommand("check", HelpPfxModOnly + HelpCmdCheck)]
     public async Task CmdCheck() {
         static string DoTestFor(string label, Func<bool> test)
