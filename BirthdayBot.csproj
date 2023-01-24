@@ -36,4 +36,8 @@
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL.Design" Version="1.1.0" />
   </ItemGroup>
 
+  <PropertyGroup>
+    <DefaultItemExcludes>Docs/**;$(DefaultItemExcludes)</DefaultItemExcludes>
+  </PropertyGroup>
+
 </Project>

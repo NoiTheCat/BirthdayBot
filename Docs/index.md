@@ -1,8 +1,10 @@
+---
+layout: default
+title: Documentation
+---
 # Birthday Bot
 
-* Info: https://discord.bots.gg/bots/470673087671566366
-
-## Recognize birthdays in your Discord community!
+**Recognize birthdays in your Discord community!**
 
 Birthday Bot is a simple, single-purpose bot. It will set a role on your users for the duration of their birthdays and, if desired, can
 announce a message in a channel of your choosing. Server owners can further specify a default time zone, with individual users also setting
@@ -49,4 +51,4 @@ server they share with the bot for the servers they wish for it to be known in.
 Any questions and concerns regarding data and security may be sent to the bot author via the support server or GitHub.
 
 #### Image credit
-The icon used by this bot is from Flaticon, found at: https://www.flaticon.com/free-icon/birthday-cake_168532
+<a href="https://www.flaticon.com/free-icons/cake" title="cake icons">Cake icons created by Freepik - Flaticon</a>
