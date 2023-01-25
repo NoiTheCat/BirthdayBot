@@ -1,6 +1,6 @@
 # https://github.com/BDHU/minimalist
 title: Birthday Bot
-description: A social time zone reference tool!
+description: An automated way to recognize birthdays in your community!
 logo: /birthday-cake.png
 show_downloads: false
 remote_theme: BDHU/minimalist
