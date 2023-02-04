@@ -3,8 +3,9 @@ using Discord.Interactions;
 using static BirthdayBot.Common;
 
 namespace BirthdayBot.ApplicationCommands;
-[RequireBotModerator]
 [Group("override", HelpCmdOverride)]
+[DefaultMemberPermissions(GuildPermission.ManageGuild)]
+[EnabledInDm(false)]
 public class BirthdayOverrideModule : BotModuleBase {
     public const string HelpCmdOverride = "Commands to set options for other users.";
     const string HelpOptOvTarget = "The user whose data to modify.";

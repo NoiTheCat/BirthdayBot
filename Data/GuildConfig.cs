@@ -16,11 +16,6 @@ public class GuildConfig {
     [Column("time_zone")]
     public string? GuildTimeZone { get; set; }
 
-    public bool Moderated { get; set; }
-
-    [Obsolete("To be removed when RequireBotModeratorAttribute is also removed")]
-    public ulong? ModeratorRole { get; set; }
-
     public string? AnnounceMessage { get; set; }
 
     public string? AnnounceMessagePl { get; set; }
