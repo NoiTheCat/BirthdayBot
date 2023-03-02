@@ -32,9 +32,11 @@ class AutoUserDownload : BackgroundService {
 
             var guild = ShardInstance.DiscordClient.GetGuild((ulong)item);
             if (guild == null) continue; // A guild disappeared...?
-            await guild.DownloadUsersAsync().ConfigureAwait(false); // We're already on a seperate thread, no need to use Task.Run
-            await Task.Delay(200, CancellationToken.None).ConfigureAwait(false); // Must delay, or else it seems to hang...
+            await guild.DownloadUsersAsync(); // We're already on a seperate thread, no need to use Task.Run
+            await Task.Delay(200, CancellationToken.None); // Must delay, or else it seems to hang...
             processed++;
+
+            if (processed >= 150) break; // take a break (don't get killed by ShardManager for taking too long due to quantity)
         }
 
         if (processed > 25) Log($"Explicit user list request processed for {processed} guild(s).");
