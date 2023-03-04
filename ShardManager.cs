@@ -144,10 +144,10 @@ class ShardManager : IDisposable {
                     
                     shardStatuses.AppendLine();
 
-                    if (lastRun > DeadShardThreshold) {
-                        shardStatuses.AppendLine($"Shard {i:00} marked for disposal.");
-                        deadShards.Add(i);
-                    }
+                    //if (lastRun > DeadShardThreshold) {
+                    //    shardStatuses.AppendLine($"Shard {i:00} marked for disposal.");
+                    //    deadShards.Add(i);
+                    //}
                 }
                 Log(shardStatuses.ToString().TrimEnd());
 

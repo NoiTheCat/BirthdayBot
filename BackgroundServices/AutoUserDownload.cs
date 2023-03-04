@@ -8,6 +8,8 @@ namespace BirthdayBot.BackgroundServices;
 class AutoUserDownload : BackgroundService {
     public AutoUserDownload(ShardInstance instance) : base(instance) { }
 
+    private static readonly HashSet<ulong> _failedDownloads = new();
+
     public override async Task OnTick(int tickCount, CancellationToken token) {
         // Take action if a guild's cache is incomplete...
         var incompleteCaches = ShardInstance.DiscordClient.Guilds.Where(g => !g.HasAllMembers).Select(g => g.Id).ToHashSet();
@@ -16,9 +18,13 @@ class AutoUserDownload : BackgroundService {
         try {
             await DbConcurrentOperationsLock.WaitAsync(token);
             using var db = new BotDatabaseContext();
-            mustFetch = db.UserEntries.AsNoTracking()
-                .Where(e => incompleteCaches.Contains(e.GuildId)).Select(e => e.GuildId).Distinct()
-                .ToList();
+            lock (_failedDownloads)
+                mustFetch = db.UserEntries.AsNoTracking()
+                    .Where(e => incompleteCaches.Contains(e.GuildId))
+                    .Select(e => e.GuildId)
+                    .Distinct()
+                    .Where(e => !_failedDownloads.Contains(e))
+                    .ToList();
         } finally {
             try {
                 DbConcurrentOperationsLock.Release();
@@ -26,19 +32,30 @@ class AutoUserDownload : BackgroundService {
         }
         
         var processed = 0;
+        var processStartTime = DateTimeOffset.UtcNow;
         foreach (var item in mustFetch) {
             // May cause a disconnect in certain situations. Cancel all further attempts until the next pass if it happens.
             if (ShardInstance.DiscordClient.ConnectionState != ConnectionState.Connected) break;
 
-            var guild = ShardInstance.DiscordClient.GetGuild((ulong)item);
+            var guild = ShardInstance.DiscordClient.GetGuild(item);
             if (guild == null) continue; // A guild disappeared...?
-            await guild.DownloadUsersAsync(); // We're already on a seperate thread, no need to use Task.Run
-            await Task.Delay(200, CancellationToken.None); // Must delay, or else it seems to hang...
+
+            const int singleTimeout = 500;
+            var dl = guild.DownloadUsersAsync(); // We're already on a seperate thread, no need to use Task.Run (?)
+            dl.Wait(singleTimeout * 1000, token);
+            if (!dl.IsCompletedSuccessfully) {
+                Log($"Giving up on {guild.Id} after {singleTimeout} seconds. (Total members: {guild.MemberCount})");
+                lock (_failedDownloads) _failedDownloads.Add(guild.Id);
+            }
             processed++;
 
-            if (processed >= 150) break; // take a break (don't get killed by ShardManager for taking too long due to quantity)
+            if (Math.Abs((DateTimeOffset.UtcNow - processStartTime).TotalMinutes) > 2) {
+                Log("Break time!");
+                // take a break (don't get killed by ShardManager for taking too long due to quantity)
+                break;
+            }
         }
 
-        if (processed > 25) Log($"Explicit user list request processed for {processed} guild(s).");
+        if (processed > 20) Log($"Explicit user list request processed for {processed} guild(s).");
     }
 }
