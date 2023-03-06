@@ -9,10 +9,14 @@ class AutoUserDownload : BackgroundService {
     public AutoUserDownload(ShardInstance instance) : base(instance) { }
 
     private static readonly HashSet<ulong> _failedDownloads = new();
+    private static readonly TimeSpan _singleDlTimeout = ShardManager.DeadShardThreshold / 3;
 
     public override async Task OnTick(int tickCount, CancellationToken token) {
         // Take action if a guild's cache is incomplete...
-        var incompleteCaches = ShardInstance.DiscordClient.Guilds.Where(g => !g.HasAllMembers).Select(g => g.Id).ToHashSet();
+        var incompleteCaches = ShardInstance.DiscordClient.Guilds
+            .Where(g => !g.HasAllMembers)
+            .Select(g => g.Id)
+            .ToHashSet();
         // ...and if the guild contains any user data
         IEnumerable<ulong> mustFetch;
         try {
@@ -34,28 +38,29 @@ class AutoUserDownload : BackgroundService {
         var processed = 0;
         var processStartTime = DateTimeOffset.UtcNow;
         foreach (var item in mustFetch) {
-            // May cause a disconnect in certain situations. Cancel all further attempts until the next pass if it happens.
+            // May cause a disconnect in certain situations. Make no further attempts until the next pass if it happens.
             if (ShardInstance.DiscordClient.ConnectionState != ConnectionState.Connected) break;
 
             var guild = ShardInstance.DiscordClient.GetGuild(item);
             if (guild == null) continue; // A guild disappeared...?
 
-            const int singleTimeout = 500;
-            var dl = guild.DownloadUsersAsync(); // We're already on a seperate thread, no need to use Task.Run (?)
-            dl.Wait(singleTimeout * 1000, token);
-            if (!dl.IsCompletedSuccessfully) {
-                Log($"Giving up on {guild.Id} after {singleTimeout} seconds. (Total members: {guild.MemberCount})");
-                lock (_failedDownloads) _failedDownloads.Add(guild.Id);
-            }
+            await Task.Delay(200, CancellationToken.None); // Delay a bit (reduces the possibility of hanging, somehow).
             processed++;
-
-            if (Math.Abs((DateTimeOffset.UtcNow - processStartTime).TotalMinutes) > 2) {
-                Log("Break time!");
-                // take a break (don't get killed by ShardManager for taking too long due to quantity)
+            var dl = guild.DownloadUsersAsync();
+            dl.Wait((int)_singleDlTimeout.TotalMilliseconds / 2, token);
+            if (dl.IsFaulted) {
+                Log("Exception thrown by download task: " + dl.Exception);
                 break;
+            } else if (!dl.IsCompletedSuccessfully) {
+                Log($"Hang on processing {guild.Id}. Skipping.");
+                lock (_failedDownloads) _failedDownloads.Add(guild.Id);
+                continue;
             }
+
+            // Prevent unnecessary disconnections by ShardManager if we're taking too long
+            if (DateTimeOffset.UtcNow - processStartTime > _singleDlTimeout) break;
         }
 
-        if (processed > 20) Log($"Explicit user list request processed for {processed} guild(s).");
+        if (processed > 10) Log($"Member list downloads handled for {processed} guilds.");
     }
 }

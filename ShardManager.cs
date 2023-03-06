@@ -25,7 +25,7 @@ class ShardManager : IDisposable {
     /// Amount of time without a completed background service run before a shard instance
     /// is considered "dead" and tasked to be removed.
     /// </summary>
-    private static readonly TimeSpan DeadShardThreshold = new(0, 20, 0);
+    public static readonly TimeSpan DeadShardThreshold = new(0, 20, 0);
 
     /// <summary>
     /// A dictionary with shard IDs as its keys and shard instances as its values.
@@ -144,10 +144,10 @@ class ShardManager : IDisposable {
                     
                     shardStatuses.AppendLine();
 
-                    //if (lastRun > DeadShardThreshold) {
-                    //    shardStatuses.AppendLine($"Shard {i:00} marked for disposal.");
-                    //    deadShards.Add(i);
-                    //}
+                    if (lastRun > DeadShardThreshold) {
+                        shardStatuses.AppendLine($"Shard {i:00} marked for disposal.");
+                        deadShards.Add(i);
+                    }
                 }
                 Log(shardStatuses.ToString().TrimEnd());
 
