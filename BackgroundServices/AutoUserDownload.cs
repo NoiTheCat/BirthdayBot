@@ -52,7 +52,7 @@ class AutoUserDownload : BackgroundService {
                 Log("Exception thrown by download task: " + dl.Exception);
                 break;
             } else if (!dl.IsCompletedSuccessfully) {
-                Log($"Hang on processing {guild.Id}. Skipping.");
+                Log($"Task for guild {guild.Id} is unresponsive. Skipping guild. Members: {guild.MemberCount}. Name: {guild.Name}.");
                 lock (_failedDownloads) _failedDownloads.Add(guild.Id);
                 continue;
             }
