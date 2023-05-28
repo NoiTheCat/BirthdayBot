@@ -13,7 +13,7 @@ public class BirthdayOverrideModule : BotModuleBase {
     // Note that these methods have largely been copied from BirthdayModule. Changes there should be reflected here as needed.
     // TODO possible to use a common base class for shared functionality instead?
 
-    [SlashCommand("set-birthday", HelpPfxModOnly + "Set a user's birthday on their behalf.")]
+    [SlashCommand("set-birthday", "Set a user's birthday on their behalf.")]
     public async Task OvSetBirthday([Summary(description: HelpOptOvTarget)]SocketGuildUser target,
                                     [Summary(description: HelpOptDate)]string date) {
         int inmonth, inday;
@@ -42,7 +42,7 @@ public class BirthdayOverrideModule : BotModuleBase {
             $"**{FormatDate(inmonth, inday)}**.").ConfigureAwait(false);
     }
 
-    [SlashCommand("set-timezone", HelpPfxModOnly + "Set a user's time zone on their behalf.")]
+    [SlashCommand("set-timezone", "Set a user's time zone on their behalf.")]
     public async Task OvSetTimezone([Summary(description: HelpOptOvTarget)]SocketGuildUser target,
                                     [Summary(description: HelpOptZone)]string zone) {
         using var db = new BotDatabaseContext();
@@ -67,7 +67,7 @@ public class BirthdayOverrideModule : BotModuleBase {
             $"**{newzone}**.").ConfigureAwait(false);
     }
 
-    [SlashCommand("remove-birthday", HelpPfxModOnly + "Remove a user's birthday information on their behalf.")]
+    [SlashCommand("remove-birthday", "Remove a user's birthday information on their behalf.")]
     public async Task OvRemove([Summary(description: HelpOptOvTarget)]SocketGuildUser target) {
         using var db = new BotDatabaseContext();
         var user = target.GetUserEntryOrNew(db);

@@ -16,7 +16,7 @@ public class ConfigModule : BotModuleBase {
     const string HelpOptChannel = "The corresponding channel to use.";
     const string HelpOptRole = "The corresponding role to use.";
 
-    [Group("announce", HelpPfxModOnly + HelpCmdAnnounce)]
+    [Group("announce", HelpCmdAnnounce)]
     public class SubCmdsConfigAnnounce : BotModuleBase {
         private const string HelpSubCmdChannel = "Set which channel will receive announcement messages.";
         private const string HelpSubCmdMessage = "Modify the announcement message.";
@@ -54,14 +54,14 @@ public class ConfigModule : BotModuleBase {
                 .Build()).ConfigureAwait(false);
         }
 
-        [SlashCommand("set-channel", HelpPfxModOnly + HelpSubCmdChannel + HelpPofxBlankUnset)]
+        [SlashCommand("set-channel", HelpSubCmdChannel + HelpPofxBlankUnset)]
         public async Task CmdSetChannel([Summary(description: HelpOptChannel)] SocketTextChannel? channel = null) {
             await DoDatabaseUpdate(Context, s => s.AnnouncementChannel = channel?.Id);
             await RespondAsync(":white_check_mark: The announcement channel has been " +
             (channel == null ? "unset." : $"set to **{channel.Name}**."));
         }
 
-        [SlashCommand("set-message", HelpPfxModOnly + HelpSubCmdMessage)]
+        [SlashCommand("set-message", HelpSubCmdMessage)]
         public async Task CmdSetMessage() {
             using var db = new BotDatabaseContext();
             var settings = Context.Guild.GetConfigOrNew(db);
@@ -111,14 +111,14 @@ public class ConfigModule : BotModuleBase {
             await modal.RespondAsync(":white_check_mark: Announcement messages have been updated.");
         }
 
-        [SlashCommand("set-ping", HelpPfxModOnly + HelpSubCmdPing)]
+        [SlashCommand("set-ping", HelpSubCmdPing)]
         public async Task CmdSetPing([Summary(description: "Set True to ping users, False to display them normally.")]bool option) {
             await DoDatabaseUpdate(Context, s => s.AnnouncePing = option);
             await RespondAsync($":white_check_mark: Announcement pings are now **{(option ? "on" : "off")}**.").ConfigureAwait(false);
         }
     }
 
-    [SlashCommand("birthday-role", HelpPfxModOnly + HelpCmdBirthdayRole)]
+    [SlashCommand("birthday-role", HelpCmdBirthdayRole)]
     public async Task CmdSetBRole([Summary(description: HelpOptRole)] SocketRole role) {
         if (role.IsEveryone || role.IsManaged) {
             await RespondAsync(":x: This role cannot be used for this setting.", ephemeral: true);
@@ -128,7 +128,7 @@ public class ConfigModule : BotModuleBase {
         await RespondAsync($":white_check_mark: The birthday role has been set to **{role.Name}**.").ConfigureAwait(false);
     }
 
-    [SlashCommand("check", HelpPfxModOnly + HelpCmdCheck)]
+    [SlashCommand("check", HelpCmdCheck)]
     public async Task CmdCheck() {
         static string DoTestFor(string label, Func<bool> test)
             => $"{label}: { (test() ? ":white_check_mark: Yes" : ":x: No") }";
@@ -191,7 +191,7 @@ public class ConfigModule : BotModuleBase {
         }.Build()).ConfigureAwait(false);
     }
 
-    [SlashCommand("set-timezone", HelpPfxModOnly + "Configure the time zone to use by default in the server." + HelpPofxBlankUnset)]
+    [SlashCommand("set-timezone", "Configure the time zone to use by default in the server." + HelpPofxBlankUnset)]
     public async Task CmdSetTimezone([Summary(description: HelpOptZone)] string? zone = null) {
         const string Response = ":white_check_mark: The server's time zone has been ";
 
