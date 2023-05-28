@@ -38,6 +38,11 @@ class Configuration {
     /// Amount of time to wait between background task runs within each shard.
     /// </summary>
     public int BackgroundInterval { get; }
+    /// <summary>
+    /// Gets whether to show common connect/disconnect events and other related messages.
+    /// This is disabled in the public instance, but it's worth keeping enabled in self-hosted bots.
+    /// </summary>
+    public bool LogConnectionStatus { get; }
 
     public Configuration() {
         var args = CommandLineParameters.Parse(Environment.GetCommandLineArgs());
@@ -89,6 +94,7 @@ class Configuration {
         StatusInterval = ReadConfKey<int?>(jc, nameof(StatusInterval), false) ?? 90;
         MaxConcurrentOperations = ReadConfKey<int?>(jc, nameof(MaxConcurrentOperations), false) ?? 4;
         BackgroundInterval = ReadConfKey<int?>(jc, nameof(BackgroundInterval), false) ?? 60;
+        LogConnectionStatus = ReadConfKey<bool?>(jc, nameof(LogConnectionStatus), false) ?? true;
     }
 
     private static T? ReadConfKey<T>(JObject jc, string key, [DoesNotReturnIf(true)] bool failOnEmpty) {

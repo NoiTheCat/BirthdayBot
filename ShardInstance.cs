@@ -72,23 +72,27 @@ public sealed class ShardInstance : IDisposable {
     private Task Client_Log(LogMessage arg) {
         // Suppress certain messages
         if (arg.Message != null) {
-            switch (arg.Message) {
-                case "Connecting":
-                case "Connected":
-                case "Ready":
-                case "Disconnecting":
-                case "Disconnected":
-                case "Resumed previous session":
-                case "Failed to resume previous session":
-                case "Serializer Error": // The exception associated with this log appears a lot as of v3.2-ish
-                    return Task.CompletedTask;
+            if (!_manager.Config.LogConnectionStatus) {
+                switch (arg.Message) {
+                    case "Connecting":
+                    case "Connected":
+                    case "Ready":
+                    case "Disconnecting":
+                    case "Disconnected":
+                    case "Resumed previous session":
+                    case "Failed to resume previous session":
+                    case "Serializer Error": // The exception associated with this log appears a lot as of v3.2-ish
+                        return Task.CompletedTask;
+                }
             }
             Log("Discord.Net", $"{arg.Severity}: {arg.Message}");
         }
 
         if (arg.Exception != null) {
-            if (arg.Exception is GatewayReconnectException
-                || arg.Exception.Message == "WebSocket connection was closed") return Task.CompletedTask;
+            if (!_manager.Config.LogConnectionStatus) {
+                if (arg.Exception is GatewayReconnectException || arg.Exception.Message == "WebSocket connection was closed")
+                    return Task.CompletedTask;
+            }
 
             Log("Discord.Net exception", arg.Exception.ToString());
         }
