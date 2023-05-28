@@ -1,6 +1,7 @@
 ﻿using Discord.Interactions;
 
 namespace BirthdayBot.ApplicationCommands;
+[EnabledInDm(true)]
 public class HelpModule : BotModuleBase {
     private const string TopMessage =
         "Thank you for using Birthday Bot!\n" +
@@ -20,10 +21,7 @@ public class HelpModule : BotModuleBase {
         $"` ⤷check` - {ConfigModule.HelpCmdCheck}\n" +
         $"` ⤷announce` - {ConfigModule.HelpCmdAnnounce}\n" +
         $"`  ⤷` See also: `/config announce help`.\n" +
-        $"` ⤷block` - {ConfigModule.HelpCmdBlocking}\n" +
-        $"`  ⤷add-block`, `⤷remove-block`, `⤷set-moderated`\n" +
-        $"` ⤷role` - {ConfigModule.HelpCmdRole}\n" +
-        $"`  ⤷set-birthday-role`, `⤷set-moderator-role`\n" +
+        $"` ⤷birthday-role` - {ConfigModule.HelpCmdBirthdayRole}\n" +
         $"`/override` - {BirthdayOverrideModule.HelpCmdOverride}\n" +
         $"` ⤷set-birthday`, `⤷set-timezone`, `⤷remove`\n" +
         "**Caution:** Skipping optional parameters __removes__ their configuration.";

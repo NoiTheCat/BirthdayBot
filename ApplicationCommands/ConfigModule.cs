@@ -3,13 +3,13 @@ using Discord.Interactions;
 using System.Text;
 
 namespace BirthdayBot.ApplicationCommands;
-[RequireBotModerator]
 [Group("config", HelpCmdConfig)]
+[DefaultMemberPermissions(GuildPermission.ManageGuild)]
+[EnabledInDm(false)]
 public class ConfigModule : BotModuleBase {
     public const string HelpCmdConfig = "Configure basic settings for the bot.";
     public const string HelpCmdAnnounce = "Settings regarding birthday announcements.";
-    public const string HelpCmdBlocking = "Settings for limiting user access.";
-    public const string HelpCmdRole = "Settings for roles used by this bot.";
+    public const string HelpCmdBirthdayRole = "Set the role given to users having a birthday.";
     public const string HelpCmdCheck = "Test the bot's current configuration and show the results.";
 
     const string HelpPofxBlankUnset = " Leave blank to unset.";
@@ -118,28 +118,14 @@ public class ConfigModule : BotModuleBase {
         }
     }
 
-    [Group("role", HelpPfxModOnly + HelpCmdRole)]
-    public class SubCmdsConfigRole : BotModuleBase {
-        [SlashCommand("set-birthday-role", HelpPfxModOnly + "Set the role given to users having a birthday.")]
-        public async Task CmdSetBRole([Summary(description: HelpOptRole)]SocketRole role) {
-            if (role.IsEveryone || role.IsManaged) {
-                await RespondAsync(":x: This role cannot be used for this setting.", ephemeral: true);
-                return;
-            }
-            await DoDatabaseUpdate(Context, s => s.BirthdayRole = role.Id);
-            await RespondAsync($":white_check_mark: The birthday role has been set to **{role.Name}**.").ConfigureAwait(false);
+    [SlashCommand("birthday-role", HelpPfxModOnly + HelpCmdBirthdayRole)]
+    public async Task CmdSetBRole([Summary(description: HelpOptRole)] SocketRole role) {
+        if (role.IsEveryone || role.IsManaged) {
+            await RespondAsync(":x: This role cannot be used for this setting.", ephemeral: true);
+            return;
         }
-
-        [SlashCommand("set-moderator-role", HelpPfxModOnly + "Designate a role whose members can configure the bot." + HelpPofxBlankUnset)]
-        public async Task CmdSetModRole([Summary(description: HelpOptRole)]SocketRole? role = null) {
-            if (role != null && (role.IsEveryone || role.IsManaged)) {
-                await RespondAsync(":x: This role cannot be used for this setting.", ephemeral: true);
-                return;
-            }
-            await DoDatabaseUpdate(Context, s => s.ModeratorRole = role?.Id);
-            await RespondAsync(":white_check_mark: The moderator role has been " +
-                (role == null ? "unset." : $"set to **{role.Name}**."));
-        }
+        await DoDatabaseUpdate(Context, s => s.BirthdayRole = role.Id);
+        await RespondAsync($":white_check_mark: The birthday role has been set to **{role.Name}**.").ConfigureAwait(false);
     }
 
     [SlashCommand("check", HelpPfxModOnly + HelpCmdCheck)]

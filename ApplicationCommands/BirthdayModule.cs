@@ -3,8 +3,8 @@ using Discord.Interactions;
 using System.Text;
 
 namespace BirthdayBot.ApplicationCommands;
-[RequireGuildContext]
 [Group("birthday", HelpCmdBirthday)]
+[EnabledInDm(false)]
 public class BirthdayModule : BotModuleBase {
     public const string HelpCmdBirthday = "Commands relating to birthdays.";
     public const string HelpCmdSetDate = "Sets or updates your birthday.";
@@ -191,7 +191,7 @@ public class BirthdayModule : BotModuleBase {
             await doOutput(output.ToString()).ConfigureAwait(false);
     }
 
-    [RequireBotModerator]
+    [DefaultMemberPermissions(GuildPermission.ManageGuild)]
     [SlashCommand("export", HelpPfxModOnly + HelpCmdExport)]
     public async Task CmdExport([Summary(description: "Specify whether to export the list in CSV format.")] bool asCsv = false) {
         if (!await HasMemberCacheAsync(Context.Guild)) {

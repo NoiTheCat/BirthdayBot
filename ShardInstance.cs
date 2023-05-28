@@ -133,35 +133,18 @@ public sealed class ShardInstance : IDisposable {
     }
 
     // Slash command logging and failed execution handling
-    private async Task InteractionService_SlashCommandExecuted(SlashCommandInfo info, IInteractionContext context, IResult result) {
+    private Task InteractionService_SlashCommandExecuted(SlashCommandInfo info, IInteractionContext context, IResult result) {
         string sender;
-        if (context.Guild != null) {
-            sender = $"{context.Guild}!{context.User}";
-        } else {
-            sender = $"{context.User} in non-guild context";
-        }
+        if (context.Guild != null) sender = $"{context.Guild}!{context.User}";
+        else sender = $"{context.User} in non-guild context";
         var logresult = $"{(result.IsSuccess ? "Success" : "Fail")}: `/{info}` by {sender}.";
 
         if (result.Error != null) {
             // Additional log information with error detail
             logresult += " " + Enum.GetName(typeof(InteractionCommandError), result.Error) + ": " + result.ErrorReason;
-
-            // Specific responses to errors, if necessary
-            if (result.Error == InteractionCommandError.UnmetPrecondition) {
-                var errReply = result.ErrorReason switch {
-                    RequireBotModeratorAttribute.Error => RequireBotModeratorAttribute.Reply,
-                    RequireGuildContextAttribute.Error => RequireGuildContextAttribute.Reply,
-                    _ => result.ErrorReason
-                };
-                await context.Interaction.RespondAsync(errReply, ephemeral: true).ConfigureAwait(false);
-            } else {
-                // Generic error response
-                var ia = context.Interaction;
-                if (ia.HasResponded) await ia.ModifyOriginalResponseAsync(p => p.Content = InternalError).ConfigureAwait(false);
-                else await ia.RespondAsync(InternalError).ConfigureAwait(false);
-            }
         }
 
         Log("Command", logresult);
+        return Task.CompletedTask;
     }
 }
