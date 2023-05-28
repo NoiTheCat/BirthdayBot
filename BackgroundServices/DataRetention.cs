@@ -7,24 +7,26 @@ namespace BirthdayBot.BackgroundServices;
 /// Automatically removes database information for guilds that have not been accessed in a long time.
 /// </summary>
 class DataRetention : BackgroundService {
-    const int ProcessInterval = 5400 / ShardBackgroundWorker.Interval; // Process about once per hour and a half
+    private readonly int ProcessInterval;
 
     // Amount of days without updates before data is considered stale and up for deletion.
     const int StaleGuildThreshold = 180;
     const int StaleUserThreashold = 360;
 
-    public DataRetention(ShardInstance instance) : base(instance) { }
+    public DataRetention(ShardInstance instance) : base(instance) {
+        ProcessInterval = 5400 / Shard.Config.BackgroundInterval; // Process about once per hour and a half
+    }
 
     public override async Task OnTick(int tickCount, CancellationToken token) {
         // On each tick, run only a set group of guilds, each group still processed every ProcessInterval ticks.
-        if ((tickCount + ShardInstance.ShardId) % ProcessInterval != 0) return;
+        if ((tickCount + Shard.ShardId) % ProcessInterval != 0) return;
 
         try {
-            await DbConcurrentOperationsLock.WaitAsync(token);
+            await ConcurrentSemaphore.WaitAsync(token);
             await RemoveStaleEntriesAsync();
         } finally {
             try {
-                DbConcurrentOperationsLock.Release();
+                ConcurrentSemaphore.Release();
             } catch (ObjectDisposedException) { }
         }
     }
@@ -34,14 +36,14 @@ class DataRetention : BackgroundService {
         var now = DateTimeOffset.UtcNow;
 
         // Update guilds
-        var localGuilds = ShardInstance.DiscordClient.Guilds.Select(g => g.Id).ToList();
+        var localGuilds = Shard.DiscordClient.Guilds.Select(g => g.Id).ToList();
         var updatedGuilds = await db.GuildConfigurations
             .Where(g => localGuilds.Contains(g.GuildId))
             .ExecuteUpdateAsync(upd => upd.SetProperty(p => p.LastSeen, now));
 
         // Update guild users
         var updatedUsers = 0;
-        foreach (var guild in ShardInstance.DiscordClient.Guilds) {
+        foreach (var guild in Shard.DiscordClient.Guilds) {
             var localUsers = guild.Users.Select(u => u.Id).ToList();
             updatedUsers += await db.UserEntries
                 .Where(gu => gu.GuildId == guild.Id)

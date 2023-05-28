@@ -6,7 +6,7 @@ class ShardBackgroundWorker : IDisposable {
     /// <summary>
     /// The interval, in seconds, in which background tasks are attempted to be run within a shard.
     /// </summary>
-    public const int Interval = 40;
+    private int Interval { get; }
 
     private readonly Task _workerTask;
     private readonly CancellationTokenSource _workerCanceller;
@@ -20,6 +20,7 @@ class ShardBackgroundWorker : IDisposable {
 
     public ShardBackgroundWorker(ShardInstance instance) {
         Instance = instance;
+        Interval = instance.Config.BackgroundInterval;
         _workerCanceller = new CancellationTokenSource();
 
         _workers = new List<BackgroundService>()

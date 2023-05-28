@@ -1,11 +1,15 @@
 ﻿namespace BirthdayBot.BackgroundServices;
 abstract class BackgroundService {
-    protected static SemaphoreSlim DbConcurrentOperationsLock { get; } = new(ShardManager.MaxConcurrentOperations);
-    protected ShardInstance ShardInstance { get; }
+    protected static SemaphoreSlim ConcurrentSemaphore { get; private set; } = null!;
 
-    public BackgroundService(ShardInstance instance) => ShardInstance = instance;
+    protected ShardInstance Shard { get; }
 
-    protected void Log(string message) => ShardInstance.Log(GetType().Name, message);
+    public BackgroundService(ShardInstance instance) {
+        Shard = instance;
+        ConcurrentSemaphore ??= new SemaphoreSlim(instance.Config.MaxConcurrentOperations);
+    }
+
+    protected void Log(string message) => Shard.Log(GetType().Name, message);
 
     public abstract Task OnTick(int tickCount, CancellationToken token);
 }

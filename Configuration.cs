@@ -25,6 +25,20 @@ class Configuration {
     public string SqlPassword { get; }
     internal string SqlApplicationName { get; }
 
+    /// <summary>
+    /// Number of seconds between each time the status task runs, in seconds.
+    /// </summary>
+    public int StatusInterval { get; }
+    /// <summary>
+    /// Number of concurrent shard startups to happen on each check.
+    /// This value also determines the maximum amount of concurrent background database operations.
+    /// </summary>
+    public int MaxConcurrentOperations { get; }
+    /// <summary>
+    /// Amount of time to wait between background task runs within each shard.
+    /// </summary>
+    public int BackgroundInterval { get; }
+
     public Configuration() {
         var args = CommandLineParameters.Parse(Environment.GetCommandLineArgs());
         var path = args?.ConfigFile ?? Path.GetDirectoryName(Assembly.GetEntryAssembly()!.Location)
@@ -71,6 +85,10 @@ class Configuration {
         SqlUsername = ReadConfKey<string>(jc, nameof(SqlUsername), true);
         SqlPassword = ReadConfKey<string>(jc, nameof(SqlPassword), true);
         SqlApplicationName = $"Shard{ShardStart:00}-{ShardStart + ShardAmount - 1:00}";
+
+        StatusInterval = ReadConfKey<int?>(jc, nameof(StatusInterval), false) ?? 90;
+        MaxConcurrentOperations = ReadConfKey<int?>(jc, nameof(MaxConcurrentOperations), false) ?? 4;
+        BackgroundInterval = ReadConfKey<int?>(jc, nameof(BackgroundInterval), false) ?? 60;
     }
 
     private static T? ReadConfKey<T>(JObject jc, string key, [DoesNotReturnIf(true)] bool failOnEmpty) {

@@ -5,22 +5,25 @@ namespace BirthdayBot.BackgroundServices;
 /// Reports user count statistics to external services on a shard by shard basis.
 /// </summary>
 class ExternalStatisticsReporting : BackgroundService {
-    const int ProcessInterval = 1200 / ShardBackgroundWorker.Interval; // Process every ~20 minutes
-    const int ProcessOffset = 300 / ShardBackgroundWorker.Interval; // Begin processing ~5 minutes after shard start
+    readonly int ProcessInterval;
+    readonly int ProcessOffset;
 
     private static readonly HttpClient _httpClient = new();
 
-    public ExternalStatisticsReporting(ShardInstance instance) : base(instance) { }
+    public ExternalStatisticsReporting(ShardInstance instance) : base(instance) {
+        ProcessInterval = 1200 / Shard.Config.BackgroundInterval; // Process every ~20 minutes
+        ProcessOffset = 300 / Shard.Config.BackgroundInterval; // No processing until ~5 minutes after shard start
+    }
 
     public override async Task OnTick(int tickCount, CancellationToken token) {
         if (tickCount < ProcessOffset) return;
         if (tickCount % ProcessInterval != 0) return;
 
-        var botId = ShardInstance.DiscordClient.CurrentUser.Id;
+        var botId = Shard.DiscordClient.CurrentUser.Id;
         if (botId == 0) return;
-        var count = ShardInstance.DiscordClient.Guilds.Count;
+        var count = Shard.DiscordClient.Guilds.Count;
 
-        var dbotsToken = ShardInstance.Config.DBotsToken;
+        var dbotsToken = Shard.Config.DBotsToken;
         if (dbotsToken != null) await SendDiscordBots(dbotsToken, count, botId, token);
     }
 
@@ -33,7 +36,7 @@ class ExternalStatisticsReporting : BackgroundService {
             var post = new HttpRequestMessage(HttpMethod.Post, uri);
             post.Headers.Add("Authorization", apiToken);
             post.Content = new StringContent(string.Format(Body,
-                userCount, ShardInstance.Config.ShardTotal, ShardInstance.ShardId),
+                userCount, Shard.Config.ShardTotal, Shard.ShardId),
                 Encoding.UTF8, "application/json");
 
             await _httpClient.SendAsync(post, token);

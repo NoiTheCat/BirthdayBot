@@ -15,11 +15,11 @@ class BirthdayRoleUpdate : BackgroundService {
     /// </summary>
     public override async Task OnTick(int tickCount, CancellationToken token) {
         try {
-            await DbConcurrentOperationsLock.WaitAsync(token);
+            await ConcurrentSemaphore.WaitAsync(token);
             await ProcessBirthdaysAsync(token);
         } finally {
             try {
-                DbConcurrentOperationsLock.Release();
+                ConcurrentSemaphore.Release();
             } catch (ObjectDisposedException) { }
         }
     }
@@ -27,19 +27,19 @@ class BirthdayRoleUpdate : BackgroundService {
     private async Task ProcessBirthdaysAsync(CancellationToken token) {
         // For database efficiency, fetch all database information at once before proceeding
         using var db = new BotDatabaseContext();
-        var shardGuilds = ShardInstance.DiscordClient.Guilds.Select(g => g.Id).ToHashSet();
+        var shardGuilds = Shard.DiscordClient.Guilds.Select(g => g.Id).ToHashSet();
         var presentGuildSettings = db.GuildConfigurations.Where(s => shardGuilds.Contains(s.GuildId));
         var guildChecks = presentGuildSettings.ToList().Select(s => Tuple.Create(s.GuildId, s));
 
         var exceptions = new List<Exception>();
         foreach (var (guildId, settings) in guildChecks) {
-            var guild = ShardInstance.DiscordClient.GetGuild(guildId);
+            var guild = Shard.DiscordClient.GetGuild(guildId);
             if (guild == null) continue; // A guild disappeared...?
 
             // Check task cancellation here. Processing during a single guild is never interrupted.
             if (token.IsCancellationRequested) throw new TaskCanceledException();
 
-            if (ShardInstance.DiscordClient.ConnectionState != ConnectionState.Connected) {
+            if (Shard.DiscordClient.ConnectionState != ConnectionState.Connected) {
                 Log("Client is not connected. Stopping early.");
                 return;
             }
