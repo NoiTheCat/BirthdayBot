@@ -11,17 +11,6 @@ namespace BirthdayBot;
 /// </summary>
 class ShardManager : IDisposable {
     /// <summary>
-    /// Number of seconds between each time the status task runs, in seconds.
-    /// </summary>
-    private const int StatusInterval = 90;
-
-    /// <summary>
-    /// Number of concurrent shard startups to happen on each check.
-    /// This value also determines the maximum amount of concurrent background database operations.
-    /// </summary>
-    public const int MaxConcurrentOperations = 4;
-
-    /// <summary>
     /// Amount of time without a completed background service run before a shard instance
     /// is considered "dead" and tasked to be removed.
     /// </summary>
@@ -158,14 +147,14 @@ class ShardManager : IDisposable {
                 }
 
                 // Start null shards, a few at at time
-                var startAllowance = MaxConcurrentOperations;
+                var startAllowance = Config.MaxConcurrentOperations;
                 foreach (var id in nullShards) {
                     if (startAllowance-- > 0) {
                         _shards[id] = await InitializeShard(id);
                     } else break;
                 }
 
-                await Task.Delay(StatusInterval * 1000, _mainCancel.Token);
+                await Task.Delay(Config.StatusInterval * 1000, _mainCancel.Token);
             }
         } catch (TaskCanceledException) { }
     }

@@ -13,14 +13,14 @@ class AutoUserDownload : BackgroundService {
 
     public override async Task OnTick(int tickCount, CancellationToken token) {
         // Take action if a guild's cache is incomplete...
-        var incompleteCaches = ShardInstance.DiscordClient.Guilds
+        var incompleteCaches = Shard.DiscordClient.Guilds
             .Where(g => !g.HasAllMembers)
             .Select(g => g.Id)
             .ToHashSet();
         // ...and if the guild contains any user data
         IEnumerable<ulong> mustFetch;
         try {
-            await DbConcurrentOperationsLock.WaitAsync(token);
+            await ConcurrentSemaphore.WaitAsync(token);
             using var db = new BotDatabaseContext();
             lock (_failedDownloads)
                 mustFetch = db.UserEntries.AsNoTracking()
@@ -31,7 +31,7 @@ class AutoUserDownload : BackgroundService {
                     .ToList();
         } finally {
             try {
-                DbConcurrentOperationsLock.Release();
+                ConcurrentSemaphore.Release();
             } catch (ObjectDisposedException) { }
         }
         
@@ -39,9 +39,9 @@ class AutoUserDownload : BackgroundService {
         var processStartTime = DateTimeOffset.UtcNow;
         foreach (var item in mustFetch) {
             // May cause a disconnect in certain situations. Make no further attempts until the next pass if it happens.
-            if (ShardInstance.DiscordClient.ConnectionState != ConnectionState.Connected) break;
+            if (Shard.DiscordClient.ConnectionState != ConnectionState.Connected) break;
 
-            var guild = ShardInstance.DiscordClient.GetGuild(item);
+            var guild = Shard.DiscordClient.GetGuild(item);
             if (guild == null) continue; // A guild disappeared...?
 
             await Task.Delay(200, CancellationToken.None); // Delay a bit (reduces the possibility of hanging, somehow).
