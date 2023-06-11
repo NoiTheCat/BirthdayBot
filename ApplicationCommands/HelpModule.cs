@@ -16,12 +16,12 @@ public class HelpModule : BotModuleBase {
         $"` ⤷set timezone` - {BirthdayModule.HelpCmdSetZone}\n" +
         $"` ⤷remove` - {BirthdayModule.HelpCmdRemove}";
     private const string ModCommandsField =
-        $"`/birthday export` - {BirthdayModule.HelpCmdExport}\n" +
         $"`/config` - {ConfigModule.HelpCmdConfig}\n" +
         $"` ⤷check` - {ConfigModule.HelpCmdCheck}\n" +
         $"` ⤷announce` - {ConfigModule.HelpCmdAnnounce}\n" +
         $"`  ⤷` See also: `/config announce help`.\n" +
         $"` ⤷birthday-role` - {ConfigModule.HelpCmdBirthdayRole}\n" +
+        $"`/export-birthdays` - {ExportModule.HelpCmdExport}\n" +
         $"`/override` - {BirthdayOverrideModule.HelpCmdOverride}\n" +
         $"` ⤷set-birthday`, `⤷set-timezone`, `⤷remove`\n" +
         "**Caution:** Skipping optional parameters __removes__ their configuration.";

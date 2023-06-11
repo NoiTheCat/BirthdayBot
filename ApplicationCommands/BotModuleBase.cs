@@ -1,4 +1,5 @@
-﻿using Discord.Interactions;
+﻿using BirthdayBot.Data;
+using Discord.Interactions;
 using NodaTime;
 using System.Collections.ObjectModel;
 using System.Diagnostics.CodeAnalysis;
@@ -10,9 +11,6 @@ namespace BirthdayBot.ApplicationCommands;
 /// Base class for our interaction module classes. Contains common data for use in implementing classes.
 /// </summary>
 public abstract class BotModuleBase : InteractionModuleBase<SocketInteractionContext> {
-    protected const string HelpPfxModOnly = "Bot moderators only: ";
-    protected const string ErrGuildOnly = ":x: This command can only be run within a server.";
-    protected const string ErrNotAllowed = ":x: Only server moderators may use this command.";
     protected const string MemberCacheEmptyError = ":warning: Please try the command again.";
     public const string AccessDeniedError = ":warning: You are not allowed to run this command.";
 
@@ -132,5 +130,67 @@ public abstract class BotModuleBase : InteractionModuleBase<SocketInteractionCon
     /// Returns a string representing a birthday in a consistent format.
     /// </summary>
     protected static string FormatDate(int month, int day) => $"{day:00}-{Common.MonthNames[month]}";
+    #endregion
+
+    #region Listing helper methods
+    /// <summary>
+    /// Fetches all guild birthdays and places them into an easily usable structure.
+    /// Users currently not in the guild are not included in the result.
+    /// </summary>
+    protected static List<ListItem> GetSortedUserList(SocketGuild guild) {
+        using var db = new BotDatabaseContext();
+        var query = from row in db.UserEntries
+                    where row.GuildId == guild.Id
+                    orderby row.BirthMonth, row.BirthDay
+                    select new {
+                        row.UserId,
+                        Month = row.BirthMonth,
+                        Day = row.BirthDay,
+                        Zone = row.TimeZone
+                    };
+
+        var result = new List<ListItem>();
+        foreach (var row in query) {
+            var guildUser = guild.GetUser(row.UserId);
+            if (guildUser == null) continue; // Skip user not in guild
+
+            result.Add(new ListItem() {
+                BirthMonth = row.Month,
+                BirthDay = row.Day,
+                DateIndex = DateIndex(row.Month, row.Day),
+                UserId = guildUser.Id,
+                DisplayName = Common.FormatName(guildUser, false),
+                TimeZone = row.Zone
+            });
+        }
+        return result;
+    }
+
+    protected static int DateIndex(int month, int day) {
+        var dateindex = 0;
+        // Add month offsets
+        if (month > 1) dateindex += 31; // Offset January
+        if (month > 2) dateindex += 29; // Offset February (incl. leap day)
+        if (month > 3) dateindex += 31; // etc
+        if (month > 4) dateindex += 30;
+        if (month > 5) dateindex += 31;
+        if (month > 6) dateindex += 30;
+        if (month > 7) dateindex += 31;
+        if (month > 8) dateindex += 31;
+        if (month > 9) dateindex += 30;
+        if (month > 10) dateindex += 31;
+        if (month > 11) dateindex += 30;
+        dateindex += day;
+        return dateindex;
+    }
+
+    protected struct ListItem {
+        public int DateIndex;
+        public int BirthMonth;
+        public int BirthDay;
+        public ulong UserId;
+        public string DisplayName;
+        public string? TimeZone;
+    }
     #endregion
 }
