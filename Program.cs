@@ -1,6 +1,6 @@
 ﻿namespace BirthdayBot;
 class Program {
-    private static ShardManager? _bot;
+    private static ShardManager _bot = null!;
     private static readonly DateTimeOffset _botStartTime = DateTimeOffset.UtcNow;
 
     /// <summary>
@@ -14,11 +14,12 @@ class Program {
             cfg = new Configuration();
         } catch (Exception ex) {
             Console.WriteLine(ex);
-            Environment.Exit((int)ExitCodes.ConfigError);
+            Environment.Exit(2);
         }
 
-        Console.CancelKeyPress += OnCancelKeyPressed;
         _bot = new ShardManager(cfg);
+        AppDomain.CurrentDomain.ProcessExit += OnCancelEvent;
+        Console.CancelKeyPress += OnCancelEvent;
 
         await Task.Delay(-1);
     }
@@ -33,34 +34,20 @@ class Program {
             Console.WriteLine($"{ts:s} [{source}] {item}");
     }
 
-    private static void OnCancelKeyPressed(object? sender, ConsoleCancelEventArgs e) {
-        e.Cancel = true;
-        Log("Shutdown", "Captured cancel key; sending shutdown.");
-        ProgramStop();
-    }
+    private static bool _shutdownRequested = false;
+    private static void OnCancelEvent(object? sender, EventArgs e) {
+        if (e is ConsoleCancelEventArgs ce) ce.Cancel = true;
 
-    private static bool _stopping = false;
-    public static void ProgramStop() {
-        if (_stopping) return;
-        _stopping = true;
+        if (_shutdownRequested) return;
+        _shutdownRequested = true;
         Log(nameof(Program), "Shutting down...");
 
-        var dispose = Task.Run(_bot!.Dispose);
-        if (!dispose.Wait(30000)) {
+        var dispose = Task.Run(_bot.Dispose);
+        if (!dispose.Wait(15000)) {
             Log(nameof(Program), "Disconnection is taking too long. Will force exit.");
-            Environment.ExitCode &= (int)ExitCodes.ForcedExit;
+            Environment.ExitCode = 1;
         }
         Log(nameof(Program), $"Uptime: {BotUptime}");
         Environment.Exit(Environment.ExitCode);
-    }
-
-    [Flags]
-    public enum ExitCodes {
-        Normal = 0x0,
-        ForcedExit = 0x1,
-        ConfigError = 0x2,
-        DatabaseError = 0x4,
-        DeadShardThreshold = 0x8,
-        BadCommand = 0x10,
     }
 }
