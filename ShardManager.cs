@@ -43,8 +43,7 @@ class ShardManager : IDisposable {
 
         // Start status reporting thread
         _mainCancel = new CancellationTokenSource();
-        _statusTask = Task.Factory.StartNew(StatusLoop, _mainCancel.Token,
-                                            TaskCreationOptions.LongRunning, TaskScheduler.Default);
+        _statusTask = Task.Factory.StartNew(StatusLoop, _mainCancel.Token);
     }
 
     public void Dispose() {
