@@ -62,5 +62,29 @@ class AutoUserDownload : BackgroundService {
         }
 
         if (processed > 10) Log($"Member list downloads handled for {processed} guilds.");
+        ConsiderGC(processed);
     }
+
+    #region Manual garbage collection
+    private static readonly object _mgcTrackLock = new();
+    private static int _mgcProcessedSinceLast = 0;
+
+    // Downloading user information adds up memory-wise, particularly within the
+    // Gen 2 collection. Here we attempt to balance not calling the GC too much
+    // while also avoiding dying to otherwise inevitable excessive memory use.
+    private static void ConsiderGC(int processed) {
+        const int CallGcAfterProcessingAmt = 1500;
+        bool trigger;
+        lock (_mgcTrackLock) {
+            _mgcProcessedSinceLast += processed;
+            trigger = _mgcProcessedSinceLast > CallGcAfterProcessingAmt;
+            if (trigger) _mgcProcessedSinceLast = 0;
+        }
+        if (trigger) {
+            Program.Log(nameof(AutoUserDownload), "Invoking garbage collection...");
+            GC.Collect(2, GCCollectionMode.Forced, true, true);
+            Program.Log(nameof(AutoUserDownload), "Complete.");
+        }
+    }
+    #endregion
 }
