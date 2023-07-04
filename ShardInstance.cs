@@ -94,7 +94,7 @@ public sealed class ShardInstance : IDisposable {
                     return Task.CompletedTask;
             }
 
-            Log("Discord.Net exception", arg.Exception.ToString());
+            Log("Discord.Net exception", $"{arg.Exception.GetType().FullName}: {arg.Exception.Message}");
         }
 
         return Task.CompletedTask;
