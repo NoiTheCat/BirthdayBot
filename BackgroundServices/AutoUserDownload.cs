@@ -6,10 +6,18 @@ namespace BirthdayBot.BackgroundServices;
 /// Proactively fills the user cache for guilds in which any birthday data already exists.
 /// </summary>
 class AutoUserDownload : BackgroundService {
-    public AutoUserDownload(ShardInstance instance) : base(instance) { }
+    private static readonly TimeSpan RequestTimeout = ShardManager.DeadShardThreshold / 3;
 
-    private static readonly HashSet<ulong> _failedDownloads = new();
-    private static readonly TimeSpan _singleDlTimeout = ShardManager.DeadShardThreshold / 3;
+    private readonly HashSet<ulong> _skippedGuilds = new();
+
+    public AutoUserDownload(ShardInstance instance) : base(instance)
+        => Shard.DiscordClient.Disconnected += OnDisconnect;
+    ~AutoUserDownload() => Shard.DiscordClient.Disconnected -= OnDisconnect;
+
+    private Task OnDisconnect(Exception ex) {
+        _skippedGuilds.Clear();
+        return Task.CompletedTask;
+    }
 
     public override async Task OnTick(int tickCount, CancellationToken token) {
         // Take action if a guild's cache is incomplete...
@@ -22,13 +30,11 @@ class AutoUserDownload : BackgroundService {
         try {
             await ConcurrentSemaphore.WaitAsync(token);
             using var db = new BotDatabaseContext();
-            lock (_failedDownloads)
-                mustFetch = db.UserEntries.AsNoTracking()
-                    .Where(e => incompleteCaches.Contains(e.GuildId))
-                    .Select(e => e.GuildId)
-                    .Distinct()
-                    .Where(e => !_failedDownloads.Contains(e))
-                    .ToList();
+            mustFetch = db.UserEntries.AsNoTracking()
+                .Where(e => incompleteCaches.Contains(e.GuildId))
+                .Select(e => e.GuildId)
+                .Where(e => !_skippedGuilds.Contains(e))
+                .ToHashSet();
         } finally {
             try {
                 ConcurrentSemaphore.Release();
@@ -38,27 +44,28 @@ class AutoUserDownload : BackgroundService {
         var processed = 0;
         var processStartTime = DateTimeOffset.UtcNow;
         foreach (var item in mustFetch) {
-            // May cause a disconnect in certain situations. Make no further attempts until the next pass if it happens.
+            // Take break from processing to avoid getting killed by ShardManager
+            if (DateTimeOffset.UtcNow - processStartTime > RequestTimeout) break;
+
+            // We're useless if not connected
             if (Shard.DiscordClient.ConnectionState != ConnectionState.Connected) break;
 
             var guild = Shard.DiscordClient.GetGuild(item);
             if (guild == null) continue; // A guild disappeared...?
 
-            await Task.Delay(200, CancellationToken.None); // Delay a bit (reduces the possibility of hanging, somehow).
             processed++;
+
+            await Task.Delay(200, CancellationToken.None); // Delay a bit (reduces the possibility of hanging, somehow).
             var dl = guild.DownloadUsersAsync();
-            dl.Wait((int)_singleDlTimeout.TotalMilliseconds / 2, token);
+            dl.Wait((int)RequestTimeout.TotalMilliseconds / 2, token);
             if (dl.IsFaulted) {
                 Log("Exception thrown by download task: " + dl.Exception);
                 break;
             } else if (!dl.IsCompletedSuccessfully) {
-                Log($"Task for guild {guild.Id} is unresponsive. Skipping guild. Members: {guild.MemberCount}. Name: {guild.Name}.");
-                lock (_failedDownloads) _failedDownloads.Add(guild.Id);
+                Log($"Task unresponsive, will skip (ID {guild.Id}, with {guild.MemberCount} members).");
+                _skippedGuilds.Add(guild.Id);   
                 continue;
             }
-
-            // Prevent unnecessary disconnections by ShardManager if we're taking too long
-            if (DateTimeOffset.UtcNow - processStartTime > _singleDlTimeout) break;
         }
 
         if (processed > 10) Log($"Member list downloads handled for {processed} guilds.");
