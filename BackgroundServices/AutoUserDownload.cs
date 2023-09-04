@@ -57,7 +57,11 @@ class AutoUserDownload : BackgroundService {
 
             await Task.Delay(200, CancellationToken.None); // Delay a bit (reduces the possibility of hanging, somehow).
             var dl = guild.DownloadUsersAsync();
-            dl.Wait((int)RequestTimeout.TotalMilliseconds / 2, token);
+            try {
+                dl.Wait((int)RequestTimeout.TotalMilliseconds / 2, token);
+            } catch (Exception) { }
+            if (token.IsCancellationRequested) return; // Skip all reporting, error logging on cancellation
+
             if (dl.IsFaulted) {
                 Log("Exception thrown by download task: " + dl.Exception);
                 break;

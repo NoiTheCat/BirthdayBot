@@ -61,8 +61,6 @@ class ShardManager : IDisposable {
         if (!Task.WhenAll(shardDisposes).Wait(30000)) {
             Log("Warning: Not all shards terminated cleanly after 30 seconds. Continuing...");
         }
-
-        Log($"Uptime: {Program.BotUptime}");
     }
 
     private void Log(string message) => Program.Log(nameof(ShardManager), message);

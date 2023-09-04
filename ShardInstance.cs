@@ -94,6 +94,7 @@ public sealed class ShardInstance : IDisposable {
                     return Task.CompletedTask;
             }
 
+            if (arg.Exception is TaskCanceledException) return Task.CompletedTask; // We don't ever need to know these...
             Log("Discord.Net exception", $"{arg.Exception.GetType().FullName}: {arg.Exception.Message}");
         }
 
