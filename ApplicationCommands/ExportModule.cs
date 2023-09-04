@@ -40,7 +40,7 @@ public class ExportModule : BotModuleBase {
             if (user == null) continue; // User disappeared in the instant between getting list and processing
             writer.Write($"● {Common.MonthNames[item.BirthMonth]}-{item.BirthDay:00}: ");
             writer.Write(item.UserId);
-            writer.Write(" " + user.Username + "#" + user.Discriminator);
+            writer.Write(" " + user.ToString());
             if (user.Nickname != null) writer.Write(" - Nickname: " + user.Nickname);
             if (item.TimeZone != null) writer.Write(" | Time zone: " + item.TimeZone);
             writer.WriteLine();
@@ -74,9 +74,9 @@ public class ExportModule : BotModuleBase {
             if (user == null) continue; // User disappeared in the instant between getting list and processing
             writer.Write(item.UserId);
             writer.Write(',');
-            writer.Write(csvEscape(user.Username + "#" + user.Discriminator));
+            writer.Write(csvEscape(user.ToString()));
             writer.Write(',');
-            if (user.Nickname != null) writer.Write(user.Nickname);
+            if (user.Nickname != null) writer.Write(csvEscape(user.Nickname));
             writer.Write(',');
             writer.Write($"{Common.MonthNames[item.BirthMonth]}-{item.BirthDay:00}");
             writer.Write(',');

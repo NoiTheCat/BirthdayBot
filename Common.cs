@@ -19,11 +19,19 @@ static class Common {
             return result.ToString();
         }
 
-        var username = escapeFormattingCharacters(member.Username);
-        if (member.Nickname != null) {
-            return $"**{escapeFormattingCharacters(member.Nickname)}** ({username}#{member.Discriminator})";
+        // We do a little bit of special formatting here to try to emphasize the username/nickname over the discriminator
+        if (member.DiscriminatorValue == 0) {
+            if (member.Nickname !=  null) {
+                return $"**{escapeFormattingCharacters(member.Nickname)}** ({member.Username})";    
+            }
+            return member.Username;
+        } else {
+            var username = escapeFormattingCharacters(member.Username);
+            if (member.Nickname != null) {
+                return $"**{escapeFormattingCharacters(member.Nickname)}** ({username}#{member.Discriminator})";
+            }
+            return $"**{username}**" + (member.DiscriminatorValue == 0 ? $"#{member.Discriminator}" : "");
         }
-        return $"**{username}**#{member.Discriminator}";
     }
 
     public static Dictionary<int, string> MonthNames { get; } = new() {
