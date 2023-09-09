@@ -22,9 +22,9 @@ static class Common {
         // We do a little bit of special formatting here to try to emphasize the username/nickname over the discriminator
         if (member.DiscriminatorValue == 0) {
             if (member.Nickname !=  null) {
-                return $"**{escapeFormattingCharacters(member.Nickname)}** ({member.Username})";    
+                return $"**{escapeFormattingCharacters(member.Nickname)}** ({escapeFormattingCharacters(member.ToString())})";    
             }
-            return member.Username;
+            return member.ToString();
         } else {
             var username = escapeFormattingCharacters(member.Username);
             if (member.Nickname != null) {
