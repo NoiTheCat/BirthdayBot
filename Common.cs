@@ -24,7 +24,7 @@ static class Common {
             if (member.Nickname !=  null) {
                 return $"**{escapeFormattingCharacters(member.Nickname)}** ({escapeFormattingCharacters(member.ToString())})";    
             }
-            return member.ToString();
+            return escapeFormattingCharacters(member.ToString());
         } else {
             var username = escapeFormattingCharacters(member.Username);
             if (member.Nickname != null) {
