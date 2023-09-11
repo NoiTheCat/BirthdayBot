@@ -14,11 +14,11 @@ class DataRetention : BackgroundService {
     const int StaleUserThreashold = 360;
 
     public DataRetention(ShardInstance instance) : base(instance) {
-        ProcessInterval = 5400 / Shard.Config.BackgroundInterval; // Process about once per hour and a half
+        ProcessInterval = 21600 / Shard.Config.BackgroundInterval; // Process about once per six hours
     }
 
     public override async Task OnTick(int tickCount, CancellationToken token) {
-        // On each tick, run only a set group of guilds, each group still processed every ProcessInterval ticks.
+        // Run only a subset of shards each time, each running every ProcessInterval ticks.
         if ((tickCount + Shard.ShardId) % ProcessInterval != 0) return;
 
         try {

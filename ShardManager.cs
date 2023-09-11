@@ -43,8 +43,7 @@ class ShardManager : IDisposable {
 
         // Start status reporting thread
         _mainCancel = new CancellationTokenSource();
-        _statusTask = Task.Factory.StartNew(StatusLoop, _mainCancel.Token,
-                                            TaskCreationOptions.LongRunning, TaskScheduler.Default);
+        _statusTask = Task.Factory.StartNew(StatusLoop, _mainCancel.Token);
     }
 
     public void Dispose() {
@@ -62,8 +61,6 @@ class ShardManager : IDisposable {
         if (!Task.WhenAll(shardDisposes).Wait(30000)) {
             Log("Warning: Not all shards terminated cleanly after 30 seconds. Continuing...");
         }
-
-        Log($"Uptime: {Program.BotUptime}");
     }
 
     private void Log(string message) => Program.Log(nameof(ShardManager), message);
