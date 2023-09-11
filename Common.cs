@@ -11,7 +11,7 @@ static class Common {
         static string escapeFormattingCharacters(string input) {
             var result = new StringBuilder();
             foreach (var c in input) {
-                if (c is '\\' or '_' or '~' or '*' or '@') {
+                if (c is '\\' or '_' or '~' or '*' or '@' or '`') {
                     result.Append('\\');
                 }
                 result.Append(c);
@@ -19,18 +19,18 @@ static class Common {
             return result.ToString();
         }
 
-        // We do a little bit of special formatting here to try to emphasize the username/nickname over the discriminator
         if (member.DiscriminatorValue == 0) {
+            var username = escapeFormattingCharacters(member.GlobalName ?? member.Username);
             if (member.Nickname !=  null) {
-                return $"**{escapeFormattingCharacters(member.Nickname)}** ({escapeFormattingCharacters(member.ToString())})";    
+                return $"{escapeFormattingCharacters(member.Nickname)} ({username})";    
             }
-            return escapeFormattingCharacters(member.ToString());
+            return username;
         } else {
             var username = escapeFormattingCharacters(member.Username);
             if (member.Nickname != null) {
-                return $"**{escapeFormattingCharacters(member.Nickname)}** ({username}#{member.Discriminator})";
+                return $"{escapeFormattingCharacters(member.Nickname)} ({username}#{member.Discriminator})";
             }
-            return $"**{username}**" + (member.DiscriminatorValue == 0 ? $"#{member.Discriminator}" : "");
+            return $"{username}#{member.Discriminator}";
         }
     }
 
