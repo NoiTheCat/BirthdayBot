@@ -40,7 +40,9 @@ public class ExportModule : BotModuleBase {
             if (user == null) continue; // User disappeared in the instant between getting list and processing
             writer.Write($"● {Common.MonthNames[item.BirthMonth]}-{item.BirthDay:00}: ");
             writer.Write(item.UserId);
-            writer.Write(" " + user.Username + "#" + user.Discriminator);
+            writer.Write(" " + user.Username);
+            if (user.DiscriminatorValue != 0) writer.Write($"#{user.Discriminator}");
+            if (user.GlobalName != null) writer.Write($" ({user.GlobalName})");
             if (user.Nickname != null) writer.Write(" - Nickname: " + user.Nickname);
             if (item.TimeZone != null) writer.Write(" | Time zone: " + item.TimeZone);
             writer.WriteLine();
@@ -67,16 +69,19 @@ public class ExportModule : BotModuleBase {
         }
 
         // Conforming to RFC 4180; with header
-        writer.Write("UserId,Username,Nickname,MonthDayDisp,Month,Day,TimeZone");
+        writer.Write("UserId,Username,DisplayName,Nickname,MonthDayDisp,Month,Day,TimeZone");
         writer.Write("\r\n"); // crlf line break is specified by the standard
         foreach (var item in list) {
             var user = guild.GetUser(item.UserId);
             if (user == null) continue; // User disappeared in the instant between getting list and processing
             writer.Write(item.UserId);
             writer.Write(',');
-            writer.Write(csvEscape(user.Username + "#" + user.Discriminator));
+            writer.Write(csvEscape(user.Username));
+            if (user.DiscriminatorValue != 0) writer.Write($"#{user.Discriminator}");
             writer.Write(',');
-            if (user.Nickname != null) writer.Write(user.Nickname);
+            if (user.GlobalName != null) writer.Write(csvEscape(user.GlobalName));
+            writer.Write(',');
+            if (user.Nickname != null) writer.Write(csvEscape(user.Nickname));
             writer.Write(',');
             writer.Write($"{Common.MonthNames[item.BirthMonth]}-{item.BirthDay:00}");
             writer.Write(',');

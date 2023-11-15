@@ -11,7 +11,7 @@ static class Common {
         static string escapeFormattingCharacters(string input) {
             var result = new StringBuilder();
             foreach (var c in input) {
-                if (c is '\\' or '_' or '~' or '*' or '@') {
+                if (c is '\\' or '_' or '~' or '*' or '@' or '`') {
                     result.Append('\\');
                 }
                 result.Append(c);
@@ -19,11 +19,19 @@ static class Common {
             return result.ToString();
         }
 
-        var username = escapeFormattingCharacters(member.Username);
-        if (member.Nickname != null) {
-            return $"**{escapeFormattingCharacters(member.Nickname)}** ({username}#{member.Discriminator})";
+        if (member.DiscriminatorValue == 0) {
+            var username = escapeFormattingCharacters(member.GlobalName ?? member.Username);
+            if (member.Nickname !=  null) {
+                return $"{escapeFormattingCharacters(member.Nickname)} ({username})";    
+            }
+            return username;
+        } else {
+            var username = escapeFormattingCharacters(member.Username);
+            if (member.Nickname != null) {
+                return $"{escapeFormattingCharacters(member.Nickname)} ({username}#{member.Discriminator})";
+            }
+            return $"{username}#{member.Discriminator}";
         }
-        return $"**{username}**#{member.Discriminator}";
     }
 
     public static Dictionary<int, string> MonthNames { get; } = new() {

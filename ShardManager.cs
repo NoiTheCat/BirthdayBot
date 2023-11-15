@@ -76,7 +76,8 @@ class ShardManager : IDisposable {
             DefaultRetryMode = RetryMode.Retry502 | RetryMode.RetryTimeouts,
             GatewayIntents = GatewayIntents.Guilds | GatewayIntents.GuildMembers,
             SuppressUnknownDispatchWarnings = true,
-            LogGatewayIntentWarnings = false
+            LogGatewayIntentWarnings = false,
+            FormatUsersInBidirectionalUnicode = false
         };
         var services = new ServiceCollection()
             .AddSingleton(s => new ShardInstance(this, s))
