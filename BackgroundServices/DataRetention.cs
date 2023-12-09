@@ -53,9 +53,11 @@ class DataRetention : BackgroundService {
 
         // And let go of old data
         var staleGuildCount = await db.GuildConfigurations
+            .Where(g => localGuilds.Contains(g.GuildId))
             .Where(g => now - TimeSpan.FromDays(StaleGuildThreshold) > g.LastSeen)
             .ExecuteDeleteAsync();
         var staleUserCount = await db.UserEntries
+            .Where(gu => localGuilds.Contains(gu.GuildId))
             .Where(gu => now - TimeSpan.FromDays(StaleUserThreashold) > gu.LastSeen)
             .ExecuteDeleteAsync();
             
