@@ -57,11 +57,11 @@ class ShardBackgroundWorker : IDisposable {
                 if (Instance.DiscordClient.ConnectionState != ConnectionState.Connected) continue;
 
                 // Execute tasks sequentially
+                _tickCount++;
                 foreach (var service in _workers) {
                     CurrentExecutingService = service.GetType().Name;
                     try {
                         if (_workerCanceller.IsCancellationRequested) break;
-                        _tickCount++;
                         await service.OnTick(_tickCount, _workerCanceller.Token);
                     } catch (Exception ex) when (ex is not
                                                     (TaskCanceledException or OperationCanceledException or ObjectDisposedException)) {
