@@ -128,7 +128,7 @@ class ShardManager : IDisposable {
                     } else {
                         shardStatuses.Append('.');
                     }
-                    
+
                     shardStatuses.AppendLine();
 
                     if (lastRun > DeadShardThreshold) {

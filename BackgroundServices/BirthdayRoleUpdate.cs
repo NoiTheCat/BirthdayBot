@@ -94,7 +94,7 @@ class BirthdayRoleUpdate : BackgroundService {
             // Special case: If user's birthday is 29-Feb and it's currently not a leap year, check against 1-Mar
             if (!DateTime.IsLeapYear(checkNow.Year) && record.BirthMonth == 2 && record.BirthDay == 29) {
                 if (checkNow.Month == 3 && checkNow.Day == 1) birthdayUsers.Add(record.UserId);
-            } else if (record.BirthMonth == checkNow.Month && record.BirthDay== checkNow.Day) {
+            } else if (record.BirthMonth == checkNow.Month && record.BirthDay == checkNow.Day) {
                 birthdayUsers.Add(record.UserId);
             }
         }

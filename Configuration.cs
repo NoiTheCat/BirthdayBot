@@ -18,7 +18,7 @@ class Configuration {
     public int ShardStart { get; }
     public int ShardAmount { get; }
     public int ShardTotal { get; }
-    
+
     public string? SqlHost { get; }
     public string? SqlDatabase { get; }
     public string SqlUsername { get; }
