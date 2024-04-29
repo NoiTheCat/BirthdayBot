@@ -10,8 +10,8 @@
             "request": "launch",
             "preLaunchTask": "build",
             // If you have changed target frameworks, make sure to update the program path.
-            "program": "${workspaceFolder}/bin/Debug/net6.0/BirthdayBot.dll",
-            "args": [ "-c", "${workspaceFolder}/bin/Debug/net6.0/settings.json" ],
+            "program": "${workspaceFolder}/bin/Debug/net8.0/BirthdayBot.dll",
+            "args": [ "-c", "${workspaceFolder}/bin/Debug/settings.json" ],
             "cwd": "${workspaceFolder}",
             // For more information about the 'console' field, see https://aka.ms/VSCode-CS-LaunchJson-Console
             "console": "internalConsole",

@@ -141,7 +141,7 @@ public class ConfigModule : BotModuleBase {
         var result = new StringBuilder();
 
         result.AppendLine($"Server ID: `{guild.Id}` | Bot shard ID: `{Shard.ShardId:00}`");
-        result.AppendLine($"Number of registered birthdays: `{guildconf.UserEntries.Count}`");
+        result.AppendLine($"Number of registered birthdays: `{guildconf.UserEntries?.Count ?? 0}`");
         result.AppendLine($"Server time zone: `{guildconf.GuildTimeZone ?? "Not set - using UTC"}`");
         result.AppendLine();
 
@@ -152,7 +152,8 @@ public class ConfigModule : BotModuleBase {
         result.Append(DoTestFor("Birthday processing", delegate {
             if (!hasMembers) return false;
             if (guildconf.IsNew) return false;
-            bdayCount = BackgroundServices.BirthdayRoleUpdate.GetGuildCurrentBirthdays(guildconf.UserEntries, guildconf.GuildTimeZone).Count;
+            bdayCount = BackgroundServices.BirthdayRoleUpdate
+                .GetGuildCurrentBirthdays(guildconf.UserEntries!, guildconf.GuildTimeZone).Count;
             return true;
         }));
         if (!hasMembers) result.AppendLine(" - Previous step failed.");
