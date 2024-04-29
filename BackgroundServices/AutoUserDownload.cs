@@ -8,7 +8,7 @@ namespace BirthdayBot.BackgroundServices;
 class AutoUserDownload : BackgroundService {
     private static readonly TimeSpan RequestTimeout = ShardManager.DeadShardThreshold / 3;
 
-    private readonly HashSet<ulong> _skippedGuilds = new();
+    private readonly HashSet<ulong> _skippedGuilds = [];
 
     public AutoUserDownload(ShardInstance instance) : base(instance)
         => Shard.DiscordClient.Disconnected += OnDisconnect;

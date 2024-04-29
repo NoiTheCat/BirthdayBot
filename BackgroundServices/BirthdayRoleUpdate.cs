@@ -7,9 +7,7 @@ namespace BirthdayBot.BackgroundServices;
 /// Core automatic functionality of the bot. Manages role memberships based on birthday information,
 /// and optionally sends the announcement message to appropriate guilds.
 /// </summary>
-class BirthdayRoleUpdate : BackgroundService {
-    public BirthdayRoleUpdate(ShardInstance instance) : base(instance) { }
-
+class BirthdayRoleUpdate(ShardInstance instance) : BackgroundService(instance) {
     /// <summary>
     /// Processes birthday updates for all available guilds synchronously.
     /// </summary>

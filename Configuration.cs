@@ -9,7 +9,9 @@ namespace BirthdayBot;
 /// <summary>
 /// Loads and holds configuration values.
 /// </summary>
-class Configuration {
+partial class Configuration {
+    [GeneratedRegex(@"(?<low>\d{1,2})[-,](?<high>\d{1,2})")]
+    private static partial Regex ShardRangeParser();
     const string KeyShardRange = "ShardRange";
 
     public string BotToken { get; }
@@ -70,8 +72,7 @@ class Configuration {
 
         var shardRangeInput = args.ShardRange ?? ReadConfKey<string>(jc, KeyShardRange, false);
         if (!string.IsNullOrWhiteSpace(shardRangeInput)) {
-            Regex srPicker = new(@"(?<low>\d{1,2})[-,]{1}(?<high>\d{1,2})");
-            var m = srPicker.Match(shardRangeInput);
+            var m = ShardRangeParser().Match(shardRangeInput);
             if (m.Success) {
                 ShardStart = int.Parse(m.Groups["low"].Value);
                 var high = int.Parse(m.Groups["high"].Value);
