@@ -7,7 +7,7 @@ public class ExportModule : BotModuleBase {
 
     [SlashCommand("export-birthdays", HelpCmdExport)]
     [DefaultMemberPermissions(GuildPermission.ManageGuild)]
-    [EnabledInDm(false)]
+    [CommandContextType(InteractionContextType.Guild)]
     public async Task CmdExport([Summary(description: "Specify whether to export the list in CSV format.")] bool asCsv = false) {
         if (!await HasMemberCacheAsync(Context.Guild)) {
             await RespondAsync(MemberCacheEmptyError, ephemeral: true);

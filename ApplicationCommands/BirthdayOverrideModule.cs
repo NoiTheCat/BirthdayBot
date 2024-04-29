@@ -5,7 +5,7 @@ using static BirthdayBot.Common;
 namespace BirthdayBot.ApplicationCommands;
 [Group("override", HelpCmdOverride)]
 [DefaultMemberPermissions(GuildPermission.ManageGuild)]
-[EnabledInDm(false)]
+[CommandContextType(InteractionContextType.Guild)]
 public class BirthdayOverrideModule : BotModuleBase {
     public const string HelpCmdOverride = "Commands to set options for other users.";
     const string HelpOptOvTarget = "The user whose data to modify.";

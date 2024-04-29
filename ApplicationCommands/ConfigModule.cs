@@ -5,7 +5,7 @@ using System.Text;
 namespace BirthdayBot.ApplicationCommands;
 [Group("config", HelpCmdConfig)]
 [DefaultMemberPermissions(GuildPermission.ManageGuild)]
-[EnabledInDm(false)]
+[CommandContextType(InteractionContextType.Guild)]
 public class ConfigModule : BotModuleBase {
     public const string HelpCmdConfig = "Configure basic settings for the bot.";
     public const string HelpCmdAnnounce = "Settings regarding birthday announcements.";

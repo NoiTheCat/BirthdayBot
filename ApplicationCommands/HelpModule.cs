@@ -1,7 +1,7 @@
 ﻿using Discord.Interactions;
 
 namespace BirthdayBot.ApplicationCommands;
-[EnabledInDm(true)]
+[CommandContextType(InteractionContextType.Guild, InteractionContextType.BotDm)]
 public class HelpModule : BotModuleBase {
     private const string TopMessage =
         "Thank you for using Birthday Bot!\n" +
