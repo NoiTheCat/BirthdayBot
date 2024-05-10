@@ -10,7 +10,7 @@ namespace BirthdayBot.ApplicationCommands;
 /// <summary>
 /// Base class for our interaction module classes. Contains common data for use in implementing classes.
 /// </summary>
-public abstract class BotModuleBase : InteractionModuleBase<SocketInteractionContext> {
+public abstract partial class BotModuleBase : InteractionModuleBase<SocketInteractionContext> {
     protected const string MemberCacheEmptyError = ":warning: Please try the command again.";
     public const string AccessDeniedError = ":warning: You are not allowed to run this command.";
 
@@ -65,8 +65,10 @@ public abstract class BotModuleBase : InteractionModuleBase<SocketInteractionCon
     const string FormatError = ":x: Unrecognized date format. The following formats are accepted, as examples: "
             + "`15-jan`, `jan-15`, `15 jan`, `jan 15`, `15 January`, `January 15`.";
 
-    private static readonly Regex DateParse1 = new(@"^(?<day>\d{1,2})[ -](?<month>[A-Za-z]+)$", RegexOptions.Compiled);
-    private static readonly Regex DateParse2 = new(@"^(?<month>[A-Za-z]+)[ -](?<day>\d{1,2})$", RegexOptions.Compiled);
+    [GeneratedRegex(@"^(?<day>\d{1,2})[ -](?<month>[A-Za-z]+)$")]
+    private static partial Regex DateParser1();
+    [GeneratedRegex(@"^(?<month>[A-Za-z]+)[ -](?<day>\d{1,2})$")]
+    private static partial Regex DateParser2();
 
     /// <summary>
     /// Parses a date input.
@@ -76,10 +78,10 @@ public abstract class BotModuleBase : InteractionModuleBase<SocketInteractionCon
     /// Thrown for any parsing issue. Reason is expected to be sent to Discord as-is.
     /// </exception>
     protected static (int, int) ParseDate(string dateInput) {
-        var m = DateParse1.Match(dateInput);
+        var m = DateParser1().Match(dateInput);
         if (!m.Success) {
             // Flip the fields around, try again
-            m = DateParse2.Match(dateInput);
+            m = DateParser2().Match(dateInput);
             if (!m.Success) throw new FormatException(FormatError);
         }
 

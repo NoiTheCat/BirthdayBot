@@ -5,7 +5,7 @@ internal static class Extensions {
     /// If it doesn't exist in the database, <see cref="GuildConfig.IsNew"/> returns true.
     /// </summary>
     public static GuildConfig GetConfigOrNew(this SocketGuild guild, BotDatabaseContext db)
-        => db.GuildConfigurations.Where(g => g.GuildId == guild.Id).FirstOrDefault() 
+        => db.GuildConfigurations.Where(g => g.GuildId == guild.Id).FirstOrDefault()
             ?? new GuildConfig() { IsNew = true, GuildId = guild.Id };
 
     /// <summary>

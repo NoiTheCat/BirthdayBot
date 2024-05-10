@@ -7,7 +7,7 @@ public class ExportModule : BotModuleBase {
 
     [SlashCommand("export-birthdays", HelpCmdExport)]
     [DefaultMemberPermissions(GuildPermission.ManageGuild)]
-    [EnabledInDm(false)]
+    [CommandContextType(InteractionContextType.Guild)]
     public async Task CmdExport([Summary(description: "Specify whether to export the list in CSV format.")] bool asCsv = false) {
         if (!await HasMemberCacheAsync(Context.Guild)) {
             await RespondAsync(MemberCacheEmptyError, ephemeral: true);
@@ -28,7 +28,7 @@ public class ExportModule : BotModuleBase {
         await RespondWithFileAsync(fileoutput, filename, text: $"Exported {bdlist.Count} birthdays to file.");
     }
 
-    private static Stream ListExportNormal(SocketGuild guild, IEnumerable<ListItem> list) {
+    private static MemoryStream ListExportNormal(SocketGuild guild, IEnumerable<ListItem> list) {
         // Output: "● Mon-dd: (user ID) Username [ - Nickname: (nickname)]"
         var result = new MemoryStream();
         var writer = new StreamWriter(result, Encoding.UTF8);
@@ -52,7 +52,7 @@ public class ExportModule : BotModuleBase {
         return result;
     }
 
-    private static Stream ListExportCsv(SocketGuild guild, IEnumerable<ListItem> list) {
+    private static MemoryStream ListExportCsv(SocketGuild guild, IEnumerable<ListItem> list) {
         // Output: User ID, Username, Nickname, Month-Day, Month, Day
         var result = new MemoryStream();
         var writer = new StreamWriter(result, Encoding.UTF8);

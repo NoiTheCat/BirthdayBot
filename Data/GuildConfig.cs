@@ -21,7 +21,7 @@ public class GuildConfig {
     public string? AnnounceMessagePl { get; set; }
 
     public bool AnnouncePing { get; set; }
-    
+
     public DateTimeOffset LastSeen { get; set; }
 
     [InverseProperty(nameof(UserEntry.Guild))]

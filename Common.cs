@@ -21,8 +21,8 @@ static class Common {
 
         if (member.DiscriminatorValue == 0) {
             var username = escapeFormattingCharacters(member.GlobalName ?? member.Username);
-            if (member.Nickname !=  null) {
-                return $"{escapeFormattingCharacters(member.Nickname)} ({username})";    
+            if (member.Nickname != null) {
+                return $"{escapeFormattingCharacters(member.Nickname)} ({username})";
             }
             return username;
         } else {

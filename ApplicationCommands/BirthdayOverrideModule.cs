@@ -5,7 +5,7 @@ using static BirthdayBot.Common;
 namespace BirthdayBot.ApplicationCommands;
 [Group("override", HelpCmdOverride)]
 [DefaultMemberPermissions(GuildPermission.ManageGuild)]
-[EnabledInDm(false)]
+[CommandContextType(InteractionContextType.Guild)]
 public class BirthdayOverrideModule : BotModuleBase {
     public const string HelpCmdOverride = "Commands to set options for other users.";
     const string HelpOptOvTarget = "The user whose data to modify.";
@@ -14,8 +14,8 @@ public class BirthdayOverrideModule : BotModuleBase {
     // TODO possible to use a common base class for shared functionality instead?
 
     [SlashCommand("set-birthday", "Set a user's birthday on their behalf.")]
-    public async Task OvSetBirthday([Summary(description: HelpOptOvTarget)]SocketGuildUser target,
-                                    [Summary(description: HelpOptDate)]string date) {
+    public async Task OvSetBirthday([Summary(description: HelpOptOvTarget)] SocketGuildUser target,
+                                    [Summary(description: HelpOptDate)] string date) {
         int inmonth, inday;
         try {
             (inmonth, inday) = ParseDate(date);
@@ -43,8 +43,8 @@ public class BirthdayOverrideModule : BotModuleBase {
     }
 
     [SlashCommand("set-timezone", "Set a user's time zone on their behalf.")]
-    public async Task OvSetTimezone([Summary(description: HelpOptOvTarget)]SocketGuildUser target,
-                                    [Summary(description: HelpOptZone)]string zone) {
+    public async Task OvSetTimezone([Summary(description: HelpOptOvTarget)] SocketGuildUser target,
+                                    [Summary(description: HelpOptZone)] string zone) {
         using var db = new BotDatabaseContext();
 
         var user = target.GetUserEntryOrNew(db);
@@ -68,7 +68,7 @@ public class BirthdayOverrideModule : BotModuleBase {
     }
 
     [SlashCommand("remove-birthday", "Remove a user's birthday information on their behalf.")]
-    public async Task OvRemove([Summary(description: HelpOptOvTarget)]SocketGuildUser target) {
+    public async Task OvRemove([Summary(description: HelpOptOvTarget)] SocketGuildUser target) {
         using var db = new BotDatabaseContext();
         var user = target.GetUserEntryOrNew(db);
         if (!user.IsNew) {

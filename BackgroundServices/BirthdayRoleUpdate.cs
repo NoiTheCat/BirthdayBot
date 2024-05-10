@@ -7,9 +7,7 @@ namespace BirthdayBot.BackgroundServices;
 /// Core automatic functionality of the bot. Manages role memberships based on birthday information,
 /// and optionally sends the announcement message to appropriate guilds.
 /// </summary>
-class BirthdayRoleUpdate : BackgroundService {
-    public BirthdayRoleUpdate(ShardInstance instance) : base(instance) { }
-
+class BirthdayRoleUpdate(ShardInstance instance) : BackgroundService(instance) {
     /// <summary>
     /// Processes birthday updates for all available guilds synchronously.
     /// </summary>
@@ -94,7 +92,7 @@ class BirthdayRoleUpdate : BackgroundService {
             // Special case: If user's birthday is 29-Feb and it's currently not a leap year, check against 1-Mar
             if (!DateTime.IsLeapYear(checkNow.Year) && record.BirthMonth == 2 && record.BirthDay == 29) {
                 if (checkNow.Month == 3 && checkNow.Day == 1) birthdayUsers.Add(record.UserId);
-            } else if (record.BirthMonth == checkNow.Month && record.BirthDay== checkNow.Day) {
+            } else if (record.BirthMonth == checkNow.Month && record.BirthDay == checkNow.Day) {
                 birthdayUsers.Add(record.UserId);
             }
         }

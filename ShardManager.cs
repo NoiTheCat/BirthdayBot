@@ -36,7 +36,7 @@ class ShardManager : IDisposable {
         Config = cfg;
 
         // Allocate shards based on configuration
-        _shards = new Dictionary<int, ShardInstance?>();
+        _shards = [];
         for (var i = Config.ShardStart; i < (Config.ShardStart + Config.ShardAmount); i++) {
             _shards.Add(i, null);
         }
@@ -128,7 +128,7 @@ class ShardManager : IDisposable {
                     } else {
                         shardStatuses.Append('.');
                     }
-                    
+
                     shardStatuses.AppendLine();
 
                     if (lastRun > DeadShardThreshold) {
