@@ -5,7 +5,7 @@ using System.Text;
 namespace BirthdayBot.ApplicationCommands;
 [Group("config", HelpCmdConfig)]
 [DefaultMemberPermissions(GuildPermission.ManageGuild)]
-[EnabledInDm(false)]
+[CommandContextType(InteractionContextType.Guild)]
 public class ConfigModule : BotModuleBase {
     public const string HelpCmdConfig = "Configure basic settings for the bot.";
     public const string HelpCmdAnnounce = "Settings regarding birthday announcements.";
@@ -112,7 +112,7 @@ public class ConfigModule : BotModuleBase {
         }
 
         [SlashCommand("set-ping", HelpSubCmdPing)]
-        public async Task CmdSetPing([Summary(description: "Set True to ping users, False to display them normally.")]bool option) {
+        public async Task CmdSetPing([Summary(description: "Set True to ping users, False to display them normally.")] bool option) {
             await DoDatabaseUpdate(Context, s => s.AnnouncePing = option);
             await RespondAsync($":white_check_mark: Announcement pings are now **{(option ? "on" : "off")}**.").ConfigureAwait(false);
         }
@@ -131,8 +131,8 @@ public class ConfigModule : BotModuleBase {
     [SlashCommand("check", HelpCmdCheck)]
     public async Task CmdCheck() {
         static string DoTestFor(string label, Func<bool> test)
-            => $"{label}: { (test() ? ":white_check_mark: Yes" : ":x: No") }";
-        
+            => $"{label}: {(test() ? ":white_check_mark: Yes" : ":x: No")}";
+
         var guild = Context.Guild;
         using var db = new BotDatabaseContext();
         var guildconf = guild.GetConfigOrNew(db);
@@ -141,8 +141,8 @@ public class ConfigModule : BotModuleBase {
         var result = new StringBuilder();
 
         result.AppendLine($"Server ID: `{guild.Id}` | Bot shard ID: `{Shard.ShardId:00}`");
-        result.AppendLine($"Number of registered birthdays: `{ guildconf.UserEntries.Count }`");
-        result.AppendLine($"Server time zone: `{ guildconf.GuildTimeZone ?? "Not set - using UTC" }`");
+        result.AppendLine($"Number of registered birthdays: `{guildconf.UserEntries?.Count ?? 0}`");
+        result.AppendLine($"Server time zone: `{guildconf.GuildTimeZone ?? "Not set - using UTC"}`");
         result.AppendLine();
 
         var hasMembers = Common.HasMostMembersDownloaded(guild);
@@ -152,7 +152,8 @@ public class ConfigModule : BotModuleBase {
         result.Append(DoTestFor("Birthday processing", delegate {
             if (!hasMembers) return false;
             if (guildconf.IsNew) return false;
-            bdayCount = BackgroundServices.BirthdayRoleUpdate.GetGuildCurrentBirthdays(guildconf.UserEntries, guildconf.GuildTimeZone).Count;
+            bdayCount = BackgroundServices.BirthdayRoleUpdate
+                .GetGuildCurrentBirthdays(guildconf.UserEntries!, guildconf.GuildTimeZone).Count;
             return true;
         }));
         if (!hasMembers) result.AppendLine(" - Previous step failed.");
@@ -180,7 +181,7 @@ public class ConfigModule : BotModuleBase {
             return announcech != null;
         }));
         var disp = announcech == null ? "announcement channel" : $"<#{announcech.Id}>";
-        result.AppendLine(DoTestFor($"(Optional) Bot can send messages into { disp }", delegate {
+        result.AppendLine(DoTestFor($"(Optional) Bot can send messages into {disp}", delegate {
             if (announcech == null) return false;
             return guild.CurrentUser.GetPermissions(announcech).SendMessages;
         }));

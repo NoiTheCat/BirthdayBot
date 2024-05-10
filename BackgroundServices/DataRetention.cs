@@ -13,9 +13,8 @@ class DataRetention : BackgroundService {
     const int StaleGuildThreshold = 180;
     const int StaleUserThreashold = 360;
 
-    public DataRetention(ShardInstance instance) : base(instance) {
-        ProcessInterval = 21600 / Shard.Config.BackgroundInterval; // Process about once per six hours
-    }
+    public DataRetention(ShardInstance instance) : base(instance)
+        => ProcessInterval = 21600 / Shard.Config.BackgroundInterval; // Process about once per six hours
 
     public override async Task OnTick(int tickCount, CancellationToken token) {
         // Run only a subset of shards each time, each running every ProcessInterval ticks.
@@ -60,7 +59,7 @@ class DataRetention : BackgroundService {
             .Where(gu => localGuilds.Contains(gu.GuildId))
             .Where(gu => now - TimeSpan.FromDays(StaleUserThreashold) > gu.LastSeen)
             .ExecuteDeleteAsync();
-            
+
         // Build report
         var resultText = new StringBuilder();
         resultText.Append($"Updated {updatedGuilds} guilds, {updatedUsers} users.");

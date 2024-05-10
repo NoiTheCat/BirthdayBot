@@ -8,7 +8,7 @@ namespace BirthdayBot.BackgroundServices;
 class AutoUserDownload : BackgroundService {
     private static readonly TimeSpan RequestTimeout = ShardManager.DeadShardThreshold / 3;
 
-    private readonly HashSet<ulong> _skippedGuilds = new();
+    private readonly HashSet<ulong> _skippedGuilds = [];
 
     public AutoUserDownload(ShardInstance instance) : base(instance)
         => Shard.DiscordClient.Disconnected += OnDisconnect;
@@ -26,21 +26,20 @@ class AutoUserDownload : BackgroundService {
             .Select(g => g.Id)
             .ToHashSet();
         // ...and if the guild contains any user data
-        IEnumerable<ulong> mustFetch;
+        HashSet<ulong> mustFetch;
         try {
             await ConcurrentSemaphore.WaitAsync(token);
             using var db = new BotDatabaseContext();
-            mustFetch = db.UserEntries.AsNoTracking()
+            mustFetch = [.. db.UserEntries.AsNoTracking()
                 .Where(e => incompleteCaches.Contains(e.GuildId))
                 .Select(e => e.GuildId)
-                .Where(e => !_skippedGuilds.Contains(e))
-                .ToHashSet();
+                .Where(e => !_skippedGuilds.Contains(e))];
         } finally {
             try {
                 ConcurrentSemaphore.Release();
             } catch (ObjectDisposedException) { }
         }
-        
+
         var processed = 0;
         var processStartTime = DateTimeOffset.UtcNow;
         foreach (var item in mustFetch) {
@@ -67,7 +66,7 @@ class AutoUserDownload : BackgroundService {
                 break;
             } else if (!dl.IsCompletedSuccessfully) {
                 Log($"Task unresponsive, will skip (ID {guild.Id}, with {guild.MemberCount} members).");
-                _skippedGuilds.Add(guild.Id);   
+                _skippedGuilds.Add(guild.Id);
                 continue;
             }
         }
