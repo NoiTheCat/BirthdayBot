@@ -1,7 +1,7 @@
-using System.Collections.ObjectModel;
-using CommandLine;
+
+using BirthdayBot.Data;
 using Discord.Interactions;
-using System.Linq;
+using Microsoft.EntityFrameworkCore;
 
 namespace BirthdayBot.ApplicationCommands;
 
@@ -9,28 +9,25 @@ public class TzAutocompleteHandler : AutocompleteHandler {
     public override Task<AutocompletionResult> GenerateSuggestionsAsync(IInteractionContext cx,
                                                                         IAutocompleteInteraction ia, IParameterInfo pm,
                                                                         IServiceProvider sv) {
-        var userInput = ((SocketAutocompleteInteraction)ia).Data.Current.Value.ToString()!;
+        var input = ((SocketAutocompleteInteraction)ia).Data.Current.Value.ToString()!;
+        var inparts = input.Split('/', 2, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
-        var results = Top25.Select(i => new AutocompleteResult(i, i))
-        .Where(x => x.Name.StartsWith(userInput, StringComparison.InvariantCultureIgnoreCase)); // only send suggestions that starts with user's input; use case insensitive matching
-
-
-        // max - 25 suggestions at a time
-        return Task.FromResult(AutocompletionResult.FromSuccess(results.Take(25)));
+        var db = new BotDatabaseContext();
+        var query = db.UserEntries.AsNoTracking();
+        if (inparts.Length == 2) {
+            query = query.Where(u => EF.Functions.ILike(u.TimeZone!, $"%{inparts[0]}%/%{inparts[1]}%"));
+        } else {
+            // No '/' in query - search for string within each side of zone name (tested to not give conflicting results)
+            query = query.Where(u =>
+                EF.Functions.ILike(u.TimeZone!, $"%{input}%/%") || EF.Functions.ILike(u.TimeZone!, $"%/%{input}%"));
+        }
+        // TODO Should also find a way to include zones with counts of 0 for full completion (with a join, maybe)
+        var result = query.GroupBy(u => u.TimeZone)
+            .Select(g => new { ZoneName = g.Key, Count = g.Count() })
+            .OrderByDescending(x => x.Count)
+            .Take(25)
+            .Select(x => new AutocompleteResult(x.ZoneName, x.ZoneName))
+            .ToList();
+        return Task.FromResult(AutocompletionResult.FromSuccess(result));
     }
-
-    private static readonly ReadOnlyCollection<string> Top25 = new List<string>() {
-        "America/New_York", "America/Chicago", "America/Los_Angeles", "Europe/London", "Asia/Manila", "Europe/Berlin",
-        "Europe/Paris", "Europe/Amsterdam", "Asia/Kolkata", "Australia/Sydney", "Asia/Calcutta", "Asia/Jakarta",
-        "America/Toronto", "Asia/Kuala_Lumpur", "America/Denver", "Europe/Madrid", "Australia/Melbourne",
-        "Asia/Singapore", "America/Mexico_City", "Australia/Brisbane", "America/Sao_Paulo", "Pacific/Auckland",
-        "Europe/Stockholm", "America/Vancouver", "Europe/Warsaw"
-    }.AsReadOnly();
-    // select time_zone as tz, count(*)
-    // from user_birthdays
-    // where time_zone like '%/%'
-    // group by tz
-    // order by count desc
-    // limit ???;
-    // TODO Should also find a way to include zones with counts of 0 for full completion
 }
