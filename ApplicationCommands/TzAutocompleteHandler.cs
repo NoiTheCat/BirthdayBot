@@ -21,7 +21,8 @@ public class TzAutocompleteHandler : AutocompleteHandler {
             query = query.Where(u =>
                 EF.Functions.ILike(u.TimeZone!, $"%{input}%/%") || EF.Functions.ILike(u.TimeZone!, $"%/%{input}%"));
         }
-        // TODO Should also find a way to include zones with counts of 0 for full completion (with a join, maybe)
+        // TODO Could find a way to include all remaining zones at the bottom of results for full completion
+        // TODO Filter out undesirable zone names, aliases, etc from autocompletion
         var result = query.GroupBy(u => u.TimeZone)
             .Select(g => new { ZoneName = g.Key, Count = g.Count() })
             .OrderByDescending(x => x.Count)
