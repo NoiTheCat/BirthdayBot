@@ -193,7 +193,7 @@ public class ConfigModule : BotModuleBase {
     }
 
     [SlashCommand("set-timezone", "Configure the time zone to use by default in the server." + HelpPofxBlankUnset)]
-    public async Task CmdSetTimezone([Summary(description: HelpOptZone)] string? zone = null) {
+    public async Task CmdSetTimezone([Summary(description: HelpOptZone), Autocomplete<TzAutocompleteHandler>] string? zone = null) {
         const string Response = ":white_check_mark: The server's time zone has been ";
 
         if (zone == null) {
