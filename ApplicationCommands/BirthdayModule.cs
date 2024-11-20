@@ -20,7 +20,7 @@ public class BirthdayModule : BotModuleBase {
     public class SubCmdsBirthdaySet : BotModuleBase {
         [SlashCommand("date", HelpCmdSetDate)]
         public async Task CmdSetBday([Summary(description: HelpOptDate)] string date,
-                                     [Summary(description: HelpOptZone)] string? zone = null) {
+                                     [Summary(description: HelpOptZone), Autocomplete<TzAutocompleteHandler>] string? zone = null) {
             int inmonth, inday;
             try {
                 (inmonth, inday) = ParseDate(date);
@@ -63,7 +63,7 @@ public class BirthdayModule : BotModuleBase {
         }
 
         [SlashCommand("timezone", HelpCmdSetZone)]
-        public async Task CmdSetZone([Summary(description: HelpOptZone)] string zone) {
+        public async Task CmdSetZone([Summary(description: HelpOptZone), Autocomplete<TzAutocompleteHandler>] string zone) {
             using var db = new BotDatabaseContext();
 
             var user = ((SocketGuildUser)Context.User).GetUserEntryOrNew(db);
