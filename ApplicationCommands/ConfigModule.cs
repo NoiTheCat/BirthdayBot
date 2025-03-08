@@ -161,7 +161,7 @@ public class ConfigModule : BotModuleBase {
         else result.AppendLine($" - `{bdayCount}` user(s) currently having a birthday.");
         result.AppendLine();
 
-        result.AppendLine(DoTestFor("Birthday role set with `/config role set-birthday-role`", delegate {
+        result.AppendLine(DoTestFor("Birthday role set with `/config birthday-role`", delegate {
             if (guildconf.IsNew) return false;
             SocketRole? role = guild.GetRole(guildconf.BirthdayRole ?? 0);
             return role != null;
@@ -175,7 +175,7 @@ public class ConfigModule : BotModuleBase {
         result.AppendLine();
 
         SocketTextChannel? announcech = null;
-        result.AppendLine(DoTestFor("(Optional) Announcement channel set with `bb.config channel`", delegate {
+        result.AppendLine(DoTestFor("(Optional) Announcement channel set with `/config announce set-channel`", delegate {
             if (guildconf.IsNew) return false;
             announcech = guild.GetTextChannel(guildconf.AnnouncementChannel ?? 0);
             return announcech != null;
