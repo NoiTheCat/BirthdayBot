@@ -85,57 +85,40 @@ public class BirthdayOverrideModule : BotModuleBase {
 
     [SlashCommand("announce-birthday", "Immediately announce a user's birthday to the configured channel.")]
     public async Task OvAnnounceBirthday([Summary(description: HelpOptOvTarget)] SocketGuildUser target) {
-        await DeferAsync(ephemeral: true); //avoids 3-second Discord timeout
-
         //verify the user actually has a birthday entry
-        try
-    {
         GuildConfig settings;
-        using (var db = new BotDatabaseContext())
-        {
+        using (var db = new BotDatabaseContext()) {
             var entry = target.GetUserEntryOrNew(db);
-            if (entry.IsNew)
-            {
-                await FollowupAsync(
+            if (entry.IsNew) {
+                await RespondAsync(
                     $":x: {FormatName(target, false)} doesn’t have a birthday set.",
                     ephemeral: true).ConfigureAwait(false);
                 return;
             }
 
             settings = await db.GuildConfigurations
-                               .FindAsync(Context.Guild.Id)
-                               .ConfigureAwait(false)
-                               ?? throw new InvalidOperationException(
-                                    "No guild configuration found.");
+                                .FindAsync(Context.Guild.Id)
+                                .ConfigureAwait(false)
+                                ?? throw new InvalidOperationException("No guild configuration found.");
         }
 
-        try
-        {
+        try {
             await BirthdayRoleUpdate.AnnounceBirthdaysAsync(
-                    settings, Context.Guild, new[] { target })
+                    settings, Context.Guild, [target])
                 .ConfigureAwait(false);
 
-            await FollowupAsync(
-                $":white_check_mark: Birthday announcement sent for " +
-                $"{FormatName(target, false)}!",
+            await RespondAsync(
+                $":white_check_mark: Birthday announcement sent for " + $"{FormatName(target, false)}!",
+                ephemeral: true).ConfigureAwait(false);
+        } catch (Discord.Net.HttpException hex)
+                when (hex.DiscordCode is DiscordErrorCode.MissingPermissions
+                                    or DiscordErrorCode.InsufficientPermissions) {
+            await RespondAsync(
+                ":warning: I don’t have permission to send messages in the configured channel.",
                 ephemeral: true).ConfigureAwait(false);
         }
-        catch (Discord.Net.HttpException hex)
-            when (hex.DiscordCode is DiscordErrorCode.MissingPermissions
-                                or DiscordErrorCode.InsufficientPermissions)
-        {
-            await FollowupAsync(
-                ":warning: I don’t have permission to send messages in the " +
-                "configured channel.",
-                ephemeral: true).ConfigureAwait(false);
-        }
-    }
-    catch (OperationCanceledException) { /* ignore; bot is shutting down */ }
-    catch (Exception)
-    {
         // Tell the invoker we're done
-        await FollowupAsync($":white_check_mark: Announced {FormatName(target, false)}'s birthday.", ephemeral:true)
+        await RespondAsync($":white_check_mark: Announced {FormatName(target, false)}'s birthday.", ephemeral: true)
             .ConfigureAwait(false);
     }
-}
 }
