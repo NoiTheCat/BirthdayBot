@@ -1,4 +1,5 @@
-﻿using BirthdayBot.Data;
+﻿using BirthdayBot.BackgroundServices;
+using BirthdayBot.Data;
 using Discord.Interactions;
 using System.Text;
 
@@ -21,6 +22,7 @@ public class ConfigModule : BotModuleBase {
         private const string HelpSubCmdChannel = "Set which channel will receive announcement messages.";
         private const string HelpSubCmdMessage = "Modify the announcement message.";
         private const string HelpSubCmdPing = "Set whether to ping users mentioned in the announcement.";
+        private const string HelpSubCmdTest = "Immediately attempt to send an announcement message as configured.";
 
         internal const string ModalCidAnnounce = "edit-announce";
         private const string ModalComCidSingle = "msg-single";
@@ -32,7 +34,8 @@ public class ConfigModule : BotModuleBase {
                 $"`/config announce` - {HelpCmdAnnounce}\n" +
                 $" ⤷`set-channel` - {HelpSubCmdChannel}\n" +
                 $" ⤷`set-message` - {HelpSubCmdMessage}\n" +
-                $" ⤷`set-ping` - {HelpSubCmdPing}";
+                $" ⤷`set-ping` - {HelpSubCmdPing}\n" +
+                $" ⤷`test` - {HelpSubCmdTest}";
             const string whatIs =
                 "As the name implies, an announcement message is the messages displayed when somebody's birthday be" +
                 "arrives. If enabled, an announcment message is shown at midnight respective to the appropriate time zone, " +
@@ -115,6 +118,38 @@ public class ConfigModule : BotModuleBase {
         public async Task CmdSetPing([Summary(description: "Set True to ping users, False to display them normally.")] bool option) {
             await DoDatabaseUpdate(Context, s => s.AnnouncePing = option);
             await RespondAsync($":white_check_mark: Announcement pings are now **{(option ? "on" : "off")}**.").ConfigureAwait(false);
+        }
+
+        const string HelpOptTestPlaceholder = "A user to add into the testing announcement as a placeholder.";
+        [SlashCommand("test", HelpSubCmdTest)]
+        public async Task CmdTest([Summary(description: HelpOptTestPlaceholder)] SocketGuildUser placeholder,
+                                  [Summary(description: HelpOptTestPlaceholder)] SocketGuildUser? placeholder2 = null,
+                                  [Summary(description: HelpOptTestPlaceholder)] SocketGuildUser? placeholder3 = null,
+                                  [Summary(description: HelpOptTestPlaceholder)] SocketGuildUser? placeholder4 = null,
+                                  [Summary(description: HelpOptTestPlaceholder)] SocketGuildUser? placeholder5 = null) {
+            // Prepare config
+            GuildConfig? settings;
+            using (var db = new BotDatabaseContext()) {
+                settings = Context.Guild.GetConfigOrNew(db);
+                if (settings.IsNew || settings.AnnouncementChannel == null) {
+                    await RespondAsync(":x: Unable to send a birthday message. The announcement channel is not configured.")
+                        .ConfigureAwait(false);
+                    return;
+                }
+            }
+            // Check permissions
+            var announcech = Context.Guild.GetTextChannel(settings.AnnouncementChannel.Value);
+            if (!Context.Guild.CurrentUser.GetPermissions(announcech).SendMessages) {
+                await RespondAsync(":x: Unable to send a birthday message. Insufficient permissions to send to the announcement channel.")
+                    .ConfigureAwait(false);
+                return;
+            }
+
+            // Send and confirm with user
+            await RespondAsync($":white_check_mark: An announcement test will be sent to {announcech.Mention}.").ConfigureAwait(false);
+
+            IEnumerable<SocketGuildUser?> testingList = [placeholder, placeholder2, placeholder3, placeholder4, placeholder5];
+            await BirthdayRoleUpdate.AnnounceBirthdaysAsync(settings, Context.Guild, testingList.Where(i => i != null)!).ConfigureAwait(false);
         }
     }
 
