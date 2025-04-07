@@ -122,36 +122,28 @@ public class ConfigModule : BotModuleBase {
 
         [SlashCommand("test", HelpSubCmdTest)]
         public async Task CmdTest([Summary(description: "A user to add to the announcement message test as a placeholder.")] SocketGuildUser target) {
+            // Prepare config
             GuildConfig? settings;
             using (var db = new BotDatabaseContext()) {
-                settings = await db.GuildConfigurations.FindAsync(Context.Guild.Id).ConfigureAwait(false);
-                if (settings == null || settings.AnnouncementChannel == null) {
+                settings = Context.Guild.GetConfigOrNew(db);
+                if (settings.IsNew || settings.AnnouncementChannel == null) {
                     await RespondAsync(":x: Unable to send a birthday message. The announcement channel is not configured.")
                         .ConfigureAwait(false);
                     return;
                 }
-                var entry = target.GetUserEntryOrNew(db);
-                if (entry.IsNew) {
-                    await RespondAsync(
-                        $":x: {Common.FormatName(target, false)} doesn’t have a birthday set.",
-                        ephemeral: true).ConfigureAwait(false);
-                    return;
-                }
             }
-
-            try {
-                await BirthdayRoleUpdate.AnnounceBirthdaysAsync(settings, Context.Guild, [target])
-                    .ConfigureAwait(false);
-                await RespondAsync(
-                    $":white_check_mark: Birthday announcement sent for " + $"{Common.FormatName(target, false)}!",
-                    ephemeral: true).ConfigureAwait(false);
-            } catch (Discord.Net.HttpException hex)
-                    when (hex.DiscordCode is DiscordErrorCode.MissingPermissions
-                                        or DiscordErrorCode.InsufficientPermissions) {
+            // Check permissions
+            var announcech = Context.Guild.GetTextChannel(settings.AnnouncementChannel.Value);
+            if (!Context.Guild.CurrentUser.GetPermissions(announcech).SendMessages) {
                 await RespondAsync(":x: Unable to send a birthday message. Insufficient permissions to send to the announcement channel.")
                     .ConfigureAwait(false);
                 return;
             }
+
+            // Send and confirm with user
+            await BirthdayRoleUpdate.AnnounceBirthdaysAsync(settings, Context.Guild, [target]).ConfigureAwait(false);
+            await RespondAsync($":white_check_mark: Birthday announcement sent for " + $"{Common.FormatName(target, false)}!")
+                .ConfigureAwait(false);
         }
     }
 
