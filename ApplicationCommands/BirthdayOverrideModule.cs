@@ -83,11 +83,17 @@ public class BirthdayOverrideModule : BotModuleBase {
         }
     }
 
-    [SlashCommand("announce-birthday", "Immediately announce a user's birthday to the configured channel.")]
+    [SlashCommand("announce-birthday", "Immediately send a birthday announcement to the configured channel.")]
     public async Task OvAnnounceBirthday([Summary(description: HelpOptOvTarget)] SocketGuildUser target) {
         //verify the user actually has a birthday entry
-        GuildConfig settings;
+        GuildConfig? settings;
         using (var db = new BotDatabaseContext()) {
+            settings = await db.GuildConfigurations.FindAsync(Context.Guild.Id).ConfigureAwait(false);
+            if (settings == null || settings.AnnouncementChannel == null) {
+                await RespondAsync(":x: Unable to send a birthday message. The announcement channel is not configured.")
+                    .ConfigureAwait(false);
+                return;
+            }
             var entry = target.GetUserEntryOrNew(db);
             if (entry.IsNew) {
                 await RespondAsync(
@@ -95,30 +101,23 @@ public class BirthdayOverrideModule : BotModuleBase {
                     ephemeral: true).ConfigureAwait(false);
                 return;
             }
-
-            settings = await db.GuildConfigurations
-                                .FindAsync(Context.Guild.Id)
-                                .ConfigureAwait(false)
-                                ?? throw new InvalidOperationException("No guild configuration found.");
         }
 
         try {
-            await BirthdayRoleUpdate.AnnounceBirthdaysAsync(
-                    settings, Context.Guild, [target])
+            await BirthdayRoleUpdate.AnnounceBirthdaysAsync(settings, Context.Guild, [target])
                 .ConfigureAwait(false);
-
             await RespondAsync(
                 $":white_check_mark: Birthday announcement sent for " + $"{FormatName(target, false)}!",
                 ephemeral: true).ConfigureAwait(false);
         } catch (Discord.Net.HttpException hex)
                 when (hex.DiscordCode is DiscordErrorCode.MissingPermissions
                                     or DiscordErrorCode.InsufficientPermissions) {
-            await RespondAsync(
-                ":warning: I don’t have permission to send messages in the configured channel.",
-                ephemeral: true).ConfigureAwait(false);
+            await RespondAsync(":x: Unable to send a birthday message. Insufficient permissions to send to the announcement channel.")
+                .ConfigureAwait(false);
+            return;
         }
         // Tell the invoker we're done
-        await RespondAsync($":white_check_mark: Announced {FormatName(target, false)}'s birthday.", ephemeral: true)
+        await RespondAsync($":white_check_mark: Announced {FormatName(target, false)}'s birthday.")
             .ConfigureAwait(false);
     }
 }
