@@ -120,8 +120,13 @@ public class ConfigModule : BotModuleBase {
             await RespondAsync($":white_check_mark: Announcement pings are now **{(option ? "on" : "off")}**.").ConfigureAwait(false);
         }
 
+        const string HelpOptTestPlaceholder = "A user to add into the testing announcement as a placeholder.";
         [SlashCommand("test", HelpSubCmdTest)]
-        public async Task CmdTest([Summary(description: "A user to add to the announcement message test as a placeholder.")] SocketGuildUser target) {
+        public async Task CmdTest([Summary(description: HelpOptTestPlaceholder)] SocketGuildUser placeholder,
+                                  [Summary(description: HelpOptTestPlaceholder)] SocketGuildUser? placeholder2 = null,
+                                  [Summary(description: HelpOptTestPlaceholder)] SocketGuildUser? placeholder3 = null,
+                                  [Summary(description: HelpOptTestPlaceholder)] SocketGuildUser? placeholder4 = null,
+                                  [Summary(description: HelpOptTestPlaceholder)] SocketGuildUser? placeholder5 = null) {
             // Prepare config
             GuildConfig? settings;
             using (var db = new BotDatabaseContext()) {
@@ -141,9 +146,10 @@ public class ConfigModule : BotModuleBase {
             }
 
             // Send and confirm with user
-            await BirthdayRoleUpdate.AnnounceBirthdaysAsync(settings, Context.Guild, [target]).ConfigureAwait(false);
-            await RespondAsync($":white_check_mark: Birthday announcement sent for " + $"{Common.FormatName(target, false)}!")
-                .ConfigureAwait(false);
+            await RespondAsync($":white_check_mark: An announcement test will be sent to {announcech.Mention}.").ConfigureAwait(false);
+
+            IEnumerable<SocketGuildUser?> testingList = [placeholder, placeholder2, placeholder3, placeholder4, placeholder5];
+            await BirthdayRoleUpdate.AnnounceBirthdaysAsync(settings, Context.Guild, testingList.Where(i => i != null)!).ConfigureAwait(false);
         }
     }
 
