@@ -1,10 +1,11 @@
 
+using System.Net;
 using BirthdayBot.Data;
 using Discord.Interactions;
 using Microsoft.EntityFrameworkCore;
+using NodaTime;
 
 namespace BirthdayBot.ApplicationCommands;
-
 public class TzAutocompleteHandler : AutocompleteHandler {
     public override Task<AutocompletionResult> GenerateSuggestionsAsync(IInteractionContext cx,
                                                                         IAutocompleteInteraction ia, IParameterInfo pm,
@@ -13,18 +14,30 @@ public class TzAutocompleteHandler : AutocompleteHandler {
         var inparts = input.Split('/', 2, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
         var db = new BotDatabaseContext();
-        var query = db.UserEntries.AsNoTracking();
+        Func<UserEntry, bool> whereInputProcessing;
         if (inparts.Length == 2) {
-            query = query.Where(u => EF.Functions.ILike(u.TimeZone!, $"%{inparts[0]}%/%{inparts[1]}%"));
+            whereInputProcessing = (UserEntry u) => { return EF.Functions.ILike(u.TimeZone!, $"%{inparts[0]}%/%{inparts[1]}%"); };
         } else {
             // No '/' in query - search for string within each side of zone name (tested to not give conflicting results)
-            query = query.Where(u =>
-                EF.Functions.ILike(u.TimeZone!, $"%{input}%/%") || EF.Functions.ILike(u.TimeZone!, $"%/%{input}%"));
+            whereInputProcessing =
+                (UserEntry u) => { return EF.Functions.ILike(u.TimeZone!, $"%{input}%/%") || EF.Functions.ILike(u.TimeZone!, $"%/%{input}%"); };
         }
-        // TODO Could find a way to include all remaining zones at the bottom of results for full completion
+        var tzPopCount = db.UserEntries.AsNoTracking()
+            .Where(whereInputProcessing)
+            .GroupBy(u => u.TimeZone)
+            .Select(g => new { ZoneName = g.Key, Count = g.Count() });
+
+        var withAllZones = DateTimeZoneProviders.Tzdb.Ids
+            .GroupJoin(tzPopCount, // left join. left = all NodaTime zones, right = user tz popularity count
+                left => left,
+                right => right.ZoneName,
+                (tz, group) => new {
+                    ZoneName = tz,
+                    Count = group.FirstOrDefault()?.Count ?? 0
+                });
+
         // TODO Filter out undesirable zone names, aliases, etc from autocompletion
-        var result = query.GroupBy(u => u.TimeZone)
-            .Select(g => new { ZoneName = g.Key, Count = g.Count() })
+        var result = withAllZones
             .OrderByDescending(x => x.Count)
             .Take(25)
             .Select(x => new AutocompleteResult(x.ZoneName, x.ZoneName))
