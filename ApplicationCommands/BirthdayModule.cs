@@ -54,8 +54,12 @@ public class BirthdayModule : BotModuleBase {
                 return;
             }
 
-            await RespondAsync($":white_check_mark: Your birthday has been set to **{FormatDate(inmonth, inday)}**" +
-                (inzone == null ? "" : $" at time zone **{inzone}**") + ".").ConfigureAwait(false);
+            var response = $":white_check_mark: Your birthday has been set to **{FormatDate(inmonth, inday)}**";
+            if (inzone != null) response += $" at time zone **{inzone}**";
+            response += ".";
+            if (user.TimeZone == null)
+                response += "\n(Tip: The `/birthday set timezone` command ensures your birthday is recognized just in time!)";
+            await RespondAsync(response).ConfigureAwait(false);
         }
 
         [SlashCommand("timezone", HelpCmdSetZone)]

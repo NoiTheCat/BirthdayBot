@@ -141,7 +141,7 @@ class BirthdayRoleUpdate(ShardInstance instance) : BackgroundService(instance) {
     /// <summary>
     /// Attempts to send an announcement message.
     /// </summary>
-    internal static async Task AnnounceBirthdaysAsync(GuildConfig settings, SocketGuild g, IEnumerable<SocketGuildUser> names) {
+    public static async Task AnnounceBirthdaysAsync(GuildConfig settings, SocketGuild g, IEnumerable<SocketGuildUser> names) {
         var c = g.GetTextChannel(settings.AnnouncementChannel ?? 0);
         if (c == null) return;
         if (!c.Guild.CurrentUser.GetPermissions(c).SendMessages) return;
