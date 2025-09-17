@@ -118,8 +118,10 @@ class ShardManager : IDisposable {
 
                     var shard = _shards[i]!;
                     var client = shard.DiscordClient;
+                    // TODO look into better connection checking options. ConnectionState is not reliable.
                     shardStatuses.Append($"{Enum.GetName(typeof(ConnectionState), client.ConnectionState)} ({client.Latency:000}ms).");
-                    shardStatuses.Append($" Guilds: {client.Guilds.Count}.");
+                    shardStatuses.Append($" Guilds: {client.Guilds.Count:0000}.");
+                    shardStatuses.Append($" Users: {client.Guilds.Sum(s => s.Users.Count):000000}.");
                     shardStatuses.Append($" Background: {shard.CurrentExecutingService ?? "Idle"}");
                     var lastRun = DateTimeOffset.UtcNow - shard.LastBackgroundRun;
                     if (lastRun > DeadShardThreshold / 3) {
@@ -146,6 +148,7 @@ class ShardManager : IDisposable {
 
                 // Start null shards, a few at at time
                 var startAllowance = Config.MaxConcurrentOperations;
+
                 foreach (var id in nullShards) {
                     if (startAllowance-- > 0) {
                         _shards[id] = await InitializeShard(id);
