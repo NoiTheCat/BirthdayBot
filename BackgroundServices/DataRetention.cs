@@ -21,11 +21,11 @@ class DataRetention : BackgroundService {
         if ((tickCount + Shard.ShardId) % ProcessInterval != 0) return;
 
         try {
-            await ConcurrentSemaphore.WaitAsync(token);
+            await DbAccessGate.WaitAsync(token);
             await RemoveStaleEntriesAsync();
         } finally {
             try {
-                ConcurrentSemaphore.Release();
+                DbAccessGate.Release();
             } catch (ObjectDisposedException) { }
         }
     }
