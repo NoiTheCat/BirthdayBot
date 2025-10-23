@@ -10,7 +10,7 @@ namespace BirthdayBot;
 /// Loads and holds configuration values.
 /// </summary>
 partial class Configuration {
-    [GeneratedRegex(@"(?<low>\d{1,2})[-,](?<high>\d{1,2})")]
+    [GeneratedRegex(@"(?<low>\d{1,3})[-,](?<high>\d{1,3})")]
     private static partial Regex ShardRangeParser();
     const string KeyShardRange = "ShardRange";
 
@@ -20,6 +20,7 @@ partial class Configuration {
     public int ShardStart { get; }
     public int ShardAmount { get; }
     public int ShardTotal { get; }
+    public int ShardStartInterval { get; }
 
     public string? SqlHost { get; }
     public string? SqlDatabase { get; }
@@ -44,7 +45,7 @@ partial class Configuration {
     /// Gets whether to show common connect/disconnect events and other related messages.
     /// This is disabled in the public instance, but it's worth keeping enabled in self-hosted bots.
     /// </summary>
-    public bool LogConnectionStatus { get; }
+    public bool LogConnectionStatus { get; init; }
 
     public Configuration() {
         var args = CommandLineParameters.Parse(Environment.GetCommandLineArgs());
@@ -85,6 +86,8 @@ partial class Configuration {
             ShardStart = 0;
             ShardAmount = ShardTotal;
         }
+
+        ShardStartInterval = ReadConfKey<int?>(jc, nameof(ShardStartInterval), false) ?? 2;
 
         SqlHost = ReadConfKey<string>(jc, nameof(SqlHost), false);
         SqlDatabase = ReadConfKey<string?>(jc, nameof(SqlDatabase), false);
