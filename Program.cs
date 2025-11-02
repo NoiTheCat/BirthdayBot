@@ -1,4 +1,6 @@
-﻿namespace BirthdayBot;
+﻿using System.Runtime.InteropServices;
+
+namespace BirthdayBot;
 class Program {
     private static ShardManager _bot = null!;
     private static readonly DateTimeOffset _botStartTime = DateTimeOffset.UtcNow;
@@ -18,10 +20,22 @@ class Program {
         }
 
         _bot = new ShardManager(cfg);
-        AppDomain.CurrentDomain.ProcessExit += OnCancelEvent;
-        Console.CancelKeyPress += OnCancelEvent;
 
-        await Task.Delay(-1);
+        Console.CancelKeyPress += static (s, e) => {
+            e.Cancel = true;
+            Log("Shutdown", "Caught Ctrl-C or SIGINT.");
+            DoShutdown();
+        };
+        if (OperatingSystem.IsLinux() || OperatingSystem.IsMacOS()) {
+            _sigtermHandler = PosixSignalRegistration.Create(PosixSignal.SIGTERM, ctx => {
+                ctx.Cancel = true;
+                Log("Shutdown", "Caught SIGTERM.");
+                DoShutdown();
+            });
+        }
+
+        await _shutdownBlock.Task;
+        Log(nameof(BirthdayBot), $"Shutdown complete. Uptime: {BotUptime}");
     }
 
     /// <summary>
@@ -34,20 +48,22 @@ class Program {
             Console.WriteLine($"{ts:s} [{source}] {item}");
     }
 
-    private static bool _shutdownRequested = false;
-    private static void OnCancelEvent(object? sender, EventArgs e) {
-        if (e is ConsoleCancelEventArgs ce) ce.Cancel = true;
+    #region Shutdown logic
+    private static int _isShuttingDown = 0;
+    private static PosixSignalRegistration? _sigtermHandler; // DO NOT REMOVE else signal handler is GCed away
+    private static readonly TaskCompletionSource<bool> _shutdownBlock = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    private static void DoShutdown() {
+        if (Interlocked.Exchange(ref _isShuttingDown, 1) == 1) return;
 
-        if (_shutdownRequested) return;
-        _shutdownRequested = true;
-        Log(nameof(Program), "Shutting down...");
-
+        Log("Shutdown", "Shutting down...");
         var dispose = Task.Run(_bot.Dispose);
-        if (!dispose.Wait(15000)) {
-            Log(nameof(Program), "Disconnection is taking too long. Will force exit.");
-            Environment.ExitCode = 1;
+        if (!dispose.Wait(10000)) {
+            Log("Shutdown", "Normal shutdown is taking too long. We're force-quitting.");
+            Environment.Exit(1);
         }
-        Log(nameof(Program), $"Uptime: {BotUptime}");
-        Environment.Exit(Environment.ExitCode);
+
+        Environment.ExitCode = 0;
+        _shutdownBlock.SetResult(true);
     }
+    #endregion
 }
