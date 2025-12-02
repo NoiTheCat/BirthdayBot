@@ -38,7 +38,7 @@ public abstract partial class BotModuleBase : InteractionModuleBase<SocketIntera
     protected static string ParseTimeZone(string tzinput) {
         if (!TzNameMap.TryGetValue(tzinput, out var tz))
             throw new FormatException(":x: Unknown time zone name.\n" +
-                "To find your time zone, please refer to: https://kevinnovak.github.io/Time-Zone-Picker/");
+                "To find your time zone, please refer to: https://zones.arilyn.cc/");
         return tz!;
     }
 

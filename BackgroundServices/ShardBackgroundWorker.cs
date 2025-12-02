@@ -56,13 +56,13 @@ class ShardBackgroundWorker : IDisposable {
                 // Skip this round of task execution if the client is not connected
                 if (Instance.DiscordClient.ConnectionState != ConnectionState.Connected) continue;
 
-                // Execute tasks sequentially
+                // Within a shard, execute tasks sequentially (background tasks are parallel only by shard)
                 _tickCount++;
                 foreach (var service in _workers) {
                     CurrentExecutingService = service.GetType().Name;
                     try {
                         if (_workerCanceller.IsCancellationRequested) break;
-                        await service.OnTick(_tickCount, _workerCanceller.Token);
+                        await service.OnTick(_tickCount, _workerCanceller.Token).ConfigureAwait(false);
                     } catch (Exception ex) when (ex is not
                                                     (TaskCanceledException or OperationCanceledException or ObjectDisposedException)) {
                         Instance.Log(CurrentExecutingService, ex.ToString());

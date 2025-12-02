@@ -1,9 +1,0 @@
-_site
-.sass-cache
-.jekyll-cache
-.jekyll-metadata
-vendor
-
-# Sourced externally; cautiously excluding from repo
-# Get it from https://www.flaticon.com/free-icon/birthday-cake_168532
-birthday-cake.png

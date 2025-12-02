@@ -13,11 +13,11 @@ class BirthdayRoleUpdate(ShardInstance instance) : BackgroundService(instance) {
     /// </summary>
     public override async Task OnTick(int tickCount, CancellationToken token) {
         try {
-            await ConcurrentSemaphore.WaitAsync(token).ConfigureAwait(false);
+            await DbAccessGate.WaitAsync(token).ConfigureAwait(false);
             await ProcessBirthdaysAsync(token).ConfigureAwait(false);
         } finally {
             try {
-                ConcurrentSemaphore.Release();
+                DbAccessGate.Release();
             } catch (ObjectDisposedException) { }
         }
     }
