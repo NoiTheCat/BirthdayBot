@@ -44,7 +44,7 @@ public class BirthdayOverrideModule : BotModuleBase {
 
     [SlashCommand("set-timezone", "Set a user's time zone on their behalf.")]
     public async Task OvSetTimezone([Summary(description: HelpOptOvTarget)] SocketGuildUser target,
-                                    [Summary(description: HelpOptZone)] string zone) {
+                                    [Summary(description: HelpOptZone), Autocomplete<TzAutocompleteHandler>] string zone) {
         using var db = new BotDatabaseContext();
 
         var user = target.GetUserEntryOrNew(db);
