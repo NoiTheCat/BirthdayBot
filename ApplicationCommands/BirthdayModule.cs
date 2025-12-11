@@ -12,15 +12,13 @@ public class BirthdayModule : BotModuleBase {
     public const string HelpCmdRemove = "Removes your birthday information from this bot.";
     public const string HelpCmdGet = "Gets a user's birthday.";
     public const string HelpCmdNearest = "Get a list of users who recently had or will have a birthday.";
-    public const string ErrNotSetFk = $":x: The bot has not yet been set up. Please configure a birthday role."; // foreign key violation
-
-    // Note that these methods have largely been copied to BirthdayOverrideModule. Changes here should be reflected there as needed.
 
     [Group("set", "Subcommands for setting birthday information.")]
     public class SubCmdsBirthdaySet : BotModuleBase {
         [SlashCommand("date", HelpCmdSetDate)]
         public async Task CmdSetBday([Summary(description: HelpOptDate)] string date,
                                      [Summary(description: HelpOptZone), Autocomplete<TzAutocompleteHandler>] string? zone = null) {
+            // IMPORTANT: If editing here, reflect changes as needed in BirthdayOverrideModule.
             int inmonth, inday;
             try {
                 (inmonth, inday) = ParseDate(date);
@@ -41,18 +39,14 @@ public class BirthdayModule : BotModuleBase {
             }
 
             using var db = new BotDatabaseContext();
+            var guild = ((SocketTextChannel)Context.Channel).Guild.GetConfigOrNew(db);
+            if (guild.IsNew) db.GuildConfigurations.Add(guild); // Satisfy foreign key constraint
             var user = ((SocketGuildUser)Context.User).GetUserEntryOrNew(db);
             if (user.IsNew) db.UserEntries.Add(user);
             user.BirthMonth = inmonth;
             user.BirthDay = inday;
             user.TimeZone = inzone ?? user.TimeZone;
-            try {
-                await db.SaveChangesAsync();
-            } catch (Microsoft.EntityFrameworkCore.DbUpdateException e)
-                when (e.InnerException is Npgsql.PostgresException ex && ex.SqlState == Npgsql.PostgresErrorCodes.ForeignKeyViolation) {
-                await RespondAsync(ErrNotSetFk);
-                return;
-            }
+            await db.SaveChangesAsync();
 
             var response = $":white_check_mark: Your birthday has been set to **{FormatDate(inmonth, inday)}**";
             if (inzone != null) response += $" at time zone **{inzone}**";

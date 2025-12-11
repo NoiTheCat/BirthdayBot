@@ -10,12 +10,10 @@ public class BirthdayOverrideModule : BotModuleBase {
     public const string HelpCmdOverride = "Commands to set options for other users.";
     const string HelpOptOvTarget = "The user whose data to modify.";
 
-    // Note that these methods have largely been copied from BirthdayModule. Changes there should be reflected here as needed.
-    // TODO possible to use a common base class for shared functionality instead?
-
     [SlashCommand("set-birthday", "Set a user's birthday on their behalf.")]
     public async Task OvSetBirthday([Summary(description: HelpOptOvTarget)] SocketGuildUser target,
                                     [Summary(description: HelpOptDate)] string date) {
+        // IMPORTANT: If editing here, reflect changes as needed in BirthdayModule.
         int inmonth, inday;
         try {
             (inmonth, inday) = ParseDate(date);
@@ -26,17 +24,13 @@ public class BirthdayOverrideModule : BotModuleBase {
         }
 
         using var db = new BotDatabaseContext();
+        var guild = ((SocketTextChannel)Context.Channel).Guild.GetConfigOrNew(db);
+        if (guild.IsNew) db.GuildConfigurations.Add(guild); // Satisfy foreign key constraint
         var user = target.GetUserEntryOrNew(db);
         if (user.IsNew) db.UserEntries.Add(user);
         user.BirthMonth = inmonth;
         user.BirthDay = inday;
-        try {
-            await db.SaveChangesAsync();
-        } catch (Microsoft.EntityFrameworkCore.DbUpdateException e)
-            when (e.InnerException is Npgsql.PostgresException ex && ex.SqlState == Npgsql.PostgresErrorCodes.ForeignKeyViolation) {
-            await RespondAsync(BirthdayModule.ErrNotSetFk);
-            return;
-        }
+        await db.SaveChangesAsync();
 
         await RespondAsync($":white_check_mark: {FormatName(target, false)}'s birthday has been set to " +
             $"**{FormatDate(inmonth, inday)}**.").ConfigureAwait(false);
