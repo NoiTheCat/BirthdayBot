@@ -20,32 +20,48 @@ public class BotDatabaseContext : DbContext {
     public DbSet<GuildConfig> GuildConfigurations { get; set; } = null!;
     public DbSet<UserEntry> UserEntries { get; set; } = null!;
 
-    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
-        => optionsBuilder
+    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder) {
+        base.OnConfiguring(optionsBuilder);
+
+        optionsBuilder
             .UseNpgsql(_connectionString)
-            .UseSnakeCaseNamingConvention();
+            .UseSnakeCaseNamingConvention(); // <- requires package EFCore.NamingConventions
+    }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder) {
+        base.OnModelCreating(modelBuilder);
+
         modelBuilder.Entity<GuildConfig>(entity => {
-            entity.HasKey(e => e.GuildId)
-                .HasName("settings_pkey");
+            entity.HasKey(e => e.GuildId);
 
             entity.Property(e => e.GuildId).ValueGeneratedNever();
-
             entity.Property(e => e.LastSeen).HasDefaultValueSql("now()");
+
+            entity.Ignore(e => e.IsNew);
         });
 
         modelBuilder.Entity<UserEntry>(entity => {
-            entity.HasKey(e => new { e.GuildId, e.UserId })
-                .HasName("user_birthdays_pkey");
+            entity.HasKey(e => new { e.GuildId, e.UserId });
 
             entity.Property(e => e.LastSeen).HasDefaultValueSql("now()");
 
+            // Define relation and how to point to references.
+            // Also enables cascade deletion
             entity.HasOne(d => d.Guild)
                 .WithMany(p => p.UserEntries)
                 .HasForeignKey(d => d.GuildId)
-                .HasConstraintName("user_birthdays_guild_id_fkey")
                 .OnDelete(DeleteBehavior.Cascade);
+
+            entity.Ignore(e => e.IsNew);
         });
+
+        // Set *all* non-nullable bool types to default to false
+        foreach (var e in modelBuilder.Model.GetEntityTypes()) {
+            foreach (var p in e.GetProperties()) {
+                if (p.ClrType == typeof(bool) && !p.IsNullable) {
+                    p.SetDefaultValue(false);
+                }
+            }
+        }
     }
 }

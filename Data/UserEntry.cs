@@ -1,12 +1,7 @@
-﻿using System.ComponentModel.DataAnnotations;
-using System.ComponentModel.DataAnnotations.Schema;
-
-namespace BirthdayBot.Data;
-[Table("user_birthdays")]
+﻿namespace BirthdayBot.Data;
 public class UserEntry {
-    [Key]
+    // Composite PK: GuildId, UserId
     public ulong GuildId { get; set; }
-    [Key]
     public ulong UserId { get; set; }
     
     public int BirthMonth { get; set; }
@@ -17,13 +12,12 @@ public class UserEntry {
     
     public DateTimeOffset LastSeen { get; set; }
 
-    [ForeignKey(nameof(GuildConfig.GuildId))]
-    [InverseProperty(nameof(GuildConfig.UserEntries))]
+    // Associated guild for this user
     public GuildConfig Guild { get; set; } = null!;
 
     /// <summary>
     /// Gets if this instance is new and does not (yet) exist in the database.
+    /// This value is not in the database.
     /// </summary>
-    [NotMapped]
     public bool IsNew { get; set; }
 }
