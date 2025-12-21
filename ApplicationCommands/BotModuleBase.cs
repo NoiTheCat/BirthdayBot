@@ -16,6 +16,7 @@ public abstract partial class BotModuleBase : InteractionModuleBase<SocketIntera
 
     protected const string HelpOptDate = "A date, including the month and day. For example, \"15 January\".";
     protected const string HelpOptZone = "A 'tzdata'-compliant time zone name. See help for more details.";
+    protected const string HelpBool = "True to enable, False to disable.";
 
     /// <summary>
     /// The corresponding <see cref="ShardInstance"/> handling the client where the command originated from.
@@ -60,6 +61,12 @@ public abstract partial class BotModuleBase : InteractionModuleBase<SocketIntera
         await Task.Factory.StartNew(guild.DownloadUsersAsync).ConfigureAwait(false);
         return false;
     }
+
+    /// <summary>
+    /// Checks if the server allows ephemeral command confirmations.
+    /// </summary>
+    protected bool IsEphemeralSet(BotDatabaseContext context)
+        => context.GuildConfigurations.Where(r => r.GuildId == Context.Guild.Id).SingleOrDefault()?.EphemeralConfirm ?? false;
 
     #region Date parsing
     const string FormatError = ":x: Unrecognized date format. The following formats are accepted, as examples: "

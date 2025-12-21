@@ -16,6 +16,8 @@ public class GuildConfig {
 
     public DateTimeOffset LastSeen { get; set; }
 
+    public bool EphemeralConfirm { get; set; }
+
     // Users associated with guild
     public ICollection<UserEntry> UserEntries { get; set; } = null!;
 

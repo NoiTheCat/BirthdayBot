@@ -12,6 +12,7 @@ public class ConfigModule : BotModuleBase {
     public const string HelpCmdAnnounce = "Settings regarding birthday announcements.";
     public const string HelpCmdBirthdayRole = "Set the role given to users having a birthday.";
     public const string HelpCmdCheck = "Test the bot's current configuration and show the results.";
+    public const string HelpPrivateConfirms = "Sets whether to make confirmation messages visible only to the user.";
 
     const string HelpPofxBlankUnset = " Leave blank to unset.";
     const string HelpOptChannel = "The corresponding channel to use.";
@@ -246,6 +247,13 @@ public class ConfigModule : BotModuleBase {
             await DoDatabaseUpdate(Context, s => s.GuildTimeZone = parsedZone);
             await RespondAsync(Response + $"set to **{parsedZone}**.").ConfigureAwait(false);
         }
+    }
+
+    [SlashCommand("private-confirms", HelpPrivateConfirms)]
+    public async Task PrivateConfirmations([Summary(description: HelpBool)] bool setting) {
+        await DoDatabaseUpdate(Context, s => s.EphemeralConfirm = setting).ConfigureAwait(false);
+        await RespondAsync($":white_check_mark: Private confirmations **{(setting ? "enabled" : "disabled")}**.",
+            ephemeral: false).ConfigureAwait(false); // Always show this confirmation despite setting
     }
 
     /// <summary>

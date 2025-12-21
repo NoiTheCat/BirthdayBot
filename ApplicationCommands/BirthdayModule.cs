@@ -53,7 +53,7 @@ public class BirthdayModule : BotModuleBase {
             response += ".";
             if (user.TimeZone == null)
                 response += "\n(Tip: The `/birthday set timezone` command ensures your birthday is recognized just in time!)";
-            await RespondAsync(response).ConfigureAwait(false);
+            await RespondAsync(response, ephemeral: IsEphemeralSet(db)).ConfigureAwait(false);
         }
 
         [SlashCommand("timezone", HelpCmdSetZone)]
@@ -75,7 +75,8 @@ public class BirthdayModule : BotModuleBase {
             }
             user.TimeZone = newzone;
             await db.SaveChangesAsync();
-            await RespondAsync($":white_check_mark: Your time zone has been set to **{newzone}**.").ConfigureAwait(false);
+            await RespondAsync($":white_check_mark: Your time zone has been set to **{newzone}**.",
+                               ephemeral: IsEphemeralSet(db)).ConfigureAwait(false);
         }
     }
 
@@ -85,10 +86,11 @@ public class BirthdayModule : BotModuleBase {
         var user = ((SocketGuildUser)Context.User).GetUserEntryOrNew(db);
         if (!user.IsNew) {
             db.UserEntries.Remove(user);
-            await db.SaveChangesAsync();
-            await RespondAsync(":white_check_mark: Your birthday in this server has been removed.");
+            await db.SaveChangesAsync().ConfigureAwait(false);
+            await RespondAsync(":white_check_mark: Your birthday in this server has been removed.", ephemeral: IsEphemeralSet(db))
+                .ConfigureAwait(false);
         } else {
-            await RespondAsync(":white_check_mark: Your birthday is not registered.")
+            await RespondAsync(":white_check_mark: Your birthday is not registered.", ephemeral: IsEphemeralSet(db))
                 .ConfigureAwait(false);
         }
     }

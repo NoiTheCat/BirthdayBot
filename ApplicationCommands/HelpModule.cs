@@ -21,6 +21,7 @@ public class HelpModule : BotModuleBase {
         $"` ⤷announce` - {ConfigModule.HelpCmdAnnounce}\n" +
         $"`  ⤷` See also: `/config announce help`.\n" +
         $"` ⤷birthday-role` - {ConfigModule.HelpCmdBirthdayRole}\n" +
+        $"` ⤷private-confirms` - {ConfigModule.HelpPrivateConfirms}\n" +
         $"`/export-birthdays` - {ExportModule.HelpCmdExport}\n" +
         $"`/override` - {BirthdayOverrideModule.HelpCmdOverride}\n" +
         $"` ⤷set-birthday`, `⤷set-timezone`, `⤷remove`\n" +
