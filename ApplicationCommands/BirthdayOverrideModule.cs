@@ -39,9 +39,7 @@ public class BirthdayOverrideModule : BotModuleBase {
     [SlashCommand("set-timezone", "Set a user's time zone on their behalf.")]
     public async Task OvSetTimezone([Summary(description: HelpOptOvTarget)] SocketGuildUser target,
                                     [Summary(description: HelpOptZone), Autocomplete<TzAutocompleteHandler>] string zone) {
-        using var db = new BotDatabaseContext();
-
-        var user = target.GetUserEntryOrNew(db);
+        var user = target.GetUserEntryOrNew(DbContext);
         if (user.IsNew) {
             await RespondAsync($":x: {FormatName(target, false)} does not have a birthday set.")
                 .ConfigureAwait(false);
@@ -56,18 +54,17 @@ public class BirthdayOverrideModule : BotModuleBase {
             return;
         }
         user.TimeZone = newzone;
-        await db.SaveChangesAsync();
+        await DbContext.SaveChangesAsync();
         await RespondAsync($":white_check_mark: {FormatName(target, false)}'s time zone has been set to " +
             $"**{newzone}**.").ConfigureAwait(false);
     }
 
     [SlashCommand("remove-birthday", "Remove a user's birthday information on their behalf.")]
     public async Task OvRemove([Summary(description: HelpOptOvTarget)] SocketGuildUser target) {
-        using var db = new BotDatabaseContext();
-        var user = target.GetUserEntryOrNew(db);
+        var user = target.GetUserEntryOrNew(DbContext);
         if (!user.IsNew) {
-            db.UserEntries.Remove(user);
-            await db.SaveChangesAsync();
+            DbContext.UserEntries.Remove(user);
+            await DbContext.SaveChangesAsync();
             await RespondAsync($":white_check_mark: {FormatName(target, false)}'s birthday in this server has been removed.")
                 .ConfigureAwait(false);
         } else {

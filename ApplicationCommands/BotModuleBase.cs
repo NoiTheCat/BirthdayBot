@@ -19,10 +19,13 @@ public abstract partial class BotModuleBase : InteractionModuleBase<SocketIntera
     protected const string HelpBool = "True to enable, False to disable.";
 
     /// <summary>
-    /// The corresponding <see cref="ShardInstance"/> handling the client where the command originated from.
+    /// The <see cref="ShardInstance"/> corresponding to the current context.
     /// </summary>
     [NotNull]
     public ShardInstance? Shard { get; set; }
+
+    [NotNull]
+    public BotDatabaseContext? DbContext { get; set; }
 
     protected static IReadOnlyDictionary<string, string> TzNameMap { get; }
 
@@ -65,8 +68,8 @@ public abstract partial class BotModuleBase : InteractionModuleBase<SocketIntera
     /// <summary>
     /// Checks if the server allows ephemeral command confirmations.
     /// </summary>
-    protected bool IsEphemeralSet(BotDatabaseContext context)
-        => context.GuildConfigurations.Where(r => r.GuildId == Context.Guild.Id).SingleOrDefault()?.EphemeralConfirm ?? false;
+    protected bool IsEphemeralSet()
+        => DbContext.GuildConfigurations.Where(r => r.GuildId == Context.Guild.Id).SingleOrDefault()?.EphemeralConfirm ?? false;
 
     #region Date parsing
     const string FormatError = ":x: Unrecognized date format. The following formats are accepted, as examples: "
@@ -146,9 +149,8 @@ public abstract partial class BotModuleBase : InteractionModuleBase<SocketIntera
     /// Fetches all guild birthdays and places them into an easily usable structure.
     /// Users currently not in the guild are not included in the result.
     /// </summary>
-    protected static List<ListItem> GetSortedUserList(SocketGuild guild) {
-        using var db = new BotDatabaseContext();
-        var query = from row in db.UserEntries
+    protected List<ListItem> GetSortedUserList(SocketGuild guild) {
+        var query = from row in DbContext.UserEntries
                     where row.GuildId == guild.Id
                     orderby row.BirthMonth, row.BirthDay
                     select new {
@@ -202,4 +204,17 @@ public abstract partial class BotModuleBase : InteractionModuleBase<SocketIntera
         public string? TimeZone;
     }
     #endregion
+
+    /// <summary>
+    /// Helper method for updating arbitrary <see cref="GuildConfig"/> values without all the boilerplate.
+    /// </summary>
+    /// <param name="valueUpdater">A delegate with access to the appropriate <see cref="GuildConfig"/> in this context.</param>
+    protected async Task DbUpdateGuildAsync(Action<GuildConfig> valueUpdater) {
+        var settings = Context.Guild.GetConfigOrNew(DbContext);
+
+        valueUpdater(settings);
+
+        if (settings.IsNew) DbContext.GuildConfigurations.Add(settings);
+        await DbContext.SaveChangesAsync().ConfigureAwait(false);
+    }
 }

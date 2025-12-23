@@ -60,15 +60,14 @@ public class ConfigModule : BotModuleBase {
 
         [SlashCommand("set-channel", HelpSubCmdChannel + HelpPofxBlankUnset)]
         public async Task CmdSetChannel([Summary(description: HelpOptChannel)] SocketTextChannel? channel = null) {
-            await DoDatabaseUpdate(Context, s => s.AnnouncementChannel = channel?.Id);
+            await DbUpdateGuildAsync(s => s.AnnouncementChannel = channel?.Id);
             await RespondAsync(":white_check_mark: The announcement channel has been " +
             (channel == null ? "unset." : $"set to **{channel.Name}**."));
         }
 
         [SlashCommand("set-message", HelpSubCmdMessage)]
         public async Task CmdSetMessage() {
-            using var db = new BotDatabaseContext();
-            var settings = Context.Guild.GetConfigOrNew(db);
+            var settings = Context.Guild.GetConfigOrNew(DbContext);
 
             var txtSingle = new TextInputBuilder() {
                 Label = "Single - Message for one birthday",
@@ -106,6 +105,7 @@ public class ConfigModule : BotModuleBase {
             if (string.IsNullOrWhiteSpace(newSingle)) newSingle = null;
             if (string.IsNullOrWhiteSpace(newMulti)) newMulti = null;
 
+            // We're missing the usual context. Can't use DbUpdateGuildAsync.
             using var db = new BotDatabaseContext();
             var settings = channel.Guild.GetConfigOrNew(db);
             if (settings.IsNew) db.GuildConfigurations.Add(settings);
@@ -117,7 +117,7 @@ public class ConfigModule : BotModuleBase {
 
         [SlashCommand("set-ping", HelpSubCmdPing)]
         public async Task CmdSetPing([Summary(description: "Set True to ping users, False to display them normally.")] bool option) {
-            await DoDatabaseUpdate(Context, s => s.AnnouncePing = option);
+            await DbUpdateGuildAsync(s => s.AnnouncePing = option);
             await RespondAsync($":white_check_mark: Announcement pings are now **{(option ? "on" : "off")}**.").ConfigureAwait(false);
         }
 
@@ -129,14 +129,11 @@ public class ConfigModule : BotModuleBase {
                                   [Summary(description: HelpOptTestPlaceholder)] SocketGuildUser? placeholder4 = null,
                                   [Summary(description: HelpOptTestPlaceholder)] SocketGuildUser? placeholder5 = null) {
             // Prepare config
-            GuildConfig? settings;
-            using (var db = new BotDatabaseContext()) {
-                settings = Context.Guild.GetConfigOrNew(db);
-                if (settings.IsNew || settings.AnnouncementChannel == null) {
-                    await RespondAsync(":x: Unable to send a birthday message. The announcement channel is not configured.")
-                        .ConfigureAwait(false);
-                    return;
-                }
+            var settings = Context.Guild.GetConfigOrNew(DbContext);
+            if (settings.IsNew || settings.AnnouncementChannel == null) {
+                await RespondAsync(":x: Unable to send a birthday message. The announcement channel is not configured.")
+                    .ConfigureAwait(false);
+                return;
             }
             // Check permissions
             var announcech = Context.Guild.GetTextChannel(settings.AnnouncementChannel.Value);
@@ -149,8 +146,9 @@ public class ConfigModule : BotModuleBase {
             // Send and confirm with user
             await RespondAsync($":white_check_mark: An announcement test will be sent to {announcech.Mention}.").ConfigureAwait(false);
 
-            IEnumerable<SocketGuildUser?> testingList = [placeholder, placeholder2, placeholder3, placeholder4, placeholder5];
-            await BirthdayRoleUpdate.AnnounceBirthdaysAsync(settings, Context.Guild, testingList.Where(i => i != null)!).ConfigureAwait(false);
+            var testingList = new SocketGuildUser?[] { placeholder, placeholder2, placeholder3, placeholder4, placeholder5 }
+                .Where(i => i is not null);
+            await BirthdayRoleUpdate.AnnounceBirthdaysAsync(settings, Context.Guild, testingList!);
         }
     }
 
@@ -160,7 +158,7 @@ public class ConfigModule : BotModuleBase {
             await RespondAsync(":x: This role cannot be used for this setting.", ephemeral: true);
             return;
         }
-        await DoDatabaseUpdate(Context, s => s.BirthdayRole = role.Id);
+        await DbUpdateGuildAsync(s => s.BirthdayRole = role.Id);
         await RespondAsync($":white_check_mark: The birthday role has been set to **{role.Name}**.").ConfigureAwait(false);
     }
 
@@ -170,9 +168,8 @@ public class ConfigModule : BotModuleBase {
             => $"{label}: {(test() ? ":white_check_mark: Yes" : ":x: No")}";
 
         var guild = Context.Guild;
-        using var db = new BotDatabaseContext();
-        var guildconf = guild.GetConfigOrNew(db);
-        if (!guildconf.IsNew) await db.Entry(guildconf).Collection(t => t.UserEntries).LoadAsync();
+        var guildconf = guild.GetConfigOrNew(DbContext);
+        if (!guildconf.IsNew) await DbContext.Entry(guildconf).Collection(t => t.UserEntries).LoadAsync();
 
         var result = new StringBuilder();
 
@@ -233,7 +230,7 @@ public class ConfigModule : BotModuleBase {
         const string Response = ":white_check_mark: The server's time zone has been ";
 
         if (zone == null) {
-            await DoDatabaseUpdate(Context, s => s.GuildTimeZone = null);
+            await DbUpdateGuildAsync(s => s.GuildTimeZone = null);
             await RespondAsync(Response + "unset.").ConfigureAwait(false);
         } else {
             string parsedZone;
@@ -244,29 +241,15 @@ public class ConfigModule : BotModuleBase {
                 return;
             }
 
-            await DoDatabaseUpdate(Context, s => s.GuildTimeZone = parsedZone);
+            await DbUpdateGuildAsync(s => s.GuildTimeZone = parsedZone);
             await RespondAsync(Response + $"set to **{parsedZone}**.").ConfigureAwait(false);
         }
     }
 
     [SlashCommand("private-confirms", HelpPrivateConfirms)]
     public async Task PrivateConfirmations([Summary(description: HelpBool)] bool setting) {
-        await DoDatabaseUpdate(Context, s => s.EphemeralConfirm = setting).ConfigureAwait(false);
+        await DbUpdateGuildAsync(s => s.EphemeralConfirm = setting).ConfigureAwait(false);
         await RespondAsync($":white_check_mark: Private confirmations **{(setting ? "enabled" : "disabled")}**.",
             ephemeral: false).ConfigureAwait(false); // Always show this confirmation despite setting
-    }
-
-    /// <summary>
-    /// Helper method for updating arbitrary <see cref="GuildConfig"/> values without all the boilerplate.
-    /// </summary>
-    /// <param name="valueUpdater">A delegate which modifies <see cref="GuildConfig"/> properties as needed.</param>
-    private static async Task DoDatabaseUpdate(SocketInteractionContext context, Action<GuildConfig> valueUpdater) {
-        using var db = new BotDatabaseContext();
-        var settings = context.Guild.GetConfigOrNew(db);
-
-        valueUpdater(settings);
-
-        if (settings.IsNew) db.GuildConfigurations.Add(settings);
-        await db.SaveChangesAsync();
     }
 }

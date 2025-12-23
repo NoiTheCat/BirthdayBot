@@ -38,29 +38,26 @@ public class BirthdayModule : BotModuleBase {
                 }
             }
 
-            using var db = new BotDatabaseContext();
-            var guild = ((SocketTextChannel)Context.Channel).Guild.GetConfigOrNew(db);
-            if (guild.IsNew) db.GuildConfigurations.Add(guild); // Satisfy foreign key constraint
-            var user = ((SocketGuildUser)Context.User).GetUserEntryOrNew(db);
-            if (user.IsNew) db.UserEntries.Add(user);
+            var guild = ((SocketTextChannel)Context.Channel).Guild.GetConfigOrNew(DbContext);
+            if (guild.IsNew) DbContext.GuildConfigurations.Add(guild); // Satisfy foreign key constraint
+            var user = ((SocketGuildUser)Context.User).GetUserEntryOrNew(DbContext);
+            if (user.IsNew) DbContext.UserEntries.Add(user);
             user.BirthMonth = inmonth;
             user.BirthDay = inday;
             user.TimeZone = inzone ?? user.TimeZone;
-            await db.SaveChangesAsync();
+            await DbContext.SaveChangesAsync();
 
             var response = $":white_check_mark: Your birthday has been set to **{FormatDate(inmonth, inday)}**";
             if (inzone != null) response += $" at time zone **{inzone}**";
             response += ".";
             if (user.TimeZone == null)
                 response += "\n(Tip: The `/birthday set timezone` command ensures your birthday is recognized just in time!)";
-            await RespondAsync(response, ephemeral: IsEphemeralSet(db)).ConfigureAwait(false);
+            await RespondAsync(response, ephemeral: IsEphemeralSet()).ConfigureAwait(false);
         }
 
         [SlashCommand("timezone", HelpCmdSetZone)]
         public async Task CmdSetZone([Summary(description: HelpOptZone), Autocomplete<TzAutocompleteHandler>] string zone) {
-            using var db = new BotDatabaseContext();
-
-            var user = ((SocketGuildUser)Context.User).GetUserEntryOrNew(db);
+            var user = ((SocketGuildUser)Context.User).GetUserEntryOrNew(DbContext);
             if (user.IsNew) {
                 await RespondAsync(":x: You do not have a birthday set.", ephemeral: true).ConfigureAwait(false);
                 return;
@@ -74,35 +71,32 @@ public class BirthdayModule : BotModuleBase {
                 return;
             }
             user.TimeZone = newzone;
-            await db.SaveChangesAsync();
+            await DbContext.SaveChangesAsync();
             await RespondAsync($":white_check_mark: Your time zone has been set to **{newzone}**.",
-                               ephemeral: IsEphemeralSet(db)).ConfigureAwait(false);
+                               ephemeral: IsEphemeralSet()).ConfigureAwait(false);
         }
     }
 
     [SlashCommand("remove", HelpCmdRemove)]
     public async Task CmdRemove() {
-        using var db = new BotDatabaseContext();
-        var user = ((SocketGuildUser)Context.User).GetUserEntryOrNew(db);
+        var user = ((SocketGuildUser)Context.User).GetUserEntryOrNew(DbContext);
         if (!user.IsNew) {
-            db.UserEntries.Remove(user);
-            await db.SaveChangesAsync().ConfigureAwait(false);
-            await RespondAsync(":white_check_mark: Your birthday in this server has been removed.", ephemeral: IsEphemeralSet(db))
+            DbContext.UserEntries.Remove(user);
+            await DbContext.SaveChangesAsync().ConfigureAwait(false);
+            await RespondAsync(":white_check_mark: Your birthday in this server has been removed.", ephemeral: IsEphemeralSet())
                 .ConfigureAwait(false);
         } else {
-            await RespondAsync(":white_check_mark: Your birthday is not registered.", ephemeral: IsEphemeralSet(db))
+            await RespondAsync(":white_check_mark: Your birthday is not registered.", ephemeral: IsEphemeralSet())
                 .ConfigureAwait(false);
         }
     }
 
     [SlashCommand("get", "Gets a user's birthday.")]
     public async Task CmdGetBday([Summary(description: "Optional: The user's birthday to look up.")] SocketGuildUser? user = null) {
-        using var db = new BotDatabaseContext();
-
         var isSelf = user is null;
         if (isSelf) user = (SocketGuildUser)Context.User;
 
-        var targetdata = user!.GetUserEntryOrNew(db);
+        var targetdata = user!.GetUserEntryOrNew(DbContext);
 
         if (targetdata.IsNew) {
             if (isSelf) await RespondAsync(":x: You do not have your birthday registered.", ephemeral: true).ConfigureAwait(false);
