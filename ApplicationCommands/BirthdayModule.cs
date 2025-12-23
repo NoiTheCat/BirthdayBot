@@ -12,6 +12,7 @@ public class BirthdayModule : BotModuleBase {
     public const string HelpCmdRemove = "Removes your birthday information from this bot.";
     public const string HelpCmdGet = "Gets a user's birthday.";
     public const string HelpCmdNearest = "Get a list of users who recently had or will have a birthday.";
+    private const string ErrAddOnly = ":x: You may not edit a birthday or time zone after it has been added.";
 
     [Group("set", "Subcommands for setting birthday information.")]
     public class SubCmdsBirthdaySet : BotModuleBase {
@@ -19,6 +20,21 @@ public class BirthdayModule : BotModuleBase {
         public async Task CmdSetBday([Summary(description: HelpOptDate)] string date,
                                      [Summary(description: HelpOptZone), Autocomplete<TzAutocompleteHandler>] string? zone = null) {
             // IMPORTANT: If editing here, reflect changes as needed in BirthdayOverrideModule.
+            var guild = ((SocketTextChannel)Context.Channel).Guild.GetConfigOrNew(DbContext);
+            if (guild.IsNew) DbContext.GuildConfigurations.Add(guild); // Satisfy foreign key constraint
+            var user = ((SocketGuildUser)Context.User).GetUserEntryOrNew(DbContext);
+            if (user.IsNew) DbContext.UserEntries.Add(user);
+
+            if (guild.AddOnly) {
+                if (!user.IsNew) {
+                    if (((SocketGuildUser)Context.User).GuildPermissions.ManageGuild) {
+                        // Don't enforce if user has Manage Guild permission
+                    } else {
+                        await RespondAsync(ErrAddOnly, ephemeral: true).ConfigureAwait(false);
+                    }
+                }
+            }
+
             int inmonth, inday;
             try {
                 (inmonth, inday) = ParseDate(date);
@@ -38,10 +54,6 @@ public class BirthdayModule : BotModuleBase {
                 }
             }
 
-            var guild = ((SocketTextChannel)Context.Channel).Guild.GetConfigOrNew(DbContext);
-            if (guild.IsNew) DbContext.GuildConfigurations.Add(guild); // Satisfy foreign key constraint
-            var user = ((SocketGuildUser)Context.User).GetUserEntryOrNew(DbContext);
-            if (user.IsNew) DbContext.UserEntries.Add(user);
             user.BirthMonth = inmonth;
             user.BirthDay = inday;
             user.TimeZone = inzone ?? user.TimeZone;
@@ -59,8 +71,20 @@ public class BirthdayModule : BotModuleBase {
         public async Task CmdSetZone([Summary(description: HelpOptZone), Autocomplete<TzAutocompleteHandler>] string zone) {
             var user = ((SocketGuildUser)Context.User).GetUserEntryOrNew(DbContext);
             if (user.IsNew) {
-                await RespondAsync(":x: You do not have a birthday set.", ephemeral: true).ConfigureAwait(false);
+                await RespondAsync(":x: You must set a birthday first.", ephemeral: true).ConfigureAwait(false);
                 return;
+            }
+
+            if (Context.Guild.GetConfigOrNew(DbContext).AddOnly) {
+                if (user.TimeZone is not null) {
+                    if (((SocketGuildUser)Context.User).GuildPermissions.ManageGuild) {
+                        // Don't enforce if user has Manage Guild permission
+                    }
+                    else {
+                        await RespondAsync(ErrAddOnly, ephemeral: true).ConfigureAwait(false);
+                        return;
+                    }
+                }
             }
 
             string newzone;

@@ -13,6 +13,7 @@ public class ConfigModule : BotModuleBase {
     public const string HelpCmdBirthdayRole = "Set the role given to users having a birthday.";
     public const string HelpCmdCheck = "Test the bot's current configuration and show the results.";
     public const string HelpPrivateConfirms = "Sets whether to make confirmation messages visible only to the user.";
+    public const string HelpAddOnly = "Sets if users are restricted from editing their birthday after adding it.";
 
     const string HelpPofxBlankUnset = " Leave blank to unset.";
     const string HelpOptChannel = "The corresponding channel to use.";
@@ -251,5 +252,12 @@ public class ConfigModule : BotModuleBase {
         await DbUpdateGuildAsync(s => s.EphemeralConfirm = setting).ConfigureAwait(false);
         await RespondAsync($":white_check_mark: Private confirmations **{(setting ? "enabled" : "disabled")}**.",
             ephemeral: false).ConfigureAwait(false); // Always show this confirmation despite setting
+    }
+
+    [SlashCommand("add-only", HelpAddOnly)]
+    public async Task AddOnly([Summary(description: HelpBool)] bool setting) {
+        await DbUpdateGuildAsync(s => s.AddOnly = setting).ConfigureAwait(false);
+        await RespondAsync($":white_check_mark: Add-only mode has been **{(setting ? "enabled" : "disabled")}**.",
+            ephemeral: false).ConfigureAwait(false);
     }
 }

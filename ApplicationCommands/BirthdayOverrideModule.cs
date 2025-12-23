@@ -14,6 +14,11 @@ public class BirthdayOverrideModule : BotModuleBase {
     public async Task OvSetBirthday([Summary(description: HelpOptOvTarget)] SocketGuildUser target,
                                     [Summary(description: HelpOptDate)] string date) {
         // IMPORTANT: If editing here, reflect changes as needed in BirthdayModule.
+        var guild = ((SocketTextChannel)Context.Channel).Guild.GetConfigOrNew(DbContext);
+        if (guild.IsNew) DbContext.GuildConfigurations.Add(guild); // Satisfy foreign key constraint
+        var user = target.GetUserEntryOrNew(DbContext);
+        if (user.IsNew) DbContext.UserEntries.Add(user);
+
         int inmonth, inday;
         try {
             (inmonth, inday) = ParseDate(date);
@@ -23,14 +28,9 @@ public class BirthdayOverrideModule : BotModuleBase {
             return;
         }
 
-        using var db = new BotDatabaseContext();
-        var guild = ((SocketTextChannel)Context.Channel).Guild.GetConfigOrNew(db);
-        if (guild.IsNew) db.GuildConfigurations.Add(guild); // Satisfy foreign key constraint
-        var user = target.GetUserEntryOrNew(db);
-        if (user.IsNew) db.UserEntries.Add(user);
         user.BirthMonth = inmonth;
         user.BirthDay = inday;
-        await db.SaveChangesAsync();
+        await DbContext.SaveChangesAsync();
 
         await RespondAsync($":white_check_mark: {FormatName(target, false)}'s birthday has been set to " +
             $"**{FormatDate(inmonth, inday)}**.").ConfigureAwait(false);
@@ -41,7 +41,7 @@ public class BirthdayOverrideModule : BotModuleBase {
                                     [Summary(description: HelpOptZone), Autocomplete<TzAutocompleteHandler>] string zone) {
         var user = target.GetUserEntryOrNew(DbContext);
         if (user.IsNew) {
-            await RespondAsync($":x: {FormatName(target, false)} does not have a birthday set.")
+            await RespondAsync($":x: {FormatName(target, false)} must have a birthday set first.")
                 .ConfigureAwait(false);
             return;
         }

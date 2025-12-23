@@ -18,6 +18,8 @@ public class GuildConfig {
 
     public bool EphemeralConfirm { get; set; }
 
+    public bool AddOnly { get; set; }
+
     // Users associated with guild
     public ICollection<UserEntry> UserEntries { get; set; } = null!;
 
