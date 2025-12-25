@@ -3,6 +3,7 @@ using System;
 using BirthdayBot.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace BirthdayBot.Data.Migrations
 {
     [DbContext(typeof(BotDatabaseContext))]
-    partial class BotDatabaseContextModelSnapshot : ModelSnapshot
+    [Migration("20251221063136_ModelCleanup")]
+    partial class ModelCleanup
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -27,12 +30,6 @@ namespace BirthdayBot.Data.Migrations
                     b.Property<decimal>("GuildId")
                         .HasColumnType("numeric(20,0)")
                         .HasColumnName("guild_id");
-
-                    b.Property<bool>("AddOnly")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("boolean")
-                        .HasDefaultValue(false)
-                        .HasColumnName("add_only");
 
                     b.Property<string>("AnnounceMessage")
                         .HasColumnType("text")
@@ -55,12 +52,6 @@ namespace BirthdayBot.Data.Migrations
                     b.Property<decimal?>("BirthdayRole")
                         .HasColumnType("numeric(20,0)")
                         .HasColumnName("birthday_role");
-
-                    b.Property<bool>("EphemeralConfirm")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("boolean")
-                        .HasDefaultValue(false)
-                        .HasColumnName("ephemeral_confirm");
 
                     b.Property<string>("GuildTimeZone")
                         .HasColumnType("text")
