@@ -137,7 +137,7 @@ class BirthdayRoleUpdate(ShardInstance instance) : BackgroundService(instance) {
 
     public const string DefaultAnnounce = "Please wish a happy birthday to %n!";
     public const string DefaultAnnouncePl = "Please wish a happy birthday to our esteemed members: %n";
-
+    
     /// <summary>
     /// Attempts to send an announcement message.
     /// </summary>
@@ -165,6 +165,10 @@ class BirthdayRoleUpdate(ShardInstance instance) : BackgroundService(instance) {
         }
         namedisplay.Remove(0, 2); // Remove initial comma and space
 
-        await c.SendMessageAsync(announceMsg.Replace("%n", namedisplay.ToString())).ConfigureAwait(false);
+        announceMsg = announceMsg
+            .Replace("%n", namedisplay.ToString())
+            .Replace("%e", $"<@&{g.EveryoneRole.Id}>");
+
+        await c.SendMessageAsync(announceMsg).ConfigureAwait(false);
     }
 }

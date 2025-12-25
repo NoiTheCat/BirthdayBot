@@ -49,8 +49,9 @@ public class ConfigModule : BotModuleBase {
                 "Two messages may be provided: `single` sets the message that is displayed when one user has a birthday, and " +
                 "`multi` sets the message used when two or more users have birthdays. If only one of the two messages " +
                 "have been set, this bot will use the same message in both cases.\n\n" +
-                "You may use the token `%n` in your message to specify where the name(s) should appear, otherwise the names " +
-                "will appear at the very end of your custom message.";
+                "The custom message supports the following tokens:\n" +
+                "* `%n` - Name(s) of those with birthdays\n" +
+                "* `%e` - `@everyone` ping";
             await RespondAsync(embed: new EmbedBuilder()
                 .WithAuthor("Announcement configuration")
                 .WithDescription(subcommands)
