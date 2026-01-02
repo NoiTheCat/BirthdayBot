@@ -138,18 +138,32 @@ public sealed class ShardInstance : IDisposable {
     }
 
     // Slash command logging and failed execution handling
-    private Task InteractionService_SlashCommandExecuted(SlashCommandInfo info, IInteractionContext context, IResult result) {
+    private async Task InteractionService_SlashCommandExecuted(SlashCommandInfo info, IInteractionContext context, IResult result) {
         string sender;
         if (context.Guild != null) sender = $"{context.Guild}!{context.User}";
         else sender = $"{context.User} in non-guild context";
         var logresult = $"{(result.IsSuccess ? "Success" : "Fail")}: `/{info}` by {sender}.";
 
+        // Additional log information with error detail
         if (result.Error != null) {
-            // Additional log information with error detail
-            logresult += " " + Enum.GetName(typeof(InteractionCommandError), result.Error) + ": " + result.ErrorReason;
+            if (result.Error == InteractionCommandError.Exception && result is ExecuteResult exr) {
+                logresult += " Inner exception:\n" + exr.Exception.ToString();
+
+                // Respond if failed
+                try {
+                    await context.Interaction
+                        .RespondAsync(":x: An internal error occurred. If this persists, contact the bot owner.", ephemeral: true)
+                        .ConfigureAwait(false);
+                }
+                catch {
+                    // This was likely to fail anyway. Do nothing.
+                }
+            }
+            else {
+                logresult += " " + Enum.GetName(typeof(InteractionCommandError), result.Error) + ": " + result.ErrorReason;
+            }
         }
 
         Log("Command", logresult);
-        return Task.CompletedTask;
     }
 }
