@@ -17,10 +17,12 @@ public class HelpModule : BotModuleBase {
         $"` ⤷remove` - {BirthdayModule.HelpCmdRemove}";
     private const string ModCommandsField =
         $"`/config` - {ConfigModule.HelpCmdConfig}\n" +
+        $"` ⤷add-only` - {ConfigModule.HelpAddOnly}\n" +
         $"` ⤷check` - {ConfigModule.HelpCmdCheck}\n" +
         $"` ⤷announce` - {ConfigModule.HelpCmdAnnounce}\n" +
         $"`  ⤷` See also: `/config announce help`.\n" +
         $"` ⤷birthday-role` - {ConfigModule.HelpCmdBirthdayRole}\n" +
+        $"` ⤷private-confirms` - {ConfigModule.HelpPrivateConfirms}\n" +
         $"`/export-birthdays` - {ExportModule.HelpCmdExport}\n" +
         $"`/override` - {BirthdayOverrideModule.HelpCmdOverride}\n" +
         $"` ⤷set-birthday`, `⤷set-timezone`, `⤷remove`\n" +
