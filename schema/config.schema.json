@@ -1,0 +1,105 @@
+{
+  "definitions": {
+    "DatabaseSettings": {
+      "description": "PostgreSQL database settings.",
+      "type": "object",
+      "properties": {
+        "Host": {
+          "description": "The host name, and optionally port, on which the PostgreSQL database is running.",
+          "type": "string",
+          "default": "localhost"
+        },
+        "Database": {
+          "description": "The PosgreSQL to connect to. If left blank, the username is used.",
+          "type": "string"
+        },
+        "Username": {
+          "description": "The PostgreSQL username to connect with.",
+          "type": "string"
+        },
+        "Password": {
+          "description": "The password for the specified PostgreSQL user.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "Password"
+      ]
+    },
+    "Sharding": {
+      "description": "Defines how this instance will handle sharding.",
+      "type": "object",
+      "properties": {
+        "StartId": {
+          "description": "The shard ID that this instance will initialize first.",
+          "type": "integer",
+          "default": 0
+        },
+        "Amount": {
+          "description": "Total amount of shards this instance will host, beginning with StartId.",
+          "type": "integer",
+          "default": 1
+        },
+        "Total": {
+          "description": "Total amount of shards run by the bot. MUST be the same across instances.",
+          "type": "integer",
+          "default": 1
+        },
+        "Interval": {
+          "description": "The amount of shards to initialize at once. Discord usually limits this to 2 before enforcing rate limits.",
+          "type": "integer",
+          "default": 2
+        }
+      }
+    }
+  },
+  "type": "object",
+  "properties": {
+    "BotToken": {
+      "description": "Discord application token.",
+      "type": "string"
+    },
+    "DBotsToken": {
+      "description": "Token for submitting statistics to Discord Bots.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "Database": {
+      "$ref": "#/definitions/DatabaseSettings"
+    },
+    "Sharding": {
+      "$ref": "#/definitions/Sharding"
+    },
+    "StatusInterval": {
+      "description": "Interval between status updates, in seconds.",
+      "type": "integer",
+      "default": 90
+    },
+    "MaxConcurrentOperations": {
+      "description": "The maximum amount of background operations that can run concurrently.",
+      "type": "integer",
+      "default": 4
+    },
+    "BackgroundInterval": {
+      "description": "How often background tasks are run per shard, in seconds.",
+      "type": "integer",
+      "default": 300
+    },
+    "LogConnectionStatus": {
+      "description": "Whether to show common connect and disconnect events, and other messages regarding connection to Discord.\nThis is disabled in the public instance, but is worth keeping enabled in self-hosted bots.",
+      "type": "boolean",
+      "default": true
+    }
+  },
+  "required": [
+    "BotToken",
+    "DBotsToken",
+    "Database",
+    "StatusInterval",
+    "MaxConcurrentOperations",
+    "BackgroundInterval",
+    "LogConnectionStatus"
+  ]
+}

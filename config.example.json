@@ -1,0 +1,10 @@
+{
+    "$schema": "https://code.noithecat.dev/Noi/WorldTime/raw/branch/main/schema/config.schema.json",
+
+    // Example of bare minimum configuration needed to self-host an instance
+    "BotToken": "SET TOKEN HERE",
+    "Database": {
+        "Username": "worldtime",
+        "Password": "password"
+    }
+}
