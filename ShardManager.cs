@@ -1,5 +1,6 @@
 ﻿global using Discord;
 global using Discord.WebSocket;
+using BirthdayBot.Data;
 using Discord.Interactions;
 using Microsoft.Extensions.DependencyInjection;
 using System.Text;
@@ -78,6 +79,7 @@ class ShardManager : IDisposable {
             .AddSingleton(s => new ShardInstance(this, s))
             .AddSingleton(s => new DiscordSocketClient(clientConf))
             .AddSingleton(s => new InteractionService(s.GetRequiredService<DiscordSocketClient>()))
+            .AddTransient(typeof(BotDatabaseContext)) // TODO look into AddDbContext
             .BuildServiceProvider();
         var newInstance = services.GetRequiredService<ShardInstance>();
         await newInstance.StartAsync().ConfigureAwait(false);
