@@ -1,6 +1,4 @@
-﻿global using Discord;
-global using Discord.WebSocket;
-using Discord.Interactions;
+﻿using Discord.Interactions;
 using Microsoft.Extensions.DependencyInjection;
 using System.Text;
 

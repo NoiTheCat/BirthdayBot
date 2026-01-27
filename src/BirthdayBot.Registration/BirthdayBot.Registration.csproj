@@ -1,0 +1,18 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  
+  <PropertyGroup>
+    <Authors>NoiTheCat</Authors>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>BirthdayBot.Registration</RootNamespace>
+
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../BirthdayBot/BirthdayBot.csproj" />
+  </ItemGroup>
+
+</Project>

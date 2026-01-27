@@ -1,0 +1,10 @@
+{
+    "$schema": "https://code.noithecat.dev/Noi/NpbCore/raw/branch/main/schema/config.schema.json",
+
+    // Example of bare minimum configuration needed to self-host an instance
+    "BotToken": "SET TOKEN HERE",
+    "Database": {
+        "Username": "birthdaybot",
+        "Password": "password"
+    }
+}

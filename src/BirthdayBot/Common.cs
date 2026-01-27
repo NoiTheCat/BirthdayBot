@@ -1,6 +1,7 @@
 ﻿using System.Text;
 
 namespace BirthdayBot;
+
 static class Common {
     /// <summary>
     /// Formats a user's name to a consistent, readable format which makes use of their nickname.
