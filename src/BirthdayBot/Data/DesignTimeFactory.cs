@@ -3,7 +3,7 @@ using Microsoft.EntityFrameworkCore.Design;
 using NoiPublicBot.Config;
 using Npgsql;
 
-namespace WorldTime.Data;
+namespace BirthdayBot.Data;
 
 public class DesignTimeFactory : IDesignTimeDbContextFactory<BotDatabaseContext> {
     // Used by EF Core tools for migrations, etc.

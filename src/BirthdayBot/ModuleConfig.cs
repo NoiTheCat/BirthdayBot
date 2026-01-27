@@ -1,12 +1,14 @@
+using BirthdayBot.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using NoiPublicBot;
 using WorldTime;
 using WorldTime.BackgroundServices;
-using WorldTime.Data;
+
+namespace BirthdayBot;
 
 public class ModuleConfig : ModuleConfigBase {
-    public override string AppName => "WorldTime";
+    public override string AppName => "BirthdayBot";
 
     public override IEnumerable<Type> BackgroundServices => [
         typeof(DataJanitor),

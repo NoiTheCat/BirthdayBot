@@ -1,4 +1,0 @@
-[*.cs]
-generated_code = true
-dotnet_analyzer_diagnostic.category-CodeQuality.severity = none
-dotnet_diagnostic.CS1591.severity = none
