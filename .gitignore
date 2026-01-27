@@ -2,4 +2,4 @@
 [Oo]bj/
 .vs/
 *.user
-*.sln
+debug.json
