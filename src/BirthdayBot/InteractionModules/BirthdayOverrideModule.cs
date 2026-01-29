@@ -2,11 +2,13 @@
 using Discord.Interactions;
 using static BirthdayBot.Common;
 
-namespace BirthdayBot.ApplicationCommands;
+namespace BirthdayBot.InteractionModules;
+
 [Group("override", HelpCmdOverride)]
 [DefaultMemberPermissions(GuildPermission.ManageGuild)]
 [CommandContextType(InteractionContextType.Guild)]
-public class BirthdayOverrideModule : BotModuleBase {
+#error needs review
+public class BirthdayOverrideModule : BBModuleBase {
     public const string HelpCmdOverride = "Commands to set options for other users.";
     const string HelpOptOvTarget = "The user whose data to modify.";
 

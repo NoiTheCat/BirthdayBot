@@ -1,4 +1,5 @@
 ﻿using BirthdayBot.Data;
+using Discord;
 using NodaTime;
 using System.Text;
 
@@ -7,7 +8,8 @@ namespace BirthdayBot.BackgroundServices;
 /// Core automatic functionality of the bot. Manages role memberships based on birthday information,
 /// and optionally sends the announcement message to appropriate guilds.
 /// </summary>
-class BirthdayRoleUpdate(ShardInstance instance) : BackgroundService(instance) {
+#error needs review
+class BirthdayUpdater(ShardInstance instance) : BackgroundService(instance) {
     /// <summary>
     /// Processes birthday updates for all available guilds synchronously.
     /// </summary>

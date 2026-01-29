@@ -1,11 +1,13 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using BirthdayBot;
+using BirthdayBot.Data;
+using Microsoft.EntityFrameworkCore;
 using NoiPublicBot.BackgroundServices;
-using WorldTime.Data;
 
-namespace WorldTime.BackgroundServices;
+namespace BirthdayBot.BackgroundServices;
 
 // Replaces the old AutoUserDownload, working very closely with the cache coordinator class
 // to gradually keep the user cache filled and refreshed in the background.
+#error needs review
 public sealed class CacheRefresher : BgCacheRefresherBase<LocalCache, BotDatabaseContext> {
     protected override Dictionary<ulong, List<ulong>> GetWholeShardDownloadList(LocalCache cache) {
         using var db = BotDatabaseContext.New();

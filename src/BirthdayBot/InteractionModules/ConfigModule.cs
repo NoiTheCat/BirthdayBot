@@ -1,13 +1,16 @@
 ﻿using BirthdayBot.BackgroundServices;
 using BirthdayBot.Data;
+using Discord;
 using Discord.Interactions;
 using System.Text;
 
-namespace BirthdayBot.ApplicationCommands;
+namespace BirthdayBot.InteractionModules;
+
 [Group("config", HelpCmdConfig)]
 [DefaultMemberPermissions(GuildPermission.ManageGuild)]
 [CommandContextType(InteractionContextType.Guild)]
-public class ConfigModule : BotModuleBase {
+#error needs review
+public class ConfigModule : BBModuleBase {
     public const string HelpCmdConfig = "Configure basic settings for the bot.";
     public const string HelpCmdAnnounce = "Settings regarding birthday announcements.";
     public const string HelpCmdBirthdayRole = "Set the role given to users having a birthday.";
@@ -18,7 +21,7 @@ public class ConfigModule : BotModuleBase {
     const string HelpOptRole = "The corresponding role to use.";
 
     [Group("announce", HelpCmdAnnounce)]
-    public class SubCmdsConfigAnnounce : BotModuleBase {
+    public class SubCmdsConfigAnnounce : BBModuleBase {
         private const string HelpSubCmdChannel = "Set which channel will receive announcement messages.";
         private const string HelpSubCmdMessage = "Modify the announcement message.";
         private const string HelpSubCmdPing = "Set whether to ping users mentioned in the announcement.";
@@ -75,7 +78,7 @@ public class ConfigModule : BotModuleBase {
                 Style = TextInputStyle.Paragraph,
                 MaxLength = 1500,
                 Required = false,
-                Placeholder = BackgroundServices.BirthdayRoleUpdate.DefaultAnnounce,
+                Placeholder = BackgroundServices.BirthdayUpdater.DefaultAnnounce,
                 Value = settings.AnnounceMessage ?? ""
             };
             var txtMulti = new TextInputBuilder() {
@@ -84,7 +87,7 @@ public class ConfigModule : BotModuleBase {
                 Style = TextInputStyle.Paragraph,
                 MaxLength = 1500,
                 Required = false,
-                Placeholder = BackgroundServices.BirthdayRoleUpdate.DefaultAnnouncePl,
+                Placeholder = BackgroundServices.BirthdayUpdater.DefaultAnnouncePl,
                 Value = settings.AnnounceMessagePl ?? ""
             };
 
@@ -149,7 +152,7 @@ public class ConfigModule : BotModuleBase {
             await RespondAsync($":white_check_mark: An announcement test will be sent to {announcech.Mention}.").ConfigureAwait(false);
 
             IEnumerable<SocketGuildUser?> testingList = [placeholder, placeholder2, placeholder3, placeholder4, placeholder5];
-            await BirthdayRoleUpdate.AnnounceBirthdaysAsync(settings, Context.Guild, testingList.Where(i => i != null)!).ConfigureAwait(false);
+            await BirthdayUpdater.AnnounceBirthdaysAsync(settings, Context.Guild, testingList.Where(i => i != null)!).ConfigureAwait(false);
         }
     }
 
@@ -187,7 +190,7 @@ public class ConfigModule : BotModuleBase {
         result.Append(DoTestFor("Birthday processing", delegate {
             if (!hasMembers) return false;
             if (guildconf.IsNew) return false;
-            bdayCount = BackgroundServices.BirthdayRoleUpdate
+            bdayCount = BackgroundServices.BirthdayUpdater
                 .GetGuildCurrentBirthdays(guildconf.UserEntries!, guildconf.GuildTimeZone).Count;
             return true;
         }));

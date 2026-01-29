@@ -1,8 +1,11 @@
-﻿using Discord.Interactions;
+﻿using Discord;
+using Discord.Interactions;
 
-namespace BirthdayBot.ApplicationCommands;
+namespace BirthdayBot.InteractionModules;
+
 [CommandContextType(InteractionContextType.Guild, InteractionContextType.BotDm)]
-public class HelpModule : BotModuleBase {
+#error needs review
+public class HelpModule : BBModuleBase {
     private const string TopMessage =
         "Thank you for using Birthday Bot!\n" +
         "Support, data policy, more info: https://noithecat.dev/bots/BirthdayBot\n\n" +

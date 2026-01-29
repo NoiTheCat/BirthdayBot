@@ -1,7 +1,12 @@
-﻿namespace BirthdayBot.ApplicationCommands;
+﻿using Discord.WebSocket;
+using NoiPublicBot;
+
+namespace BirthdayBot.InteractionModules;
+
 /// <summary>
-/// An instance-less class meant to handle incoming submitted modals.
+/// An instanceless class meant to handle incoming submitted modals.
 /// </summary>
+#error needs review
 static class ModalResponder {
     private delegate Task Responder(SocketModal modal, SocketGuildChannel channel,
                                     Dictionary<string, SocketMessageComponentData> data);

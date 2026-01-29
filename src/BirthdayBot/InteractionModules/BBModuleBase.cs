@@ -1,34 +1,42 @@
-﻿using BirthdayBot.Data;
-using Discord.Interactions;
-using NodaTime;
 using System.Collections.ObjectModel;
-using System.Diagnostics.CodeAnalysis;
 using System.Text.RegularExpressions;
+using BirthdayBot.Data;
+using Discord;
+using Discord.Interactions;
+using Discord.WebSocket;
+using NodaTime;
+using NoiPublicBot;
+using NoiPublicBot.Cache;
 
-namespace BirthdayBot.ApplicationCommands;
+namespace BirthdayBot.InteractionModules;
 
-/// <summary>
-/// Base class for our interaction module classes. Contains common data for use in implementing classes.
-/// </summary>
-public abstract partial class BotModuleBase : InteractionModuleBase<SocketInteractionContext> {
+public class BBModuleBase : InteractionModuleBase<SocketInteractionContext> {
     protected const string MemberCacheEmptyError = ":warning: Please try the command again.";
     public const string AccessDeniedError = ":warning: You are not allowed to run this command.";
 
     protected const string HelpOptDate = "A date, including the month and day. For example, \"15 January\".";
     protected const string HelpOptZone = "A 'tzdata'-compliant time zone name. See help for more details.";
 
-    /// <summary>
-    /// The corresponding <see cref="ShardInstance"/> handling the client where the command originated from.
-    /// </summary>
-    [NotNull]
-    public ShardInstance? Shard { get; set; }
+    private static readonly ReadOnlyDictionary<string, string> _tzNameMap;
 
     protected static IReadOnlyDictionary<string, string> TzNameMap { get; }
 
-    static BotModuleBase() {
+    static BBModuleBase() {
         var dict = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         foreach (var name in DateTimeZoneProviders.Tzdb.Ids) dict.Add(name, name);
         TzNameMap = new ReadOnlyDictionary<string, string>(dict);
+    }
+
+    // Injected by DI:
+    public ShardInstance Shard { get; set; } = null!;
+    public BotDatabaseContext DbContext { get; set; } = null!;
+    public LocalCache Cache { get; set; } = null!;
+
+    // Opportunistically caches user data coming in via interactions.
+    public override Task BeforeExecuteAsync(ICommandInfo command) {
+        if (Context.User is IGuildUser incoming)
+            Cache.Update(UserInfo.CreateFrom(incoming));
+        return base.BeforeExecuteAsync(command);
     }
 
     /// <summary>

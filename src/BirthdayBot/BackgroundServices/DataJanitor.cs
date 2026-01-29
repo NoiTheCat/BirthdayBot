@@ -2,11 +2,11 @@
 using Microsoft.Extensions.DependencyInjection;
 using NoiPublicBot;
 using NoiPublicBot.BackgroundServices;
-using WorldTime.Data;
 
-namespace WorldTime.BackgroundServices;
+namespace BirthdayBot.BackgroundServices;
 
 // Keeps track of known existing users. Removes old unused data
+#error needs review
 class DataJanitor : BackgroundService {
     private readonly int ProcessInterval;
     private static readonly SemaphoreSlim _dbGate = new(3);
@@ -26,7 +26,7 @@ class DataJanitor : BackgroundService {
             // splitting this out as a separate method this way prevents from accidentally removing a
             // 'using' statement up above for the millionth time...
             await DebugBumpAsync(token);
-            #pragma warning disable IDE0051
+#pragma warning disable IDE0051
 #else
             await RemoveStaleEntriesAsync(token);
 #endif

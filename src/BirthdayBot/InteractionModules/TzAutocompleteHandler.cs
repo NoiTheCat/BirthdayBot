@@ -4,10 +4,11 @@ using Microsoft.EntityFrameworkCore;
 using NodaTime;
 using Discord;
 using Discord.WebSocket;
-using WorldTime.Data;
+using BirthdayBot.Data;
 
-namespace WorldTime.InteractionModules;
+namespace BirthdayBot.InteractionModules;
 
+#error needs review
 public class TzAutocompleteHandler : AutocompleteHandler {
     private static readonly TimeSpan _maxListAge = TimeSpan.FromHours(24);
     private static readonly ReaderWriterLockSlim _lock = new();

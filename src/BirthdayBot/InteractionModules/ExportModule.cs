@@ -1,8 +1,11 @@
+using Discord;
 using Discord.Interactions;
 using System.Text;
 
-namespace BirthdayBot.ApplicationCommands;
-public class ExportModule : BotModuleBase {
+namespace BirthdayBot.InteractionModules;
+
+#error needs review
+public class ExportModule : BBModuleBase {
     public const string HelpCmdExport = "Generates a text file with all known and available birthdays.";
 
     [SlashCommand("export-birthdays", HelpCmdExport)]

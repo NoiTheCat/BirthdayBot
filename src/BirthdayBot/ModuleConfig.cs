@@ -1,9 +1,8 @@
+using BirthdayBot.BackgroundServices;
 using BirthdayBot.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using NoiPublicBot;
-using WorldTime;
-using WorldTime.BackgroundServices;
 
 namespace BirthdayBot;
 
@@ -12,7 +11,8 @@ public class ModuleConfig : ModuleConfigBase {
 
     public override IEnumerable<Type> BackgroundServices => [
         typeof(DataJanitor),
-        typeof(CacheRefresher)
+        typeof(CacheRefresher),
+        typeof(BirthdayUpdater)
     ];
 
     public override void PreShardSetup(ref IServiceCollection services) {

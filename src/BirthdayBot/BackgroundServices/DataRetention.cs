@@ -1,24 +1,28 @@
 ﻿using BirthdayBot.Data;
 using Microsoft.EntityFrameworkCore;
+using NoiPublicBot;
+using NoiPublicBot.BackgroundServices;
 using System.Text;
 
 namespace BirthdayBot.BackgroundServices;
+
 /// <summary>
-/// Automatically removes database information for guilds that have not been accessed in a long time.
+/// Automatically removes database information for guilds/users that have not been accessed in a long time.
 /// </summary>
+/// #error needs review
 class DataRetention : BackgroundService {
-    private readonly int ProcessInterval;
+    private readonly int _interval;
 
     // Amount of days without updates before data is considered stale and up for deletion.
     const int StaleGuildThreshold = 180;
     const int StaleUserThreashold = 360;
 
-    public DataRetention(ShardInstance instance) : base(instance)
-        => ProcessInterval = 21600 / Shard.Config.BackgroundInterval; // Process about once per six hours
+    public DataRetention()
+        => _interval = 21600 / Instance.UserConfig.BackgroundInterval; // Process about once per six hours
 
     public override async Task OnTick(int tickCount, CancellationToken token) {
         // Run only a subset of shards each time, each running every ProcessInterval ticks.
-        if ((tickCount + Shard.ShardId) % ProcessInterval != 0) return;
+        if ((tickCount + Shard.ShardId) % _interval != 0) return;
 
         try {
             await DbAccessGate.WaitAsync(token);

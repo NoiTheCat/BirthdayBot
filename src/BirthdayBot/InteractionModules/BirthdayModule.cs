@@ -1,11 +1,15 @@
 ﻿using BirthdayBot.Data;
+using Discord;
 using Discord.Interactions;
+using Discord.WebSocket;
 using System.Text;
 
-namespace BirthdayBot.ApplicationCommands;
+namespace BirthdayBot.InteractionModules;
+
 [Group("birthday", HelpCmdBirthday)]
 [CommandContextType(InteractionContextType.Guild)]
-public class BirthdayModule : BotModuleBase {
+#error needs review
+public class BirthdayModule : BBModuleBase {
     public const string HelpCmdBirthday = "Commands relating to birthdays.";
     public const string HelpCmdSetDate = "Sets or updates your birthday.";
     public const string HelpCmdSetZone = "Sets or updates your time zone if your birthday is already set.";
@@ -14,7 +18,7 @@ public class BirthdayModule : BotModuleBase {
     public const string HelpCmdNearest = "Get a list of users who recently had or will have a birthday.";
 
     [Group("set", "Subcommands for setting birthday information.")]
-    public class SubCmdsBirthdaySet : BotModuleBase {
+    public class SubCmdsBirthdaySet : BBModuleBase {
         [SlashCommand("date", HelpCmdSetDate)]
         public async Task CmdSetBday([Summary(description: HelpOptDate)] string date,
                                      [Summary(description: HelpOptZone), Autocomplete<TzAutocompleteHandler>] string? zone = null) {
