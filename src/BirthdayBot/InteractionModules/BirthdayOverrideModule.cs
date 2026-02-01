@@ -1,5 +1,9 @@
 ﻿using BirthdayBot.Data;
+using Discord;
 using Discord.Interactions;
+using Discord.WebSocket;
+using Microsoft.EntityFrameworkCore;
+using NodaTime;
 using static BirthdayBot.Common;
 
 namespace BirthdayBot.InteractionModules;
@@ -7,7 +11,6 @@ namespace BirthdayBot.InteractionModules;
 [Group("override", HelpCmdOverride)]
 [DefaultMemberPermissions(GuildPermission.ManageGuild)]
 [CommandContextType(InteractionContextType.Guild)]
-#error needs review
 public class BirthdayOverrideModule : BBModuleBase {
     public const string HelpCmdOverride = "Commands to set options for other users.";
     const string HelpOptOvTarget = "The user whose data to modify.";
@@ -15,42 +18,41 @@ public class BirthdayOverrideModule : BBModuleBase {
     [SlashCommand("set-birthday", "Set a user's birthday on their behalf.")]
     public async Task OvSetBirthday([Summary(description: HelpOptOvTarget)] SocketGuildUser target,
                                     [Summary(description: HelpOptDate)] string date) {
+        Cache.Update(target);
+
         // IMPORTANT: If editing here, reflect changes as needed in BirthdayModule.
-        int inmonth, inday;
+        DateOnly indate;
         try {
-            (inmonth, inday) = ParseDate(date);
+            indate = ParseDate(date);
         } catch (FormatException e) {
             // Our parse method's FormatException has its message to send out to Discord.
             await RespondAsync(e.Message, ephemeral: true).ConfigureAwait(false);
             return;
         }
 
-        using var db = new BotDatabaseContext();
-        var guild = ((SocketTextChannel)Context.Channel).Guild.GetConfigOrNew(db);
-        if (guild.IsNew) db.GuildConfigurations.Add(guild); // Satisfy foreign key constraint
-        var user = target.GetUserEntryOrNew(db);
-        if (user.IsNew) db.UserEntries.Add(user);
-        user.BirthMonth = inmonth;
-        user.BirthDay = inday;
-        await db.SaveChangesAsync();
+        var guild = ((SocketTextChannel)Context.Channel).Guild.GetConfigOrNew(DbContext);
+        if (guild.IsNew) DbContext.GuildConfigurations.Add(guild); // Satisfy foreign key constraint
+        var user = target.GetUserEntryOrNew(DbContext);
+        if (user.IsNew) DbContext.UserEntries.Add(user);
+        user.BirthDate = indate;
+        await DbContext.SaveChangesAsync();
 
         await RespondAsync($":white_check_mark: {FormatName(target, false)}'s birthday has been set to " +
-            $"**{FormatDate(inmonth, inday)}**.").ConfigureAwait(false);
+            $"**{FormatDate(indate)}**.").ConfigureAwait(false);
     }
 
     [SlashCommand("set-timezone", "Set a user's time zone on their behalf.")]
     public async Task OvSetTimezone([Summary(description: HelpOptOvTarget)] SocketGuildUser target,
                                     [Summary(description: HelpOptZone), Autocomplete<TzAutocompleteHandler>] string zone) {
-        using var db = new BotDatabaseContext();
-
-        var user = target.GetUserEntryOrNew(db);
+        Cache.Update(target);
+        var user = target.GetUserEntryOrNew(DbContext);
         if (user.IsNew) {
             await RespondAsync($":x: {FormatName(target, false)} does not have a birthday set.")
                 .ConfigureAwait(false);
             return;
         }
 
-        string newzone;
+        DateTimeZone newzone;
         try {
             newzone = ParseTimeZone(zone);
         } catch (FormatException e) {
@@ -58,18 +60,19 @@ public class BirthdayOverrideModule : BBModuleBase {
             return;
         }
         user.TimeZone = newzone;
-        await db.SaveChangesAsync();
+        await DbContext.SaveChangesAsync();
         await RespondAsync($":white_check_mark: {FormatName(target, false)}'s time zone has been set to " +
             $"**{newzone}**.").ConfigureAwait(false);
     }
 
     [SlashCommand("remove-birthday", "Remove a user's birthday information on their behalf.")]
     public async Task OvRemove([Summary(description: HelpOptOvTarget)] SocketGuildUser target) {
-        using var db = new BotDatabaseContext();
-        var user = target.GetUserEntryOrNew(db);
-        if (!user.IsNew) {
-            db.UserEntries.Remove(user);
-            await db.SaveChangesAsync();
+        Cache.Update(target);
+
+        var query = await DbContext.UserEntries
+            .Where(e => e.GuildId == Context.Guild.Id && e.UserId == target.Id)
+            .ExecuteDeleteAsync();
+        if (query != 0) {
             await RespondAsync($":white_check_mark: {FormatName(target, false)}'s birthday in this server has been removed.")
                 .ConfigureAwait(false);
         } else {

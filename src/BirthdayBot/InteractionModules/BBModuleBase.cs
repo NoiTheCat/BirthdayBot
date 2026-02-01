@@ -1,9 +1,9 @@
-using System.Collections.ObjectModel;
 using System.Text.RegularExpressions;
 using BirthdayBot.Data;
 using Discord;
 using Discord.Interactions;
 using Discord.WebSocket;
+using Microsoft.EntityFrameworkCore;
 using NodaTime;
 using NoiPublicBot;
 using NoiPublicBot.Cache;
@@ -17,16 +17,6 @@ public class BBModuleBase : InteractionModuleBase<SocketInteractionContext> {
     protected const string HelpOptDate = "A date, including the month and day. For example, \"15 January\".";
     protected const string HelpOptZone = "A 'tzdata'-compliant time zone name. See help for more details.";
 
-    private static readonly ReadOnlyDictionary<string, string> _tzNameMap;
-
-    protected static IReadOnlyDictionary<string, string> TzNameMap { get; }
-
-    static BBModuleBase() {
-        var dict = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var name in DateTimeZoneProviders.Tzdb.Ids) dict.Add(name, name);
-        TzNameMap = new ReadOnlyDictionary<string, string>(dict);
-    }
-
     // Injected by DI:
     public ShardInstance Shard { get; set; } = null!;
     public BotDatabaseContext DbContext { get; set; } = null!;
@@ -34,39 +24,23 @@ public class BBModuleBase : InteractionModuleBase<SocketInteractionContext> {
 
     // Opportunistically caches user data coming in via interactions.
     public override Task BeforeExecuteAsync(ICommandInfo command) {
-        if (Context.User is IGuildUser incoming)
-            Cache.Update(UserInfo.CreateFrom(incoming));
+        if (Context.User is IGuildUser incoming) Cache.Update(incoming);
         return base.BeforeExecuteAsync(command);
     }
 
     /// <summary>
-    /// Checks given time zone input. Returns a valid string for use with NodaTime,
-    /// throwing a FormatException if the input is not recognized.
+    /// Checks given time zone input, throwing a FormatException if the input is not recognized as one.
     /// </summary>
-    protected static string ParseTimeZone(string tzinput) {
-        if (!TzNameMap.TryGetValue(tzinput, out var tz))
-            throw new FormatException(":x: Unknown time zone name.\n" +
-                "To find your time zone, please refer to: https://zones.arilyn.cc/");
-        return tz!;
-    }
+    protected static DateTimeZone ParseTimeZone(string tzinput) {
+        var tzdb = DateTimeZoneProviders.Tzdb;
+        var result = tzdb.GetZoneOrNull(tzinput);
+        if (result != null) return result;
 
-    /// <summary>
-    /// An alternative to <see cref="SocketGuild.HasAllMembers"/> to be called by command handlers needing a full member cache.
-    /// Creates a download request if necessary.
-    /// </summary>
-    /// <returns>
-    /// True if the member cache is already filled, false otherwise.
-    /// </returns>
-    /// <remarks>
-    /// Any updates to the member cache aren't accessible until the event handler finishes execution, meaning proactive downloading
-    /// is necessary, and is handled by <seealso cref="BackgroundServices.AutoUserDownload"/>. In situations where
-    /// this approach fails, this is to be called, and the user must be asked to attempt the command again if this returns false.
-    /// </remarks>
-    protected static async Task<bool> HasMemberCacheAsync(SocketGuild guild) {
-        if (Common.HasMostMembersDownloaded(guild)) return true;
-        // Event handling thread hangs if awaited normally or used with Task.Run
-        await Task.Factory.StartNew(guild.DownloadUsersAsync).ConfigureAwait(false);
-        return false;
+        var search = tzdb.Ids.FirstOrDefault(t => string.Equals(t, tzinput, StringComparison.OrdinalIgnoreCase));
+        if (search != null) return tzdb.GetZoneOrNull(search)!;
+
+        throw new FormatException(":x: Unknown time zone name.\n" +
+                "To find your time zone, please refer to: https://zones.arilyn.cc/");
     }
 
     #region Date parsing
@@ -81,11 +55,11 @@ public class BBModuleBase : InteractionModuleBase<SocketInteractionContext> {
     /// <summary>
     /// Parses a date input.
     /// </summary>
-    /// <returns>Tuple: month, day</returns>
     /// <exception cref="FormatException">
     /// Thrown for any parsing issue. Reason is expected to be sent to Discord as-is.
     /// </exception>
-    protected static (int, int) ParseDate(string dateInput) {
+    // TODO replace with native date input?
+    protected static DateOnly ParseDate(string dateInput) {
         var m = DateParser1().Match(dateInput);
         if (!m.Success) {
             // Flip the fields around, try again
@@ -102,12 +76,14 @@ public class BBModuleBase : InteractionModuleBase<SocketInteractionContext> {
         }
         monthVal = m.Groups["month"].Value;
 
-        int dayUpper; // upper day of month check
-        (month, dayUpper) = GetMonth(monthVal);
+        // TODO look into framework's localization stuff, may be able to convert better
+        month = GetMonth(monthVal);
 
-        if (day == 0 || day > dayUpper) throw new FormatException(":x: The date you specified is not a valid calendar date.");
-
-        return (month, day);
+        try {
+            return new(2000, month, day);
+        } catch (ArgumentOutOfRangeException) {
+            throw new FormatException(":x: The date you specified is not a valid calendar date.");
+        }
     }
 
     /// <summary>
@@ -118,20 +94,20 @@ public class BBModuleBase : InteractionModuleBase<SocketInteractionContext> {
     /// <exception cref="FormatException">
     /// Thrown on error. Send out to Discord as-is.
     /// </exception>
-    private static (int, int) GetMonth(string input) {
+    private static int GetMonth(string input) {
         return input.ToLower() switch {
-            "jan" or "january" => (1, 31),
-            "feb" or "february" => (2, 29),
-            "mar" or "march" => (3, 31),
-            "apr" or "april" => (4, 30),
-            "may" => (5, 31),
-            "jun" or "june" => (6, 30),
-            "jul" or "july" => (7, 31),
-            "aug" or "august" => (8, 31),
-            "sep" or "september" => (9, 30),
-            "oct" or "october" => (10, 31),
-            "nov" or "november" => (11, 30),
-            "dec" or "december" => (12, 31),
+            "jan" or "january" => 1,
+            "feb" or "february" => 2,
+            "mar" or "march" => 3,
+            "apr" or "april" => 4,
+            "may" => 5,
+            "jun" or "june" => 6,
+            "jul" or "july" => 7,
+            "aug" or "august" => 8,
+            "sep" or "september" => 9,
+            "oct" or "october" => 10,
+            "nov" or "november" => 11,
+            "dec" or "december" => 12,
             _ => throw new FormatException($":x: Can't determine month name `{input}`. Check your spelling and try again."),
         };
     }
@@ -139,7 +115,7 @@ public class BBModuleBase : InteractionModuleBase<SocketInteractionContext> {
     /// <summary>
     /// Returns a string representing a birthday in a consistent format.
     /// </summary>
-    protected static string FormatDate(int month, int day) => $"{day:00}-{Common.MonthNames[month]}";
+    protected static string FormatDate(DateOnly date) => $"{date.Day:00}-{Common.MonthNames[date.Month]}";
     #endregion
 
     #region Listing helper methods
@@ -147,59 +123,39 @@ public class BBModuleBase : InteractionModuleBase<SocketInteractionContext> {
     /// Fetches all guild birthdays and places them into an easily usable structure.
     /// Users currently not in the guild are not included in the result.
     /// </summary>
-    protected static List<ListItem> GetSortedUserList(SocketGuild guild) {
-        using var db = new BotDatabaseContext();
-        var query = from row in db.UserEntries
+    protected List<ListItem> GetSortedUserList(SocketGuild guild) {
+        var query = from row in DbContext.UserEntries.AsNoTracking()
                     where row.GuildId == guild.Id
-                    orderby row.BirthMonth, row.BirthDay
+                    orderby row.BirthDate ascending
                     select new {
                         row.UserId,
-                        Month = row.BirthMonth,
-                        Day = row.BirthDay,
+                        Date = row.BirthDate,
                         Zone = row.TimeZone
                     };
 
         var result = new List<ListItem>();
+        var users = Cache.GetGuildCopy(guild.Id);
+        if (users is null) return result;
         foreach (var row in query) {
-            var guildUser = guild.GetUser(row.UserId);
-            if (guildUser == null) continue; // Skip user not in guild
+            if (!users.TryGetValue(guild.Id, out var cval)) continue; // Skip user not in guild
 
             result.Add(new ListItem() {
-                BirthMonth = row.Month,
-                BirthDay = row.Day,
-                DateIndex = DateIndex(row.Month, row.Day),
-                UserId = guildUser.Id,
-                DisplayName = Common.FormatName(guildUser, false),
-                TimeZone = row.Zone
+                DateIndex = row.Date.DayOfYear,
+                BirthDate = row.Date,
+                UserId = row.UserId,
+                DisplayName = cval.FormatName(),
+                TimeZone = row.Zone.Id
             });
         }
         return result;
     }
 
-    protected static int DateIndex(int month, int day) {
-        var dateindex = 0;
-        // Add month offsets
-        if (month > 1) dateindex += 31; // Offset January
-        if (month > 2) dateindex += 29; // Offset February (incl. leap day)
-        if (month > 3) dateindex += 31; // etc
-        if (month > 4) dateindex += 30;
-        if (month > 5) dateindex += 31;
-        if (month > 6) dateindex += 30;
-        if (month > 7) dateindex += 31;
-        if (month > 8) dateindex += 31;
-        if (month > 9) dateindex += 30;
-        if (month > 10) dateindex += 31;
-        if (month > 11) dateindex += 30;
-        dateindex += day;
-        return dateindex;
-    }
-
-    protected struct ListItem {
+    protected record ListItem {
+        [Obsolete("check if still necessary")]
         public int DateIndex;
-        public int BirthMonth;
-        public int BirthDay;
+        public DateOnly BirthDate;
         public ulong UserId;
-        public string DisplayName;
+        public required string DisplayName;
         public string? TimeZone;
     }
     #endregion
