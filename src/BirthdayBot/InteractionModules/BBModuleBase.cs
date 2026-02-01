@@ -121,9 +121,9 @@ public class BBModuleBase : InteractionModuleBase<SocketInteractionContext> {
     #region Listing helper methods
     /// <summary>
     /// Fetches all guild birthdays and places them into an easily usable structure.
-    /// Users currently not in the guild are not included in the result.
+    /// Users currently not in the cache are excluded from the result.
     /// </summary>
-    protected List<ListItem> GetSortedUserList(SocketGuild guild) {
+    protected List<(int dateIndex, ListItem user)> GetSortedUserList(SocketGuild guild) {
         var query = from row in DbContext.UserEntries.AsNoTracking()
                     where row.GuildId == guild.Id
                     orderby row.BirthDate ascending
@@ -133,26 +133,23 @@ public class BBModuleBase : InteractionModuleBase<SocketInteractionContext> {
                         Zone = row.TimeZone
                     };
 
-        var result = new List<ListItem>();
+        var result = new List<(int dateIndex, ListItem user)>();
         var users = Cache.GetGuildCopy(guild.Id);
-        if (users is null) return result;
+        if (users is null) return [];
         foreach (var row in query) {
-            if (!users.TryGetValue(guild.Id, out var cval)) continue; // Skip user not in guild
+            if (!users.TryGetValue(guild.Id, out var cval)) continue; // Skip user not cached
 
-            result.Add(new ListItem() {
-                DateIndex = row.Date.DayOfYear,
+            result.Add((row.Date.DayOfYear, new ListItem() {
                 BirthDate = row.Date,
                 UserId = row.UserId,
                 DisplayName = cval.FormatName(),
                 TimeZone = row.Zone.Id
-            });
+            }));
         }
         return result;
     }
 
     protected record ListItem {
-        [Obsolete("check if still necessary")]
-        public int DateIndex;
         public DateOnly BirthDate;
         public ulong UserId;
         public required string DisplayName;

@@ -1,14 +1,15 @@
-﻿using BirthdayBot.Data;
+﻿using System.Text;
+using BirthdayBot.Data;
 using Discord;
 using Discord.Interactions;
 using Discord.WebSocket;
-using System.Text;
+using Microsoft.EntityFrameworkCore;
+using NodaTime;
 
 namespace BirthdayBot.InteractionModules;
 
 [Group("birthday", HelpCmdBirthday)]
 [CommandContextType(InteractionContextType.Guild)]
-#error needs review
 public class BirthdayModule : BBModuleBase {
     public const string HelpCmdBirthday = "Commands relating to birthdays.";
     public const string HelpCmdSetDate = "Sets or updates your birthday.";
@@ -23,16 +24,16 @@ public class BirthdayModule : BBModuleBase {
         public async Task CmdSetBday([Summary(description: HelpOptDate)] string date,
                                      [Summary(description: HelpOptZone), Autocomplete<TzAutocompleteHandler>] string? zone = null) {
             // IMPORTANT: If editing here, reflect changes as needed in BirthdayOverrideModule.
-            int inmonth, inday;
+            DateOnly indate;
             try {
-                (inmonth, inday) = ParseDate(date);
+                indate = ParseDate(date);
             } catch (FormatException e) {
                 // Our parse method's FormatException has its message to send out to Discord.
                 await RespondAsync(e.Message, ephemeral: true).ConfigureAwait(false);
                 return;
             }
 
-            string? inzone = null;
+            DateTimeZone? inzone = null;
             if (zone != null) {
                 try {
                     inzone = ParseTimeZone(zone);
@@ -42,35 +43,31 @@ public class BirthdayModule : BBModuleBase {
                 }
             }
 
-            using var db = new BotDatabaseContext();
-            var guild = ((SocketTextChannel)Context.Channel).Guild.GetConfigOrNew(db);
-            if (guild.IsNew) db.GuildConfigurations.Add(guild); // Satisfy foreign key constraint
-            var user = ((SocketGuildUser)Context.User).GetUserEntryOrNew(db);
-            if (user.IsNew) db.UserEntries.Add(user);
-            user.BirthMonth = inmonth;
-            user.BirthDay = inday;
+            var guild = ((SocketTextChannel)Context.Channel).Guild.GetConfigOrNew(DbContext);
+            if (guild.IsNew) DbContext.GuildConfigurations.Add(guild); // Satisfy foreign key constraint
+            var user = ((SocketGuildUser)Context.User).GetUserEntryOrNew(DbContext);
+            if (user.IsNew) DbContext.UserEntries.Add(user);
+            user.BirthDate = indate;
             user.TimeZone = inzone ?? user.TimeZone;
-            await db.SaveChangesAsync();
+            await DbContext.SaveChangesAsync();
 
-            var response = $":white_check_mark: Your birthday has been set to **{FormatDate(inmonth, inday)}**";
+            var response = $":white_check_mark: Your birthday has been set to **{FormatDate(indate)}**";
             if (inzone != null) response += $" at time zone **{inzone}**";
             response += ".";
             if (user.TimeZone == null)
-                response += "\n(Tip: The `/birthday set timezone` command ensures your birthday is recognized just in time!)";
+                response += "\n-# Tip: The `/birthday set timezone` command ensures your birthday is recognized just in time!";
             await RespondAsync(response).ConfigureAwait(false);
         }
 
         [SlashCommand("timezone", HelpCmdSetZone)]
         public async Task CmdSetZone([Summary(description: HelpOptZone), Autocomplete<TzAutocompleteHandler>] string zone) {
-            using var db = new BotDatabaseContext();
-
-            var user = ((SocketGuildUser)Context.User).GetUserEntryOrNew(db);
+            var user = ((SocketGuildUser)Context.User).GetUserEntryOrNew(DbContext);
             if (user.IsNew) {
                 await RespondAsync(":x: You do not have a birthday set.", ephemeral: true).ConfigureAwait(false);
                 return;
             }
 
-            string newzone;
+            DateTimeZone newzone;
             try {
                 newzone = ParseTimeZone(zone);
             } catch (FormatException e) {
@@ -78,18 +75,17 @@ public class BirthdayModule : BBModuleBase {
                 return;
             }
             user.TimeZone = newzone;
-            await db.SaveChangesAsync();
+            await DbContext.SaveChangesAsync();
             await RespondAsync($":white_check_mark: Your time zone has been set to **{newzone}**.").ConfigureAwait(false);
         }
     }
 
     [SlashCommand("remove", HelpCmdRemove)]
     public async Task CmdRemove() {
-        using var db = new BotDatabaseContext();
-        var user = ((SocketGuildUser)Context.User).GetUserEntryOrNew(db);
-        if (!user.IsNew) {
-            db.UserEntries.Remove(user);
-            await db.SaveChangesAsync();
+        var query = await DbContext.UserEntries
+            .Where(e => e.GuildId == Context.Guild.Id && e.UserId == Context.User.Id)
+            .ExecuteDeleteAsync();
+        if (query != 0) {
             await RespondAsync(":white_check_mark: Your birthday in this server has been removed.");
         } else {
             await RespondAsync(":white_check_mark: Your birthday is not registered.")
@@ -99,12 +95,12 @@ public class BirthdayModule : BBModuleBase {
 
     [SlashCommand("get", "Gets a user's birthday.")]
     public async Task CmdGetBday([Summary(description: "Optional: The user's birthday to look up.")] SocketGuildUser? user = null) {
-        using var db = new BotDatabaseContext();
+        Cache.Update(user);
 
         var isSelf = user is null;
         if (isSelf) user = (SocketGuildUser)Context.User;
 
-        var targetdata = user!.GetUserEntryOrNew(db);
+        var targetdata = user!.GetUserEntryOrNew(DbContext);
 
         if (targetdata.IsNew) {
             if (isSelf) await RespondAsync(":x: You do not have your birthday registered.", ephemeral: true).ConfigureAwait(false);
@@ -112,7 +108,7 @@ public class BirthdayModule : BBModuleBase {
             return;
         }
 
-        await RespondAsync($"{Common.FormatName(user!, false)}: `{FormatDate(targetdata.BirthMonth, targetdata.BirthDay)}`" +
+        await RespondAsync($"{Common.FormatName(user!, false)}: `{FormatDate(targetdata.BirthDate)}`" +
             (targetdata.TimeZone == null ? "" : $" - {targetdata.TimeZone}")).ConfigureAwait(false);
     }
 
@@ -121,26 +117,34 @@ public class BirthdayModule : BBModuleBase {
     // TODO stop being lazy
     [SlashCommand("show-nearest", HelpCmdNearest)]
     public async Task CmdShowNearest() {
-        if (!await HasMemberCacheAsync(Context.Guild).ConfigureAwait(false)) {
-            await RespondAsync(MemberCacheEmptyError, ephemeral: true).ConfigureAwait(false);
-            return;
+        var deferred = false;
+        // casting a wide net here...
+        var refresh = Cache.RequestGuildRefreshAsync(DbContext, Context.Guild.Id, Cache.FilterMissingWithinDays(15));
+        if (!refresh.IsCompleted) {
+            // This may take a while
+            deferred = true;
+            await DeferAsync().ConfigureAwait(false);
+            await refresh.ConfigureAwait(false);
         }
 
-        var now = DateTimeOffset.UtcNow;
-        var search = DateIndex(now.Month, now.Day) - 8; // begin search 8 days prior to current date UTC
+        var servertz = DbContext.GuildConfigurations.Where(c => c.GuildId == Context.Guild.Id).SingleOrDefault()?.GuildTimeZone;
+        servertz ??= DateTimeZone.Utc;
+        var today = SystemClock.Instance.GetCurrentInstant().InZone(servertz).LocalDateTime.Date;
+        var search = new DateOnly(2000, today.Month, today.Year).AddDays(-8).DayOfYear; // begin search 8 days prior to current date UTC
         if (search <= 0) search = 366 - Math.Abs(search);
 
         var query = GetSortedUserList(Context.Guild);
 
         // TODO pagination instead of this workaround
-        var hasOutputOneLine = false;
-        // First output is shown as an interaction response, followed then as regular channel messages
-        async Task doOutput(string msg) {
-            if (!hasOutputOneLine) {
-                await RespondAsync(msg).ConfigureAwait(false);
-                hasOutputOneLine = true;
+        var useFollowup = false;
+        // First output is shown as an interaction response, followed then as followup messages
+        Task OutputAsync(string msg) {
+            if (!useFollowup) {
+                useFollowup = true;
+                if (deferred) return ModifyOriginalResponseAsync(response => response.Content = msg);
+                else return RespondAsync(msg);
             } else {
-                await ReplyAsync(msg).ConfigureAwait(false);
+                return FollowupAsync(msg);
             }
         }
 
@@ -148,9 +152,10 @@ public class BirthdayModule : BBModuleBase {
         var resultCount = 0;
         output.AppendLine("Recent and upcoming birthdays:");
         for (var count = 0; count <= 21; count++) { // cover 21 days total (7 prior, current day, 14 upcoming)
+            // oh I guess we sort as we go. what was I thinking?
             var results = from item in query
-                          where item.DateIndex == search
-                          select item;
+                          where item.dateIndex == search
+                          select item.user;
 
             // push up search by 1 now, in case we back out early
             search += 1;
@@ -168,14 +173,14 @@ public class BirthdayModule : BBModuleBase {
 
             var first = true;
             output.AppendLine();
-            output.Append($"● `{Common.MonthNames[results.First().BirthMonth]}-{results.First().BirthDay:00}`: ");
+            output.Append($"● `{FormatDate(results.First().BirthDate)}`: ");
             foreach (var item in names) {
                 // If the output is starting to fill up, send out this message and prepare a new one.
                 if (output.Length > 800) {
-                    await doOutput(output.ToString()).ConfigureAwait(false);
+                    await OutputAsync(output.ToString()).ConfigureAwait(false);
                     output.Clear();
                     first = true;
-                    output.Append($"● `{Common.MonthNames[results.First().BirthMonth]}-{results.First().BirthDay:00}`: ");
+                    output.Append($"● `{FormatDate(results.First().BirthDate)}`: ");
                 }
 
                 if (first) first = false;
@@ -189,6 +194,6 @@ public class BirthdayModule : BBModuleBase {
                 "There are no recent or upcoming birthdays (within the last 7 days and/or next 14 days).")
                 .ConfigureAwait(false);
         else
-            await doOutput(output.ToString()).ConfigureAwait(false);
+            await OutputAsync(output.ToString()).ConfigureAwait(false);
     }
 }
