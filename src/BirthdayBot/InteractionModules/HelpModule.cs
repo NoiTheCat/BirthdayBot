@@ -1,10 +1,10 @@
 ﻿using Discord;
 using Discord.Interactions;
+using NoiPublicBot;
 
 namespace BirthdayBot.InteractionModules;
 
 [CommandContextType(InteractionContextType.Guild, InteractionContextType.BotDm)]
-#error needs review
 public class HelpModule : BBModuleBase {
     private const string TopMessage =
         "Thank you for using Birthday Bot!\n" +
@@ -40,7 +40,7 @@ public class HelpModule : BBModuleBase {
 #endif
         var result = new EmbedBuilder()
             .WithAuthor("Help & About")
-            .WithFooter($"Birthday Bot {ver} - Shard {Shard.ShardId:00} up {Program.BotUptime}",
+            .WithFooter($"Birthday Bot {ver} - Shard {Shard.ShardId:00} up {Instance.BotUptime}",
                 Context.Client.CurrentUser.GetAvatarUrl())
             .WithDescription(TopMessage)
             .AddField("Commands", RegularCommandsField)

@@ -2,6 +2,8 @@
 using BirthdayBot.Data;
 using Discord;
 using Discord.Interactions;
+using Discord.WebSocket;
+using NodaTime;
 using System.Text;
 
 namespace BirthdayBot.InteractionModules;
@@ -9,7 +11,6 @@ namespace BirthdayBot.InteractionModules;
 [Group("config", HelpCmdConfig)]
 [DefaultMemberPermissions(GuildPermission.ManageGuild)]
 [CommandContextType(InteractionContextType.Guild)]
-#error needs review
 public class ConfigModule : BBModuleBase {
     public const string HelpCmdConfig = "Configure basic settings for the bot.";
     public const string HelpCmdAnnounce = "Settings regarding birthday announcements.";
@@ -62,15 +63,14 @@ public class ConfigModule : BBModuleBase {
 
         [SlashCommand("set-channel", HelpSubCmdChannel + HelpPofxBlankUnset)]
         public async Task CmdSetChannel([Summary(description: HelpOptChannel)] SocketTextChannel? channel = null) {
-            await DoDatabaseUpdate(Context, s => s.AnnouncementChannel = channel?.Id);
+            await DoDatabaseUpdate(Context, DbContext, s => s.AnnouncementChannel = channel?.Id);
             await RespondAsync(":white_check_mark: The announcement channel has been " +
             (channel == null ? "unset." : $"set to **{channel.Name}**."));
         }
 
         [SlashCommand("set-message", HelpSubCmdMessage)]
         public async Task CmdSetMessage() {
-            using var db = new BotDatabaseContext();
-            var settings = Context.Guild.GetConfigOrNew(db);
+            var settings = Context.Guild.GetConfigOrNew(DbContext);
 
             var txtSingle = new TextInputBuilder() {
                 Label = "Single - Message for one birthday",
@@ -78,7 +78,7 @@ public class ConfigModule : BBModuleBase {
                 Style = TextInputStyle.Paragraph,
                 MaxLength = 1500,
                 Required = false,
-                Placeholder = BackgroundServices.BirthdayUpdater.DefaultAnnounce,
+                Placeholder = BirthdayUpdater.DefaultAnnounce,
                 Value = settings.AnnounceMessage ?? ""
             };
             var txtMulti = new TextInputBuilder() {
@@ -87,7 +87,7 @@ public class ConfigModule : BBModuleBase {
                 Style = TextInputStyle.Paragraph,
                 MaxLength = 1500,
                 Required = false,
-                Placeholder = BackgroundServices.BirthdayUpdater.DefaultAnnouncePl,
+                Placeholder = BirthdayUpdater.DefaultAnnouncePl,
                 Value = settings.AnnounceMessagePl ?? ""
             };
 
@@ -101,25 +101,24 @@ public class ConfigModule : BBModuleBase {
             await RespondWithModalAsync(form).ConfigureAwait(false);
         }
 
-        internal static async Task CmdSetMessageResponse(SocketModal modal, SocketGuildChannel channel,
-                                                         Dictionary<string, SocketMessageComponentData> data) {
+        internal async Task CmdSetMessageResponse(SocketModal modal, SocketGuildChannel channel,
+                                                  Dictionary<string, SocketMessageComponentData> data) {
             var newSingle = data[ModalComCidSingle].Value;
             var newMulti = data[ModalComCidMulti].Value;
             if (string.IsNullOrWhiteSpace(newSingle)) newSingle = null;
             if (string.IsNullOrWhiteSpace(newMulti)) newMulti = null;
 
-            using var db = new BotDatabaseContext();
-            var settings = channel.Guild.GetConfigOrNew(db);
-            if (settings.IsNew) db.GuildConfigurations.Add(settings);
+            var settings = channel.Guild.GetConfigOrNew(DbContext);
+            if (settings.IsNew) DbContext.GuildConfigurations.Add(settings);
             settings.AnnounceMessage = newSingle;
             settings.AnnounceMessagePl = newMulti;
-            await db.SaveChangesAsync();
+            await DbContext.SaveChangesAsync();
             await modal.RespondAsync(":white_check_mark: Announcement messages have been updated.");
         }
 
         [SlashCommand("set-ping", HelpSubCmdPing)]
         public async Task CmdSetPing([Summary(description: "Set True to ping users, False to display them normally.")] bool option) {
-            await DoDatabaseUpdate(Context, s => s.AnnouncePing = option);
+            await DoDatabaseUpdate(Context, DbContext, s => s.AnnouncePing = option);
             await RespondAsync($":white_check_mark: Announcement pings are now **{(option ? "on" : "off")}**.").ConfigureAwait(false);
         }
 
@@ -131,14 +130,11 @@ public class ConfigModule : BBModuleBase {
                                   [Summary(description: HelpOptTestPlaceholder)] SocketGuildUser? placeholder4 = null,
                                   [Summary(description: HelpOptTestPlaceholder)] SocketGuildUser? placeholder5 = null) {
             // Prepare config
-            GuildConfig? settings;
-            using (var db = new BotDatabaseContext()) {
-                settings = Context.Guild.GetConfigOrNew(db);
-                if (settings.IsNew || settings.AnnouncementChannel == null) {
-                    await RespondAsync(":x: Unable to send a birthday message. The announcement channel is not configured.")
-                        .ConfigureAwait(false);
-                    return;
-                }
+            var settings = Context.Guild.GetConfigOrNew(DbContext);
+            if (settings.IsNew || settings.AnnouncementChannel == null) {
+                await RespondAsync(":x: Unable to send a birthday message. The announcement channel is not configured.")
+                    .ConfigureAwait(false);
+                return;
             }
             // Check permissions
             var announcech = Context.Guild.GetTextChannel(settings.AnnouncementChannel.Value);
@@ -162,7 +158,7 @@ public class ConfigModule : BBModuleBase {
             await RespondAsync(":x: This role cannot be used for this setting.", ephemeral: true);
             return;
         }
-        await DoDatabaseUpdate(Context, s => s.BirthdayRole = role.Id);
+        await DoDatabaseUpdate(Context, DbContext, s => s.BirthdayRole = role.Id);
         await RespondAsync($":white_check_mark: The birthday role has been set to **{role.Name}**.").ConfigureAwait(false);
     }
 
@@ -172,15 +168,14 @@ public class ConfigModule : BBModuleBase {
             => $"{label}: {(test() ? ":white_check_mark: Yes" : ":x: No")}";
 
         var guild = Context.Guild;
-        using var db = new BotDatabaseContext();
-        var guildconf = guild.GetConfigOrNew(db);
-        if (!guildconf.IsNew) await db.Entry(guildconf).Collection(t => t.UserEntries).LoadAsync();
+        var guildconf = guild.GetConfigOrNew(DbContext);
+        if (!guildconf.IsNew) await DbContext.Entry(guildconf).Collection(t => t.UserEntries).LoadAsync();
 
         var result = new StringBuilder();
 
         result.AppendLine($"Server ID: `{guild.Id}` | Bot shard ID: `{Shard.ShardId:00}`");
         result.AppendLine($"Number of registered birthdays: `{guildconf.UserEntries?.Count ?? 0}`");
-        result.AppendLine($"Server time zone: `{guildconf.GuildTimeZone ?? "Not set - using UTC"}`");
+        result.AppendLine($"Server time zone: `{guildconf.GuildTimeZone?.Id ?? "Not set - using UTC"}`");
         result.AppendLine();
 
         var hasMembers = Common.HasMostMembersDownloaded(guild);
@@ -190,7 +185,7 @@ public class ConfigModule : BBModuleBase {
         result.Append(DoTestFor("Birthday processing", delegate {
             if (!hasMembers) return false;
             if (guildconf.IsNew) return false;
-            bdayCount = BackgroundServices.BirthdayUpdater
+            bdayCount = BirthdayUpdater
                 .GetGuildCurrentBirthdays(guildconf.UserEntries!, guildconf.GuildTimeZone).Count;
             return true;
         }));
@@ -235,10 +230,10 @@ public class ConfigModule : BBModuleBase {
         const string Response = ":white_check_mark: The server's time zone has been ";
 
         if (zone == null) {
-            await DoDatabaseUpdate(Context, s => s.GuildTimeZone = null);
+            await DoDatabaseUpdate(Context, DbContext, s => s.GuildTimeZone = null);
             await RespondAsync(Response + "unset.").ConfigureAwait(false);
         } else {
-            string parsedZone;
+            DateTimeZone? parsedZone;
             try {
                 parsedZone = ParseTimeZone(zone);
             } catch (FormatException e) {
@@ -246,7 +241,7 @@ public class ConfigModule : BBModuleBase {
                 return;
             }
 
-            await DoDatabaseUpdate(Context, s => s.GuildTimeZone = parsedZone);
+            await DoDatabaseUpdate(Context, DbContext, s => s.GuildTimeZone = parsedZone);
             await RespondAsync(Response + $"set to **{parsedZone}**.").ConfigureAwait(false);
         }
     }
@@ -255,13 +250,11 @@ public class ConfigModule : BBModuleBase {
     /// Helper method for updating arbitrary <see cref="GuildConfig"/> values without all the boilerplate.
     /// </summary>
     /// <param name="valueUpdater">A delegate which modifies <see cref="GuildConfig"/> properties as needed.</param>
-    private static async Task DoDatabaseUpdate(SocketInteractionContext context, Action<GuildConfig> valueUpdater) {
-        using var db = new BotDatabaseContext();
-        var settings = context.Guild.GetConfigOrNew(db);
+    private static async Task DoDatabaseUpdate(SocketInteractionContext icx, BotDatabaseContext dcx, Action<GuildConfig> valueUpdater) {
+        var settings = icx.Guild.GetConfigOrNew(dcx);
+        if (settings.IsNew) dcx.GuildConfigurations.Add(settings);
 
         valueUpdater(settings);
-
-        if (settings.IsNew) db.GuildConfigurations.Add(settings);
-        await db.SaveChangesAsync();
+        await dcx.SaveChangesAsync();
     }
 }

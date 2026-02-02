@@ -1,5 +1,6 @@
 ﻿using BirthdayBot.Data;
 using Discord;
+using Discord.WebSocket;
 using NodaTime;
 using System.Text;
 
@@ -82,19 +83,19 @@ class BirthdayUpdater(ShardInstance instance) : BackgroundService(instance) {
     /// Gets all known users from the given guild and returns a list including only those who are
     /// currently experiencing a birthday in the respective time zone.
     /// </summary>
-    public static HashSet<ulong> GetGuildCurrentBirthdays(IEnumerable<UserEntry> guildUsers, string? serverDefaultTzId) {
+    public static HashSet<ulong> GetGuildCurrentBirthdays(IEnumerable<UserEntry> guildUsers, DateTimeZone? serverDefaultTz) {
         var birthdayUsers = new HashSet<ulong>();
 
         foreach (var record in guildUsers) {
             // Determine final time zone to use for calculation
-            DateTimeZone tz = DateTimeZoneProviders.Tzdb
-                .GetZoneOrNull(record.TimeZone ?? serverDefaultTzId ?? "UTC")!;
+            DateTimeZone tz = record.TimeZone ?? serverDefaultTz ?? DateTimeZone.Utc;
 
-            var checkNow = SystemClock.Instance.GetCurrentInstant().InZone(tz);
+            var checkNow = SystemClock.Instance.GetCurrentInstant().InZone(tz).Date;
+            var checkdate = new DateOnly(2000, checkNow.Month, checkNow.Day);
             // Special case: If user's birthday is 29-Feb and it's currently not a leap year, check against 1-Mar
-            if (!DateTime.IsLeapYear(checkNow.Year) && record.BirthMonth == 2 && record.BirthDay == 29) {
+            if (!DateTime.IsLeapYear(checkNow.Year) && record.BirthDate == new DateOnly(2000, 2, 29)) {
                 if (checkNow.Month == 3 && checkNow.Day == 1) birthdayUsers.Add(record.UserId);
-            } else if (record.BirthMonth == checkNow.Month && record.BirthDay == checkNow.Day) {
+            } else if (record.BirthDate == checkdate) {
                 birthdayUsers.Add(record.UserId);
             }
         }

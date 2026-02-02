@@ -1,10 +1,10 @@
 using Discord;
 using Discord.Interactions;
+using Discord.WebSocket;
 using System.Text;
 
 namespace BirthdayBot.InteractionModules;
 
-#error needs review
 public class ExportModule : BBModuleBase {
     public const string HelpCmdExport = "Generates a text file with all known and available birthdays.";
 

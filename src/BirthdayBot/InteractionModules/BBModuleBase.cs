@@ -6,7 +6,6 @@ using Discord.WebSocket;
 using Microsoft.EntityFrameworkCore;
 using NodaTime;
 using NoiPublicBot;
-using NoiPublicBot.Cache;
 
 namespace BirthdayBot.InteractionModules;
 
