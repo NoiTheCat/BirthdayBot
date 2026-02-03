@@ -20,7 +20,7 @@ public class LocalCache(ShardInstance shard) : NoiPublicBot.Cache.UserCache<BotD
     }
 
     /// <summary>
-    /// Gets a filter that returns a list of missing users, taking into account all users registered with the bot.
+    /// Provides a filter that returns a list of missing users, taking into account all users registered with the bot.
     /// Great for full listings, data exports, database row expiration checks, and so on. Use sparingly.
     /// </summary>
     internal CacheMissingUsersFilter FilterGetAllMissing()
@@ -34,7 +34,7 @@ public class LocalCache(ShardInstance shard) : NoiPublicBot.Cache.UserCache<BotD
     };
 
     /// <summary>
-    /// Gets a filter that returns a list of missing users with birthdays within <paramref name="days"/> days of the current date.
+    /// Provides a filter that returns a list of missing users with birthdays within <paramref name="days"/> days of the current date.
     /// </summary>
     internal CacheMissingUsersFilter FilterMissingWithinDays(int days)
         => (context, guildId) => {

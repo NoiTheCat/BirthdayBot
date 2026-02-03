@@ -1,6 +1,7 @@
 using Discord;
 using Discord.Interactions;
 using Discord.WebSocket;
+using NoiPublicBot;
 using System.Text;
 
 namespace BirthdayBot.InteractionModules;
@@ -12,12 +13,15 @@ public class ExportModule : BBModuleBase {
     [DefaultMemberPermissions(GuildPermission.ManageGuild)]
     [CommandContextType(InteractionContextType.Guild)]
     public async Task CmdExport([Summary(description: "Specify whether to export the list in CSV format.")] bool asCsv = false) {
-        if (!await HasMemberCacheAsync(Context.Guild)) {
-            await RespondAsync(MemberCacheEmptyError, ephemeral: true);
-            return;
+        var deferred = false;
+        var refresh = Cache.RequestGuildRefreshAsync(DbContext, Context.Guild.Id, Cache.FilterGetAllMissing());
+        if (!refresh.IsCompleted) {
+            deferred = true;
+            await RespondAsync(Constants.LoadingEmote + " Preparing data for export...").ConfigureAwait(false);
+            await refresh.ConfigureAwait(false);
         }
 
-        var bdlist = GetSortedUserList(Context.Guild);
+        var bdlist = GetSortedUserList(Context.Guild.Id).Select(s => s.user);
 
         var filename = "birthdaybot-" + Context.Guild.Id;
         Stream fileoutput;
@@ -26,9 +30,15 @@ public class ExportModule : BBModuleBase {
             filename += ".csv";
         } else {
             fileoutput = ListExportNormal(Context.Guild, bdlist);
-            filename += ".txt.";
+            filename += ".txt";
         }
-        await RespondWithFileAsync(fileoutput, filename, text: $"Exported {bdlist.Count} birthdays to file.");
+        var outtext = $"Exported {bdlist.Count()} birthdays to file.";
+        if (!deferred) {
+            await RespondWithFileAsync(fileoutput, filename, text: outtext).ConfigureAwait(false);
+        } else {
+            await FollowupWithFileAsync(fileoutput, filename, text: outtext).ConfigureAwait(false);
+            await DeleteOriginalResponseAsync().ConfigureAwait(false);
+        }
     }
 
     private static MemoryStream ListExportNormal(SocketGuild guild, IEnumerable<ListItem> list) {
@@ -41,7 +51,7 @@ public class ExportModule : BBModuleBase {
         foreach (var item in list) {
             var user = guild.GetUser(item.UserId);
             if (user == null) continue; // User disappeared in the instant between getting list and processing
-            writer.Write($"● {Common.MonthNames[item.BirthMonth]}-{item.BirthDay:00}: ");
+            writer.Write($"● {FormatDate(item.BirthDate)}: ");
             writer.Write(item.UserId);
             writer.Write(" " + user.Username);
             if (user.DiscriminatorValue != 0) writer.Write($"#{user.Discriminator}");
@@ -86,11 +96,11 @@ public class ExportModule : BBModuleBase {
             writer.Write(',');
             if (user.Nickname != null) writer.Write(csvEscape(user.Nickname));
             writer.Write(',');
-            writer.Write($"{Common.MonthNames[item.BirthMonth]}-{item.BirthDay:00}");
+            writer.Write($"{FormatDate(item.BirthDate)}");
             writer.Write(',');
-            writer.Write(item.BirthMonth);
+            writer.Write(item.BirthDate.Month);
             writer.Write(',');
-            writer.Write(item.BirthDay);
+            writer.Write(item.BirthDate.Day);
             writer.Write(',');
             writer.Write(item.TimeZone);
             writer.Write("\r\n");

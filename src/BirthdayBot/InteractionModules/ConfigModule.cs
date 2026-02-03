@@ -101,18 +101,20 @@ public class ConfigModule : BBModuleBase {
             await RespondWithModalAsync(form).ConfigureAwait(false);
         }
 
-        internal async Task CmdSetMessageResponse(SocketModal modal, SocketGuildChannel channel,
+        // Must be static - responds to modal interaction
+        internal static async Task CmdSetMessageResponse(SocketModal modal, SocketGuildChannel channel,
                                                   Dictionary<string, SocketMessageComponentData> data) {
             var newSingle = data[ModalComCidSingle].Value;
             var newMulti = data[ModalComCidMulti].Value;
             if (string.IsNullOrWhiteSpace(newSingle)) newSingle = null;
             if (string.IsNullOrWhiteSpace(newMulti)) newMulti = null;
 
-            var settings = channel.Guild.GetConfigOrNew(DbContext);
-            if (settings.IsNew) DbContext.GuildConfigurations.Add(settings);
+            var db = BotDatabaseContext.New();
+            var settings = channel.Guild.GetConfigOrNew(db);
+            if (settings.IsNew) db.GuildConfigurations.Add(settings);
             settings.AnnounceMessage = newSingle;
             settings.AnnounceMessagePl = newMulti;
-            await DbContext.SaveChangesAsync();
+            await db.SaveChangesAsync();
             await modal.RespondAsync(":white_check_mark: Announcement messages have been updated.");
         }
 

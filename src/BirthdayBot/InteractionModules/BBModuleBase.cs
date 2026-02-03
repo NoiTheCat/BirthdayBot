@@ -2,7 +2,6 @@ using System.Text.RegularExpressions;
 using BirthdayBot.Data;
 using Discord;
 using Discord.Interactions;
-using Discord.WebSocket;
 using Microsoft.EntityFrameworkCore;
 using NodaTime;
 using NoiPublicBot;
@@ -122,9 +121,10 @@ public class BBModuleBase : InteractionModuleBase<SocketInteractionContext> {
     /// Fetches all guild birthdays and places them into an easily usable structure.
     /// Users currently not in the cache are excluded from the result.
     /// </summary>
-    protected List<(int dateIndex, ListItem user)> GetSortedUserList(SocketGuild guild) {
+    // TODO still needed?
+    protected List<(int dateIndex, ListItem user)> GetSortedUserList(ulong guildId) {
         var query = from row in DbContext.UserEntries.AsNoTracking()
-                    where row.GuildId == guild.Id
+                    where row.GuildId == guildId
                     orderby row.BirthDate ascending
                     select new {
                         row.UserId,
@@ -133,10 +133,10 @@ public class BBModuleBase : InteractionModuleBase<SocketInteractionContext> {
                     };
 
         var result = new List<(int dateIndex, ListItem user)>();
-        var users = Cache.GetGuildCopy(guild.Id);
+        var users = Cache.GetGuildCopy(guildId);
         if (users is null) return [];
         foreach (var row in query) {
-            if (!users.TryGetValue(guild.Id, out var cval)) continue; // Skip user not cached
+            if (!users.TryGetValue(guildId, out var cval)) continue; // Skip user not cached
 
             result.Add((row.Date.DayOfYear, new ListItem() {
                 BirthDate = row.Date,

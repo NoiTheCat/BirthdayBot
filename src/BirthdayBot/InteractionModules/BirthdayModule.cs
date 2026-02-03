@@ -5,6 +5,7 @@ using Discord.Interactions;
 using Discord.WebSocket;
 using Microsoft.EntityFrameworkCore;
 using NodaTime;
+using NoiPublicBot;
 
 namespace BirthdayBot.InteractionModules;
 
@@ -123,7 +124,7 @@ public class BirthdayModule : BBModuleBase {
         if (!refresh.IsCompleted) {
             // This may take a while
             deferred = true;
-            await DeferAsync().ConfigureAwait(false);
+            await RespondAsync(Constants.LoadingEmote + " Please wait a moment. Gathering data...").ConfigureAwait(false);
             await refresh.ConfigureAwait(false);
         }
 
@@ -133,7 +134,7 @@ public class BirthdayModule : BBModuleBase {
         var search = new DateOnly(2000, today.Month, today.Year).AddDays(-8).DayOfYear; // begin search 8 days prior to current date UTC
         if (search <= 0) search = 366 - Math.Abs(search);
 
-        var query = GetSortedUserList(Context.Guild);
+        var query = GetSortedUserList(Context.Guild.Id);
 
         // TODO pagination instead of this workaround
         var useFollowup = false;

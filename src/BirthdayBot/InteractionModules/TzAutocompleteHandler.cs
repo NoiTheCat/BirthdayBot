@@ -43,7 +43,7 @@ public class TzAutocompleteHandler : AutocompleteHandler {
 
         var tzPopCount = db.UserEntries.AsNoTracking()
             .GroupBy(u => u.TimeZone)
-            .Select(g => new { ZoneName = g.Key, Count = g.Count() })
+            .Select(g => new { ZoneName = g.Key!.Id, Count = g.Count() })
             .ToList();
 
         // Left join: left = all NodaTime canonical zones, right = zones plus popularity data
