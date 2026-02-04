@@ -2,28 +2,20 @@ using System.Linq.Expressions;
 using BirthdayBot.Data;
 using NodaTime;
 using NoiPublicBot;
+using NoiPublicBot.Cache;
 
 namespace BirthdayBot;
 
-public class LocalCache(ShardInstance shard) : NoiPublicBot.Cache.UserCache<BotDatabaseContext>(shard) {
+public class LocalCache(ShardInstance shard) : UserCache<BotDatabaseContext>(shard) {
     const int DefaultCacheDaysBuffer = 5;
 
     private List<ulong> GetLocal(ulong guildId) => [.. GetEntriesForGuild(guildId, true).Select(e => e.UserId)];
 
     /// <summary>
-    /// Builds a list of missing users with birthdays within <see cref="DefaultCacheDaysBuffer"/> days of the current date.
-    /// This is the one called by default, and is meant to be used exclusively by <seealso cref="BackgroundServices.CacheRefresher"/>.
-    /// </summary>
-    protected override List<ulong> GetCacheMissingUsers(BotDatabaseContext context, ulong guildId) {
-        var filter = FilterMissingWithinDays(DefaultCacheDaysBuffer);
-        return filter(context, guildId);
-    }
-
-    /// <summary>
     /// Provides a filter that returns a list of missing users, taking into account all users registered with the bot.
     /// Great for full listings, data exports, database row expiration checks, and so on. Use sparingly.
     /// </summary>
-    internal CacheMissingUsersFilter FilterGetAllMissing()
+    internal CacheFetchFilter FilterGetAllMissing()
         => (context, guildId) => {
             var local = GetLocal(guildId);
             var remote = context.UserEntries
@@ -31,17 +23,28 @@ public class LocalCache(ShardInstance shard) : NoiPublicBot.Cache.UserCache<BotD
                 .Select(e => e.UserId)
                 .ToList();
             return [.. remote.Except(local)];
-    };
+        };
 
     /// <summary>
     /// Provides a filter that returns a list of missing users with birthdays within <paramref name="days"/> days of the current date.
     /// </summary>
-    internal CacheMissingUsersFilter FilterMissingWithinDays(int days)
+    internal CacheFetchFilter FilterMissingWithinDays(int days)
         => (context, guildId) => {
             var local = GetLocal(guildId);
             var remote = context.UserEntries
                 .Where(e => e.GuildId == guildId)
                 .Where(IsWithinDays(days))
+                .Select(e => e.UserId)
+                .ToList();
+            return [.. remote.Except(local)];
+        };
+
+    internal CacheFetchFilter FilterBackground()
+        => (context, guildId) => {
+            var local = GetLocal(guildId);
+            var remote = context.UserEntries
+                .Where(e => e.GuildId == guildId)
+                .Where(IsWithinDays(1)) // 3 days
                 .Select(e => e.UserId)
                 .ToList();
             return [.. remote.Except(local)];
