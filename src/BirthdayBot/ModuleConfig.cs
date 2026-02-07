@@ -11,7 +11,7 @@ public class ModuleConfig : ModuleConfigBase {
 
     public override IEnumerable<Type> BackgroundServices => [
         typeof(DataJanitor),
-        typeof(CacheRefresher),
+        typeof(CachePreloader),
         typeof(BirthdayUpdater)
     ];
 

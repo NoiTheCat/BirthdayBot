@@ -7,10 +7,16 @@ public class UserEntry {
     public ulong UserId { get; set; }
     
     public DateOnly BirthDate { get; set; }
-    
     public DateTimeZone? TimeZone { get; set; }
     
+    /// <summary>
+    /// To measure the entry's TTL.
+    /// </summary>
     public DateTimeOffset LastSeen { get; set; }
+    /// <summary>
+    /// The last time that <see cref="BackgroundServices.BirthdayUpdater"/> acted on this entry in a meaningful way.
+    /// </summary>
+    public DateTimeOffset LastProcessed { get; set; }
 
     public GuildConfig Guild { get; set; } = null!;
 

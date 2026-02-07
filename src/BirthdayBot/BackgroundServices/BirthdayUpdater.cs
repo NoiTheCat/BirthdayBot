@@ -1,91 +1,84 @@
 ﻿using BirthdayBot.Data;
 using Discord;
 using Discord.WebSocket;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using NodaTime;
+using NoiPublicBot.BackgroundServices;
 using System.Text;
 
 namespace BirthdayBot.BackgroundServices;
-/// <summary>
-/// Core automatic functionality of the bot. Manages role memberships based on birthday information,
-/// and optionally sends the announcement message to appropriate guilds.
-/// </summary>
-#error needs review
-class BirthdayUpdater(ShardInstance instance) : BackgroundService(instance) {
-    /// <summary>
-    /// Processes birthday updates for all available guilds synchronously.
-    /// </summary>
+// Core automatic functionality of the bot. Manages role memberships based on birthday information,
+// and optionally sends the announcement message to appropriate guilds.
+// Ensure this runs *after* CachePreloader.
+public class BirthdayUpdater : BackgroundService {
     public override async Task OnTick(int tickCount, CancellationToken token) {
-        try {
-            await DbAccessGate.WaitAsync(token).ConfigureAwait(false);
-            await ProcessBirthdaysAsync(token).ConfigureAwait(false);
-        } finally {
-            try {
-                DbAccessGate.Release();
-            } catch (ObjectDisposedException) { }
+        // Assumes cache has already been prepared, so do the reverse: start from cache, act only on known users
+        var cacheG = Shard.LocalServices.GetRequiredService<LocalCache>().GetAll();
+
+        using var db = BotDatabaseContext.New();
+        var shardGuilds = db.GuildConfigurations.AsNoTracking()
+            .Where(gc => cacheG.ContainsKey(gc.GuildId))
+            .ToDictionary(k => k.GuildId, v => v);
+
+        foreach (var (gid, users) in cacheG) {
+            // Allow interruptions only in between processing guilds.
+            token.ThrowIfCancellationRequested();
+
+            // Quit immediately if disconnected.
+            if (Shard.DiscordClient.ConnectionState != ConnectionState.Connected) break;
+
+            // Some more checks before proceeding
+            var guild = Shard.DiscordClient.GetGuild(gid);
+            if (guild is null) continue;
+            if (!shardGuilds.TryGetValue(gid, out var config)) continue; // In cache but no config - probably not actually possible?
+
+            // TODO Birthday role no longer strictly required. Must reconsider these restrictions
+            if (!guild.CurrentUser.GuildPermissions.ManageRoles) continue;
+            var role = guild.GetRole(config.BirthdayRole ?? 0);
+            if (role is null) continue;
+            if (role.Position >= guild.CurrentUser.Hierarchy) continue;
+            if (IsRoleIdInvalid(role)) continue;
+
+            // All clear - do the thing
+            db.Entry(config).Collection(t => t.UserEntries).Load();
+            var birthdays = GetGuildCurrentBirthdays(config.UserEntries, config.GuildTimeZone);
+            // Transaction ensures if errors occur during processing, timestamp updates aren't affected
+            using (var tx = db.Database.BeginTransaction()) {
+                var birthdayUp = await GetNewBirthdaysAsync(db, birthdays);
+                // As the cache contains entries for users from a day prior,
+                // processing for birthdays that are ending can be done with this same set of data.
+                var birthdayDown = await GetExpiringBirthdaysAsync(db, config.UserEntries.Except(birthdays));
+
+                await ProcessNewBirthdays(config, role, birthdayUp);
+                await ProcessExpiringBirthdays(config, role, birthdayDown);
+                tx.Commit();
+            }
+            await Task.Yield();
         }
     }
 
-    private async Task ProcessBirthdaysAsync(CancellationToken token) {
-        // For database efficiency, fetch all pertinent 'global' database information at once before proceeding
-        using var db = new BotDatabaseContext();
-        var shardGuilds = Shard.DiscordClient.Guilds.Select(g => g.Id).ToHashSet();
-        var presentGuildSettings = db.GuildConfigurations.Where(s => shardGuilds.Contains(s.GuildId));
-        var guildChecks = presentGuildSettings.ToList().Select(s => Tuple.Create(s.GuildId, s));
-
-        var exceptions = new List<Exception>();
-        foreach (var (guildId, settings) in guildChecks) {
-            var guild = Shard.DiscordClient.GetGuild(guildId);
-            if (guild == null) continue; // A guild disappeared...?
-
-            // Check task cancellation here. Processing during a single guild is never interrupted.
-            if (token.IsCancellationRequested) throw new TaskCanceledException();
-
-            // Stop if we've disconnected.
-            if (Shard.DiscordClient.ConnectionState != ConnectionState.Connected) break;
-
-            try {
-                // Verify that role settings and permissions are usable
-                SocketRole? role = guild.GetRole(settings.BirthdayRole ?? 0);
-                if (role == null) continue; // Role not set.
-                if (!guild.CurrentUser.GuildPermissions.ManageRoles || role.Position >= guild.CurrentUser.Hierarchy) {
-                    // Quit this guild if insufficient role permissions.
-                    continue;
-                }
-                if (role.IsEveryone || role.IsManaged) {
-                    // Invalid role was configured. Clear the setting and quit.
-                    settings.BirthdayRole = null;
-                    db.Update(settings);
-                    await db.SaveChangesAsync(CancellationToken.None).ConfigureAwait(false);
-                    continue;
-                }
-
-                // Load up user configs and begin processing birthdays
-                await db.Entry(settings).Collection(t => t.UserEntries).LoadAsync(CancellationToken.None).ConfigureAwait(false);
-                var birthdays = GetGuildCurrentBirthdays(settings.UserEntries, settings.GuildTimeZone);
-
-                // Add or remove roles as appropriate
-                var announcementList = await UpdateGuildBirthdayRoles(guild, role, birthdays).ConfigureAwait(false);
-
-                // Process birthday announcement
-                if (announcementList.Any()) {
-                    await AnnounceBirthdaysAsync(settings, guild, announcementList).ConfigureAwait(false);
-                }
-            } catch (Exception ex) {
-                // Catch all exceptions per-guild but continue processing, throw at end.
-                exceptions.Add(ex);
-            }
+    private bool IsRoleIdInvalid(SocketRole role) {
+        // This remains here for exceptional circumstances, back when the configured role was unchecked during input.
+        // May be removed in the future.
+        using var db = BotDatabaseContext.New(); // a new, extremely short-lived db context
+        if (role.IsEveryone || role.IsManaged) {
+            var conf = db.GuildConfigurations.Where(g => g.GuildId == role.Guild.Id).SingleOrDefault();
+            if (conf == null) return false; // ????
+            conf.BirthdayRole = null;
+            db.SaveChanges();
+            Log("Encountered a bad role configuration that has now been cleared.");
+            return false;
         }
-        if (exceptions.Count > 1) throw new AggregateException("Unhandled exceptions occurred when processing birthdays.", exceptions);
-        else if (exceptions.Count == 1) throw new Exception("An unhandled exception occurred when processing a birthday.", exceptions[0]);
+        return true;
     }
 
     /// <summary>
     /// Gets all known users from the given guild and returns a list including only those who are
-    /// currently experiencing a birthday in the respective time zone.
+    /// currently experiencing a birthday in the appropriate time zone.
     /// </summary>
-    public static HashSet<ulong> GetGuildCurrentBirthdays(IEnumerable<UserEntry> guildUsers, DateTimeZone? serverDefaultTz) {
-        var birthdayUsers = new HashSet<ulong>();
-
+    public static List<UserEntry> GetGuildCurrentBirthdays(IEnumerable<UserEntry> guildUsers, DateTimeZone? serverDefaultTz) {
+        var result = new List<UserEntry>();
         foreach (var record in guildUsers) {
             // Determine final time zone to use for calculation
             DateTimeZone tz = record.TimeZone ?? serverDefaultTz ?? DateTimeZone.Utc;
@@ -96,11 +89,27 @@ class BirthdayUpdater(ShardInstance instance) : BackgroundService(instance) {
             if (!DateTime.IsLeapYear(checkNow.Year) && record.BirthDate == new DateOnly(2000, 2, 29)) {
                 if (checkNow.Month == 3 && checkNow.Day == 1) birthdayUsers.Add(record.UserId);
             } else if (record.BirthDate == checkdate) {
-                birthdayUsers.Add(record.UserId);
+                result.Add(record);
             }
         }
+        return result;
+    }
 
-        return birthdayUsers;
+    private async Task<List<UserEntry>> GetNewBirthdaysAsync(BotDatabaseContext db, IEnumerable<UserEntry> users) {
+        // actually maybe this could process expiring before new to not complicate the comparison logic
+        throw new NotImplementedException();
+    }
+
+    private async Task ProcessNewBirthdays(GuildConfig config, SocketRole role, IEnumerable<UserEntry> users) {
+        throw new NotImplementedException();
+    }
+
+    private async Task<List<UserEntry>> GetExpiringBirthdaysAsync(BotDatabaseContext db, IEnumerable<UserEntry> users) {
+        throw new NotImplementedException();
+    }
+
+    private async Task ProcessExpringBirthdays(GuildConfig config, SocketRole role, IEnumerable<UserEntry> users) {
+        throw new NotImplementedException();
     }
 
     /// <summary>
