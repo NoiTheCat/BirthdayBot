@@ -1,5 +1,6 @@
 using BirthdayBot.BackgroundServices;
 using BirthdayBot.Data;
+using BirthdayBot.InteractionModules;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using NoiPublicBot;
@@ -27,6 +28,9 @@ public class ModuleConfig : ModuleConfigBase {
         shard.OnStatusCheck += () => {
             var c = shard.LocalServices.GetRequiredService<LocalCache>();
             return $"Cache: {c.GuildsCount:000} guilds -> {c.UsersCount:0000} users.";
+        };
+        shard.DiscordClient.ModalSubmitted += modal => {
+            return ModalResponder.DiscordClient_ModalSubmitted(shard, modal);
         };
     }
 }
