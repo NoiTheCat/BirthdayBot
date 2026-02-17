@@ -1,0 +1,3 @@
+[submodule "src/Core"]
+	path = src/Core
+	url = https://code.noithecat.dev/Noi/NpbCore.git
