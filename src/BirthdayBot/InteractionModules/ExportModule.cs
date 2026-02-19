@@ -14,15 +14,15 @@ public class ExportModule : BBModuleBase {
     public async Task CmdExport([Summary(description: "Specify whether to export the list in CSV format.")] bool asCsv = false) {
         var deferred = await RefreshCacheAsync(Cache.FilterGetAllMissing());
 
-        var bdlist = GetSortedUserList(Context.Guild.Id);
+        var bdlist = GetAllKnownUsers(Context.Guild.Id);
 
         var filename = "birthdaybot-" + Context.Guild.Id;
         Stream fileoutput;
         if (asCsv) {
-            fileoutput = ListExportCsv(Context.Guild, bdlist);
+            fileoutput = ListExportCsv(bdlist);
             filename += ".csv";
         } else {
-            fileoutput = ListExportNormal(Context.Guild, bdlist);
+            fileoutput = ListExportNormal(Context.Guild.Name, bdlist);
             filename += ".txt";
         }
         var outtext = $"Exported {bdlist.Count()} birthdays to file.";
@@ -34,23 +34,21 @@ public class ExportModule : BBModuleBase {
         }
     }
 
-    private static MemoryStream ListExportNormal(SocketGuild guild, IEnumerable<ListItem> list) {
+    private static MemoryStream ListExportNormal(string guildName, IEnumerable<KnownGuildUser> list) {
         // Output: "● Mon-dd: (user ID) Username [ - Nickname: (nickname)]"
         var result = new MemoryStream();
-        var writer = new StreamWriter(result, Encoding.UTF8);
+        var writer = new StreamWriter(result, Encoding.UTF8) { NewLine = "\r\n" };
+        // crlf explicitly set for maximum compatibility
 
-        writer.WriteLine("Birthdays in " + guild.Name);
+        writer.WriteLine($"Birthdays in {guildName}");
         writer.WriteLine();
         foreach (var item in list) {
-            var user = guild.GetUser(item.UserId);
-            if (user == null) continue; // User disappeared in the instant between getting list and processing
             writer.Write($"● {FormatDate(item.BirthDate)}: ");
             writer.Write(item.UserId);
-            writer.Write(" " + user.Username);
-            if (user.DiscriminatorValue != 0) writer.Write($"#{user.Discriminator}");
-            if (user.GlobalName != null) writer.Write($" ({user.GlobalName})");
-            if (user.Nickname != null) writer.Write(" - Nickname: " + user.Nickname);
-            if (item.TimeZone != null) writer.Write(" | Time zone: " + item.TimeZone);
+            writer.Write(" " + item.CacheUser.Username);
+            if (item.CacheUser.GlobalName != null) writer.Write($" ({item.CacheUser.GlobalName})");
+            if (item.CacheUser.GuildNickname != null) writer.Write(" - Nickname: " + item.CacheUser.GuildNickname);
+            if (item.TimeZone != null) writer.Write(" | Time zone: " + item.TimeZone.Id);
             writer.WriteLine();
         }
         writer.Flush();
@@ -58,12 +56,14 @@ public class ExportModule : BBModuleBase {
         return result;
     }
 
-    private static MemoryStream ListExportCsv(SocketGuild guild, IEnumerable<ListItem> list) {
+    private static MemoryStream ListExportCsv(IEnumerable<KnownGuildUser> list) {
         // Output: User ID, Username, Nickname, Month-Day, Month, Day
         var result = new MemoryStream();
-        var writer = new StreamWriter(result, Encoding.UTF8);
+        var writer = new StreamWriter(result, Encoding.UTF8) { NewLine = "\r\n" };
+        // crlf line ending is defined for CSV per RFC 4180
 
-        static string csvEscape(string input) {
+        static string csvEscape(string? input) {
+            if (input is null) return string.Empty;
             var result = new StringBuilder();
             result.Append('"');
             foreach (var ch in input) {
@@ -76,18 +76,15 @@ public class ExportModule : BBModuleBase {
 
         // Conforming to RFC 4180; with header
         writer.Write("UserId,Username,DisplayName,Nickname,MonthDayDisp,Month,Day,TimeZone");
-        writer.Write("\r\n"); // crlf line break is specified by the standard
+        writer.WriteLine();
         foreach (var item in list) {
-            var user = guild.GetUser(item.UserId);
-            if (user == null) continue; // User disappeared in the instant between getting list and processing
             writer.Write(item.UserId);
             writer.Write(',');
-            writer.Write(csvEscape(user.Username));
-            if (user.DiscriminatorValue != 0) writer.Write($"#{user.Discriminator}");
+            writer.Write(csvEscape(item.CacheUser.Username!));
             writer.Write(',');
-            if (user.GlobalName != null) writer.Write(csvEscape(user.GlobalName));
+            writer.Write(csvEscape(item.CacheUser.GlobalName)); // may be empty
             writer.Write(',');
-            if (user.Nickname != null) writer.Write(csvEscape(user.Nickname));
+            writer.Write(csvEscape(item.CacheUser.GuildNickname)); // may be empty
             writer.Write(',');
             writer.Write($"{FormatDate(item.BirthDate)}");
             writer.Write(',');
@@ -95,8 +92,8 @@ public class ExportModule : BBModuleBase {
             writer.Write(',');
             writer.Write(item.BirthDate.Day);
             writer.Write(',');
-            writer.Write(item.TimeZone);
-            writer.Write("\r\n");
+            writer.Write(csvEscape(item.TimeZone?.Id)); // may be empty
+            writer.WriteLine();
         }
         writer.Flush();
         result.Position = 0;

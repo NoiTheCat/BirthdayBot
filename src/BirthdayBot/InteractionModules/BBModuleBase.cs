@@ -5,6 +5,7 @@ using Discord.Interactions;
 using Microsoft.EntityFrameworkCore;
 using NodaTime;
 using NoiPublicBot;
+using NoiPublicBot.Cache;
 
 namespace BirthdayBot.InteractionModules;
 
@@ -116,42 +117,36 @@ public partial class BBModuleBase : InteractionModuleBase<SocketInteractionConte
     protected static string FormatDate(LocalDate date) => $"{date.Day:00}-{Common.MonthNames[date.Month]}";
     #endregion
 
-    #region Listing helper methods
+    #region Whole guild queries
     /// <summary>
     /// Fetches all guild birthdays and places them into an easily usable structure.
     /// Users currently not in the cache are excluded from the result.
     /// </summary>
-    // TODO still needed?
-    protected List<ListItem> GetSortedUserList(ulong guildId) {
-        var query = from row in DbContext.UserEntries.AsNoTracking()
-                    where row.GuildId == guildId
-                    orderby row.BirthDate ascending
-                    select new {
-                        row.UserId,
-                        Date = row.BirthDate,
-                        Zone = row.TimeZone
-                    };
-
-        var result = new List<ListItem>();
+    protected List<KnownGuildUser> GetAllKnownUsers(ulong guildId) {
+        var query = DbContext.UserEntries.AsNoTracking()
+            .Where(r => r.GuildId == guildId)
+            .OrderBy(r => r.BirthDate);
         var users = Cache.GetGuild(guildId);
         if (users is null) return [];
+
+        var result = new List<KnownGuildUser>();
         foreach (var row in query) {
             if (!users.TryGetValue(row.UserId, out var cval)) continue; // Skip user not cached
-            result.Add(new ListItem() {
-                BirthDate = row.Date,
-                UserId = row.UserId,
-                DisplayName = cval.FormatName(),
-                TimeZone = row.Zone?.Id
-            });
+            result.Add(new KnownGuildUser() { DbUser = row, CacheUser = cval});
         }
         return result;
     }
 
-    protected record ListItem {
-        public LocalDate BirthDate;
-        public ulong UserId;
-        public required string DisplayName;
-        public string? TimeZone;
+    /// <summary>
+    /// Consolidated database + usercache information
+    /// </summary>
+    protected sealed record KnownGuildUser {
+        public required UserEntry DbUser;
+        public required UserInfo CacheUser;
+        public LocalDate BirthDate => DbUser.BirthDate;
+        public ulong UserId => CacheUser.UserId;
+        public string DisplayName => CacheUser.FormatName();
+        public DateTimeZone? TimeZone => DbUser.TimeZone;
     }
     #endregion
 

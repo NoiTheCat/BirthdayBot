@@ -127,7 +127,7 @@ public class BirthdayModule : BBModuleBase {
         var search = new DateOnly(2000, today.Month, today.Day).DayOfYear - 8;
         if (search <= 0) search = 366 - Math.Abs(search);
 
-        var query = GetSortedUserList(Context.Guild.Id);
+        var query = GetAllKnownUsers(Context.Guild.Id);
 
         // TODO pagination instead of this workaround
         var useFollowup = false;
