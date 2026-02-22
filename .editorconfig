@@ -34,6 +34,9 @@ csharp_style_namespace_declarations = file_scoped:suggestion
 
 #### Formatting ####
 csharp_new_line_before_open_brace = none
+csharp_new_line_before_else = false
+csharp_new_line_before_catch = false
+csharp_new_line_before_finally = false
 csharp_space_around_binary_operators = before_and_after
 csharp_preserve_single_line_blocks = true
 csharp_preserve_single_line_statements = true
@@ -45,3 +48,6 @@ dotnet_naming_rule.interface_should_be_begins_with_i.style = begins_with_i
 dotnet_naming_rule.types_should_be_pascal_case.severity = suggestion
 dotnet_naming_rule.types_should_be_pascal_case.symbols = types
 dotnet_naming_rule.types_should_be_pascal_case.style = pascal_case
+
+# IDE0005: Using directive is unnecessary.
+dotnet_diagnostic.IDE0005.severity = suggestion

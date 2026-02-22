@@ -1,0 +1,63 @@
+name: Docker image to local repo
+# Environment:
+#   DOCKER_HOST - Self-explanatory
+# Variables:
+#   REGISTRY - Where images will be pushed (e.g. forgejo.mydomain.com)
+# Secrets:
+#   CI_BUILDER_TOKEN - Token to access Forgejo
+#                      Requires repository:read and package:write
+
+on:
+  push:
+    branches:
+      - main
+      - 'test/*'
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    runs-on: docker
+    container:
+      image: docker:29-cli
+
+    steps:
+      - name: Additional dependencies
+        run: |
+          apk add --no-cache nodejs npm git
+
+      - name: Checkout with git
+        uses: actions/checkout@v3
+        with:
+          token: ${{ secrets.CI_BUILDER_TOKEN }}
+          submodules: true
+
+      - name: Repository login
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ vars.REGISTRY }}
+          username: ${{ forgejo.repository_owner }}
+          password: ${{ secrets.CI_BUILDER_TOKEN }}
+
+      - name: Determine image tags
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          github-token: ${{ secrets.CI_BUILDER_TOKEN }}
+          images: ${{ vars.REGISTRY }}/${{ forgejo.repository }}
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=raw,value=testing,enable=${{ startsWith(forgejo.ref_name, 'test/') }}
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          # just in case
+          provenance: false

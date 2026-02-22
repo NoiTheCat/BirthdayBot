@@ -9,7 +9,7 @@ An automated way to recognize birthdays in your community!
 
 #### Running your own instance
 You need:
-* .NET 8 (https://dotnet.microsoft.com/en-us/)
+* .NET 10 (https://dotnet.microsoft.com/en-us/)
 * PostgreSQL (https://www.postgresql.org/)
 * A Discord bot token (https://discord.com/developers/applications)
 
