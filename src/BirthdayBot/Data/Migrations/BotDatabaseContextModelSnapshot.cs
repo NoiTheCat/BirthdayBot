@@ -28,12 +28,6 @@ namespace BirthdayBot.Data.Migrations
                         .HasColumnType("numeric(20,0)")
                         .HasColumnName("guild_id");
 
-                    b.Property<bool>("AddOnly")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("boolean")
-                        .HasDefaultValue(false)
-                        .HasColumnName("add_only");
-
                     b.Property<string>("AnnounceMessage")
                         .HasColumnType("text")
                         .HasColumnName("announce_message");
@@ -43,9 +37,7 @@ namespace BirthdayBot.Data.Migrations
                         .HasColumnName("announce_message_pl");
 
                     b.Property<bool>("AnnouncePing")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("boolean")
-                        .HasDefaultValue(false)
                         .HasColumnName("announce_ping");
 
                     b.Property<decimal?>("AnnouncementChannel")
