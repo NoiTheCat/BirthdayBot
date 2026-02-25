@@ -6,9 +6,6 @@
     <OutputType>Exe</OutputType>
     <RootNamespace>BirthdayBot</RootNamespace>
 
-    <!-- Uses only English language resources (needed by dependencies) -->
-    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
-
     <TargetFramework>net10.0</TargetFramework>
     <LangVersion>latest</LangVersion>
     <ImplicitUsings>enable</ImplicitUsings>
@@ -49,6 +46,21 @@
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
     <PackageReference Include="NodaTime" Version="3.3.0" />
+  </ItemGroup>
+
+  <!-- Strongly-typed command strings to use for default values in command registration -->
+  <PropertyGroup>
+    <!-- Helps with OmniSharp recognizing the file -->
+    <CoreCompileDependsOn>PrepareResources;$(CompileDependsOn)</CoreCompileDependsOn>
+  </PropertyGroup>
+  <ItemGroup>
+    <EmbeddedResource Update="Localization/Commands.resx">
+      <Generator>MSBuild:Compile</Generator>
+      <StronglyTypedFileName>$(IntermediateOutputPath)/Commands.Designer.cs</StronglyTypedFileName>
+      <StronglyTypedLanguage>CSharp</StronglyTypedLanguage>
+      <StronglyTypedNamespace>BirthdayBot.Localization</StronglyTypedNamespace>
+      <StronglyTypedClassName>Commands</StronglyTypedClassName>
+    </EmbeddedResource>
   </ItemGroup>
 
 </Project>
