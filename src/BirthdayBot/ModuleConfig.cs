@@ -1,6 +1,7 @@
 using BirthdayBot.BackgroundServices;
 using BirthdayBot.Data;
 using BirthdayBot.InteractionModules;
+using Discord.Interactions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using NoiPublicBot;
@@ -10,6 +11,9 @@ namespace BirthdayBot;
 
 public class ModuleConfig : ModuleConfigBase {
     public override string AppName => "BirthdayBot";
+
+    public override ILocalizationManager? LocalizationManager
+        => new ResxLocalizationManager("BirthdayBot.Localization.Commands", typeof(ModuleConfig).Assembly, [new("en"), new("es")]);
 
     public override IEnumerable<Type> BackgroundServices => [
         //typeof(DataJanitor),

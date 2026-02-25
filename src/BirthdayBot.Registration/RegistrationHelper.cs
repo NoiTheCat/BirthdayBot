@@ -48,7 +48,9 @@ var services = new ServiceCollection()
         }.ConnectionString, pgopts => { pgopts.UseNodaTime(); })
         .UseSnakeCaseNamingConvention())
     .BuildServiceProvider();
-var ia = new InteractionService(rest);
+var ia = new InteractionService(rest, new InteractionServiceConfig {
+    LocalizationManager = new ModuleConfig().LocalizationManager
+});
 await ia.AddModulesAsync(Assembly.GetAssembly(typeof(ModuleConfig)), services);
 Console.WriteLine();
 Console.WriteLine("Found modules: " + string.Join(' ', ia.Modules.Select(m => m.Name)));
