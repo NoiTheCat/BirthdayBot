@@ -18,6 +18,8 @@ public class ConfigModule : BBModuleBase {
     public const string HelpCmdAnnounce = "Settings regarding birthday announcements.";
     public const string HelpCmdBirthdayRole = "Set the role given to users having a birthday.";
     public const string HelpCmdCheck = "Report the bot's current configuration.";
+    public const string HelpPrivateConfirms = "Sets whether to make confirmation messages visible only to the user.";
+    public const string HelpAddOnly = "Sets if users are restricted from editing their birthday after adding it.";
 
     const string HelpPofxBlankUnset = " Leave blank to unset.";
     const string HelpOptChannel = "The corresponding channel to use.";
@@ -55,8 +57,9 @@ public class ConfigModule : BBModuleBase {
                 "Two messages may be provided: `single` sets the message that is displayed when one user has a birthday, and " +
                 "`multi` sets the message used when two or more users have birthdays. If only one of the two messages " +
                 "have been set, this bot will use the same message in both cases.\n\n" +
-                "You may use the token `%n` in your message to specify where the name(s) should appear, otherwise the names " +
-                "will appear at the very end of your custom message.";
+                "The custom message supports the following tokens:\n" +
+                "* `%n` - Name(s) of those with birthdays\n" +
+                "* `%e` - `@everyone` ping";
             await RespondAsync(embed: new EmbedBuilder()
                 .WithAuthor("Announcement configuration")
                 .WithDescription(subcommands)
@@ -67,7 +70,7 @@ public class ConfigModule : BBModuleBase {
 
         [SlashCommand("set-channel", HelpSubCmdChannel + HelpPofxBlankUnset)]
         public async Task CmdSetChannel([Summary(description: HelpOptChannel)] SocketTextChannel? channel = null) {
-            await DoDatabaseUpdate(Context, DbContext, s => s.AnnouncementChannel = channel?.Id);
+            await DbUpdateGuildAsync(s => s.AnnouncementChannel = channel?.Id);
             await RespondAsync(":white_check_mark: The announcement channel has been " +
             (channel == null ? "unset." : $"set to **{channel.Name}**."));
         }
@@ -113,6 +116,7 @@ public class ConfigModule : BBModuleBase {
             if (string.IsNullOrWhiteSpace(newSingle)) newSingle = null;
             if (string.IsNullOrWhiteSpace(newMulti)) newMulti = null;
 
+            // We're missing the usual context. Can't use DbUpdateGuildAsync.
             var db = BotDatabaseContext.New();
             var settings = channel.Guild.GetConfigOrNew(db);
             if (settings.IsNew) db.GuildConfigurations.Add(settings);
@@ -124,7 +128,7 @@ public class ConfigModule : BBModuleBase {
 
         [SlashCommand("set-ping", HelpSubCmdPing)]
         public async Task CmdSetPing([Summary(description: "Set True to ping users, False to display them normally.")] bool option) {
-            await DoDatabaseUpdate(Context, DbContext, s => s.AnnouncePing = option);
+            await DbUpdateGuildAsync(s => s.AnnouncePing = option);
             await RespondAsync($":white_check_mark: Announcement pings are now **{(option ? "on" : "off")}**.").ConfigureAwait(false);
         }
 
@@ -202,7 +206,7 @@ public class ConfigModule : BBModuleBase {
             await RespondAsync(":x: This role cannot be used for this setting.", ephemeral: true);
             return;
         }
-        await DoDatabaseUpdate(Context, DbContext, s => s.BirthdayRole = role.Id);
+        await DbUpdateGuildAsync(s => s.BirthdayRole = role.Id);
         await RespondAsync($":white_check_mark: The birthday role has been set to **{role.Name}**.").ConfigureAwait(false);
     }
 
@@ -279,7 +283,7 @@ public class ConfigModule : BBModuleBase {
         const string Response = ":white_check_mark: The server's time zone has been ";
 
         if (zone == null) {
-            await DoDatabaseUpdate(Context, DbContext, s => s.GuildTimeZone = null);
+            await DbUpdateGuildAsync(s => s.GuildTimeZone = null);
             await RespondAsync(Response + "unset.").ConfigureAwait(false);
         } else {
             DateTimeZone? parsedZone;
@@ -290,20 +294,22 @@ public class ConfigModule : BBModuleBase {
                 return;
             }
 
-            await DoDatabaseUpdate(Context, DbContext, s => s.GuildTimeZone = parsedZone);
+            await DbUpdateGuildAsync(s => s.GuildTimeZone = parsedZone);
             await RespondAsync(Response + $"set to **{parsedZone}**.").ConfigureAwait(false);
         }
     }
 
-    /// <summary>
-    /// Helper method for updating arbitrary <see cref="GuildConfig"/> values without all the boilerplate.
-    /// </summary>
-    /// <param name="valueUpdater">A delegate which modifies <see cref="GuildConfig"/> properties as needed.</param>
-    private static async Task DoDatabaseUpdate(SocketInteractionContext icx, BotDatabaseContext dcx, Action<GuildConfig> valueUpdater) {
-        var settings = icx.Guild.GetConfigOrNew(dcx);
-        if (settings.IsNew) dcx.GuildConfigurations.Add(settings);
+    [SlashCommand("private-confirms", HelpPrivateConfirms)]
+    public async Task PrivateConfirmations([Summary(description: HelpBool)] bool setting) {
+        await DbUpdateGuildAsync(s => s.EphemeralConfirm = setting).ConfigureAwait(false);
+        await RespondAsync($":white_check_mark: Private confirmations **{(setting ? "enabled" : "disabled")}**.",
+            ephemeral: false).ConfigureAwait(false); // Always show this confirmation despite setting
+    }
 
-        valueUpdater(settings);
-        await dcx.SaveChangesAsync();
+    [SlashCommand("add-only", HelpAddOnly)]
+    public async Task AddOnly([Summary(description: HelpBool)] bool setting) {
+        await DbUpdateGuildAsync(s => s.AddOnly = setting).ConfigureAwait(false);
+        await RespondAsync($":white_check_mark: Add-only mode has been **{(setting ? "enabled" : "disabled")}**.",
+            ephemeral: false).ConfigureAwait(false);
     }
 }

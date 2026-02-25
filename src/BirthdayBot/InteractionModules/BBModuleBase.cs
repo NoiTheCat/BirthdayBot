@@ -15,6 +15,7 @@ public partial class BBModuleBase : InteractionModuleBase<SocketInteractionConte
 
     protected const string HelpOptDate = "A date, including the month and day. For example, \"15 January\".";
     protected const string HelpOptZone = "A 'tzdata'-compliant time zone name. See help for more details.";
+    protected const string HelpBool = "True to enable, False to disable.";
 
     // Injected by DI:
     public ShardInstance Shard { get; set; } = null!;
@@ -41,6 +42,12 @@ public partial class BBModuleBase : InteractionModuleBase<SocketInteractionConte
         throw new FormatException(":x: Unknown time zone name.\n" +
                 "To find your time zone, please refer to: https://zones.arilyn.cc/");
     }
+
+    /// <summary>
+    /// Checks if the server allows ephemeral command confirmations.
+    /// </summary>
+    protected bool IsEphemeralSet()
+        => DbContext.GuildConfigurations.Where(r => r.GuildId == Context.Guild.Id).SingleOrDefault()?.EphemeralConfirm ?? false;
 
     #region Date parsing
     const string FormatError = ":x: Unrecognized date format. The following formats are accepted, as examples: "
@@ -149,6 +156,19 @@ public partial class BBModuleBase : InteractionModuleBase<SocketInteractionConte
         public DateTimeZone? TimeZone => DbUser.TimeZone;
     }
     #endregion
+
+    /// <summary>
+    /// Helper method for updating arbitrary <see cref="GuildConfig"/> values without all the boilerplate.
+    /// </summary>
+    /// <param name="valueUpdater">A delegate with access to the appropriate <see cref="GuildConfig"/> in this context.</param>
+    protected async Task DbUpdateGuildAsync(Action<GuildConfig> valueUpdater) {
+        var settings = Context.Guild.GetConfigOrNew(DbContext);
+
+        valueUpdater(settings);
+
+        if (settings.IsNew) DbContext.GuildConfigurations.Add(settings);
+        await DbContext.SaveChangesAsync().ConfigureAwait(false);
+    }
 
     // For use when responding directly to user input
     protected async Task<bool> RefreshCacheAsync(LocalCache.CacheFetchFilter filter) {

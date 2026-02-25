@@ -221,6 +221,10 @@ public class BirthdayUpdater : BackgroundService {
         }
         namedisplay.Remove(0, 2); // Remove initial comma and space
 
-        await c.SendMessageAsync(announceMsg.Replace("%n", namedisplay.ToString())).ConfigureAwait(false);
+        announceMsg = announceMsg
+            .Replace("%n", namedisplay.ToString())
+            .Replace("%e", $"<@&{g.EveryoneRole.Id}>");
+
+        await c.SendMessageAsync(announceMsg).ConfigureAwait(false);
     }
 }

@@ -48,7 +48,7 @@ public class BirthdayOverrideModule : BBModuleBase {
         Cache.Update(target);
         var user = target.GetUserEntryOrNew(DbContext);
         if (user.IsNew) {
-            await RespondAsync($":x: {FormatName(target, false)} does not have a birthday set.")
+            await RespondAsync($":x: {FormatName(target, false)} must have a birthday set first.")
                 .ConfigureAwait(false);
             return;
         }
