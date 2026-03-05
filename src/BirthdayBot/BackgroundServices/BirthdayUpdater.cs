@@ -57,14 +57,23 @@ public class BirthdayUpdater : BackgroundService {
                 // Extra checks are no longer necessary.
                 var announceList = new List<string>();
                 foreach (var u in starting) {
-                    // TODO check if specific exception handling is necessary
-                    await rest.AddRoleAsync(config.GuildId, u.User.UserId, config.BirthdayRole!.Value).ConfigureAwait(false);
+                    try {
+                        await rest.AddRoleAsync(config.GuildId, u.User.UserId, config.BirthdayRole!.Value).ConfigureAwait(false);
+                    } catch (HttpException ex) when (ex.DiscordCode == DiscordErrorCode.UnknownMember) {
+                        // User's gone. Invalidate cache item, carry on.
+                        cache.Invalidate(config.GuildId, u.User.UserId);
+                        continue;
+                    }
                     if (config.AnnouncePing) announceList.Add($"<@{u.User.UserId}>");
                     else announceList.Add(u.User.FormatName());
                 }
                 foreach (var u in ending) {
-                    // TODO same here - exception handling?
-                    await rest.RemoveRoleAsync(config.GuildId, u.User.UserId, config.BirthdayRole!.Value).ConfigureAwait(false);
+                    try {
+                        await rest.RemoveRoleAsync(config.GuildId, u.User.UserId, config.BirthdayRole!.Value).ConfigureAwait(false);
+                    } catch (HttpException ex) when (ex.DiscordCode == DiscordErrorCode.UnknownMember) {
+                        // User's gone. Invalidate cache item, and nothing more to do.
+                        cache.Invalidate(config.GuildId, u.User.UserId);
+                    }
                 }
 
                 await AnnounceBirthdaysAsync(config, guild, announceList).ConfigureAwait(false);
