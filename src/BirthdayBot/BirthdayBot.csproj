@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <Version>4.1.0</Version>
+    <Version>4.1.1</Version>
     <Authors>NoiTheCat</Authors>
     <OutputType>Exe</OutputType>
     <RootNamespace>BirthdayBot</RootNamespace>
@@ -48,7 +48,7 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
-    <PackageReference Include="NodaTime" Version="3.3.0" />
+    <PackageReference Include="NodaTime" Version="3.3.1" />
   </ItemGroup>
 
 </Project>
