@@ -218,7 +218,7 @@ public class ConfigModule : BBModuleBase {
         var guildconf = guild.GetConfigOrNew(DbContext);
         if (!guildconf.IsNew) await DbContext.Entry(guildconf).Collection(t => t.UserEntries).LoadAsync();
 
-        var resultTemplate = """
+        const string resultTemplate = """
             ### Diagnostics
             Server ID: `{0}` | Bot shard: `{1}`
             Members: `{5}`

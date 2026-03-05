@@ -1,5 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using NodaTime;
+using NoiPublicBot;
 
 namespace BirthdayBot.Data;
 
@@ -45,7 +46,8 @@ public sealed class BotDatabaseContext(DbContextOptions<BotDatabaseContext> opti
     /// </summary>
     internal static BotDatabaseContext New() {
         return new BotDatabaseContext(new DbContextOptionsBuilder<BotDatabaseContext>()
-            .UseNpgsql(NoiPublicBot.Instance.SqlConnectionString, pgopts => { pgopts.UseNodaTime(); })
+            .UseNpgsql(Instance.SqlConnectionString.ConnectionString,
+            npgopts => npgopts.UseNodaTime())
             .UseSnakeCaseNamingConvention()
             .Options);
     }
