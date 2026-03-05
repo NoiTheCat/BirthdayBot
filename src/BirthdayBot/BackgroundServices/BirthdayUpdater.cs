@@ -1,11 +1,12 @@
 using BirthdayBot.Data;
 using Discord;
+using Discord.Net;
 using Discord.WebSocket;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using NodaTime;
 using NoiPublicBot.BackgroundServices;
-using NoiPublicBot.Cache;
+using NoiPublicBot.Common;
 using System.Text;
 
 namespace BirthdayBot.BackgroundServices;
@@ -15,7 +16,8 @@ namespace BirthdayBot.BackgroundServices;
 public class BirthdayUpdater : BackgroundService {
     public override async Task OnTick(int tickCount, CancellationToken token) {
         // Assumes cache has already been prepared, so do the reverse: start from cache, act only on known users
-        var cacheG = Shard.LocalServices.GetRequiredService<LocalCache>().GetAll();
+        var cache = Shard.LocalServices.GetRequiredService<UserCache<BotDatabaseContext>>();
+        var cacheG = cache.GetAll();
 
         using var db = BotDatabaseContext.New();
         var shardGuilds = db.GuildConfigurations.AsNoTracking()
@@ -93,10 +95,10 @@ public class BirthdayUpdater : BackgroundService {
     enum TimePosition { Before, During, After }
 
     // Combined cache + database data to easily pass around
-    private readonly struct Item(UserInfo user, UserEntry row, DateTimeZone zone) {
+    private readonly struct Item(UserCacheItem user, UserEntry row, DateTimeZone zone) {
         private static readonly LocalDate LeapDay = new(2000, 2, 29);
 
-        public readonly UserInfo User = user;
+        public readonly UserCacheItem User = user;
         public readonly UserEntry DbRow = row;
         public readonly DateTimeZone Zone = zone;
 
@@ -133,7 +135,7 @@ public class BirthdayUpdater : BackgroundService {
         else return TimePosition.During;
     }
 
-    private List<Item> PrepareUserInfo(Dictionary<ulong, UserInfo> users, ICollection<UserEntry>? userEntries) {
+    private List<Item> PrepareUserInfo(Dictionary<ulong, UserCacheItem> users, ICollection<UserEntry>? userEntries) {
         if (userEntries is null) return [];
         var result = new List<Item>();
 

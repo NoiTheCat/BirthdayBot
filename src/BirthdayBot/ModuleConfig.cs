@@ -4,13 +4,12 @@ using BirthdayBot.InteractionModules;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using NoiPublicBot;
+using NoiPublicBot.Common;
 using Npgsql;
 
 namespace BirthdayBot;
 
 public class ModuleConfig : ModuleConfigBase {
-    public override string AppName => "BirthdayBot";
-
     public override IEnumerable<Type> BackgroundServices => [
         //typeof(DataJanitor),
         typeof(CachePreloader),
@@ -18,15 +17,16 @@ public class ModuleConfig : ModuleConfigBase {
     ];
 
     public override void PreShardSetup(ref IServiceCollection services) {
-        services.AddSingleton(s => new LocalCache(s.GetRequiredService<ShardInstance>()));
-        services.AddDbContext<BotDatabaseContext>(opts =>
-            opts.UseNpgsql(Instance.SqlConnectionString, pgopts => { pgopts.UseNodaTime(); })
+        services.AddSingleton(s => new UserCache<BotDatabaseContext>(s.GetRequiredService<ShardInstance>()));
+        services.AddDbContext<BotDatabaseContext>(opts => opts
+            .UseNpgsql(Instance.SqlConnectionString.ConnectionString,
+            npgopts => npgopts.UseNodaTime())
             .UseSnakeCaseNamingConvention());
     }
 
     public override void PostShardSetup(ShardInstance shard) {
         shard.OnStatusCheck += () => {
-            var c = shard.LocalServices.GetRequiredService<LocalCache>();
+            var c = shard.LocalServices.GetRequiredService<UserCache<BotDatabaseContext>>();
             return $"Cache: {c.GuildsCount:000} guilds -> {c.UsersCount:0000} users.";
         };
         shard.DiscordClient.ModalSubmitted += modal => {

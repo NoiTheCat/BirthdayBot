@@ -143,7 +143,7 @@ public class BirthdayModule : BBModuleBase {
     // TODO stop being lazy
     [SlashCommand("show-nearest", HelpCmdNearest)]
     public async Task CmdShowNearest() {
-        var deferred = await RefreshCacheAsync(Cache.FilterMissingWithinDays(15)).ConfigureAwait(false);
+        var deferred = await RefreshCacheAsync(CacheFilters.MissingWithinDays(15)).ConfigureAwait(false);
 
         var servertz = DbContext.GuildConfigurations.Where(c => c.GuildId == Context.Guild.Id).SingleOrDefault()?.GuildTimeZone;
         servertz ??= DateTimeZone.Utc;

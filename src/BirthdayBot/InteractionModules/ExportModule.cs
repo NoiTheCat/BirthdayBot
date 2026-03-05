@@ -25,7 +25,7 @@ public class ExportModule : BBModuleBase {
     [CommandContextType(InteractionContextType.Guild)]
     public async Task CmdExport(
         [Summary(description: "Specify the format of the exported data.")] ExportFormat format = ExportFormat.Default) {
-        var deferred = await RefreshCacheAsync(Cache.FilterGetAllMissing());
+        var deferred = await RefreshCacheAsync(CacheFilters.AllMissing());
 
         var bdlist = GetAllKnownUsers(Context.Guild.Id);
 

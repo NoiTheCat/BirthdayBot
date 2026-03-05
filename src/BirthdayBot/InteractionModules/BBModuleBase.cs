@@ -5,7 +5,7 @@ using Discord.Interactions;
 using Microsoft.EntityFrameworkCore;
 using NodaTime;
 using NoiPublicBot;
-using NoiPublicBot.Cache;
+using NoiPublicBot.Common;
 
 namespace BirthdayBot.InteractionModules;
 
@@ -20,7 +20,7 @@ public partial class BBModuleBase : InteractionModuleBase<SocketInteractionConte
     // Injected by DI:
     public ShardInstance Shard { get; set; } = null!;
     public BotDatabaseContext DbContext { get; set; } = null!;
-    public LocalCache Cache { get; set; } = null!;
+    public UserCache<BotDatabaseContext> Cache { get; set; } = null!;
 
     // Opportunistically caches user data coming in via interactions.
     public override Task BeforeExecuteAsync(ICommandInfo command) {
@@ -149,7 +149,7 @@ public partial class BBModuleBase : InteractionModuleBase<SocketInteractionConte
     /// </summary>
     protected sealed record KnownGuildUser {
         public required UserEntry DbUser;
-        public required UserInfo CacheUser;
+        public required UserCacheItem CacheUser;
         public LocalDate BirthDate => DbUser.BirthDate;
         public ulong UserId => CacheUser.UserId;
         public string DisplayName => CacheUser.FormatName();
@@ -171,7 +171,7 @@ public partial class BBModuleBase : InteractionModuleBase<SocketInteractionConte
     }
 
     // For use when responding directly to user input
-    protected async Task<bool> RefreshCacheAsync(LocalCache.CacheFetchFilter filter) {
+    protected async Task<bool> RefreshCacheAsync(UserCache<BotDatabaseContext>.CacheFetchFilter filter) {
         const string BusyDownloading = Constants.LoadingEmote + " Please wait a moment. Gathering data...";
 
         var wasDeferred = false;

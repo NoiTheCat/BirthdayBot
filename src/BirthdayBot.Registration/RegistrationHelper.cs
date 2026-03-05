@@ -10,6 +10,7 @@ using NoiPublicBot.Config;
 using Npgsql;
 using BirthdayBot;
 using BirthdayBot.Data;
+using NoiPublicBot.Common;
 
 // Usage:
 // dotnet run --project src/BirthdayBot.Registration/BirthdayBot.Registration.csproj -c CONFIGTYPE -- -c path/to/settings.json
@@ -37,7 +38,7 @@ Console.WriteLine("Interactions setup and module registration");
 var services = new ServiceCollection()
     .AddSingleton(rest)
     .AddSingleton(s => new ShardInstance(s))
-    .AddSingleton(s => new LocalCache(s.GetRequiredService<ShardInstance>()))
+    .AddSingleton(s => new UserCache<BotDatabaseContext>(s.GetRequiredService<ShardInstance>()))
     .AddSingleton(new DiscordSocketClient())
     .AddDbContext<BotDatabaseContext>(options => options
         .UseNpgsql(new NpgsqlConnectionStringBuilder() {
