@@ -13,7 +13,8 @@ public class ModuleConfig : ModuleConfigBase {
     public override string AppName => "BirthdayBot";
 
     public override ILocalizationManager? LocalizationManager
-        => new ResxLocalizationManager("BirthdayBot.Localization.Commands", typeof(ModuleConfig).Assembly, [new("en"), new("es")]);
+        => new ResxLocalizationManager("BirthdayBot.Localization.Commands", typeof(ModuleConfig).Assembly,
+            [new("es-ES")]);
 
     public override IEnumerable<Type> BackgroundServices => [
         //typeof(DataJanitor),

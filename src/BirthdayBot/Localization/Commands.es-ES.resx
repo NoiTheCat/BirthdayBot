@@ -117,7 +117,16 @@
   <resheader name="writer">
     <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </resheader>
-  <data name="command.name" xml:space="preserve">
-    <value>prueba</value>
+  <data name="birthday.name" xml:space="preserve">
+    <value>birthday-but-spanish</value>
+  </data>
+  <data name="config.name" xml:space="preserve">
+    <value>config-but-spanish</value>
+  </data>
+  <data name="export-birthdays.name" xml:space="preserve">
+    <value>exportacion</value>
+  </data>
+  <data name="override.name" xml:space="preserve">
+    <value>override-but-spanish</value>
   </data>
 </root>
