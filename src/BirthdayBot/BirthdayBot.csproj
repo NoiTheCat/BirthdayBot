@@ -12,6 +12,10 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <ItemGroup>
+    <AdditionalFiles Include="Localization/Commands.*.json" />
+  </ItemGroup>
+
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
     <PlatformTarget>AnyCPU</PlatformTarget>
 
@@ -37,6 +41,10 @@
   <ItemGroup>
     <ProjectReference Include="../Core/src/NpbCore/NpbCore.csproj" />
     <ProjectReference Include="../Core/src/NpbCore.Config/NpbCore.Config.csproj" />
+
+    <ProjectReference Include="../Core/src/NpbCore.JsonGen/NpbCore.JsonGen.csproj"
+                      OutputItemType="Analyzer"
+                      ReferenceOutputAssembly="false" />
   </ItemGroup>
 
   <ItemGroup>
@@ -46,21 +54,6 @@
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
     <PackageReference Include="NodaTime" Version="3.3.0" />
-  </ItemGroup>
-
-  <!-- Strongly-typed command strings to use for default values in command registration -->
-  <PropertyGroup>
-    <!-- Helps with OmniSharp recognizing the file -->
-    <CoreCompileDependsOn>PrepareResources;$(CompileDependsOn)</CoreCompileDependsOn>
-  </PropertyGroup>
-  <ItemGroup>
-    <EmbeddedResource Update="Localization/Commands.resx">
-      <Generator>MSBuild:Compile</Generator>
-      <StronglyTypedFileName>$(IntermediateOutputPath)/Commands.Designer.cs</StronglyTypedFileName>
-      <StronglyTypedLanguage>CSharp</StronglyTypedLanguage>
-      <StronglyTypedNamespace>BirthdayBot.Localization</StronglyTypedNamespace>
-      <StronglyTypedClassName>Commands</StronglyTypedClassName>
-    </EmbeddedResource>
   </ItemGroup>
 
 </Project>
