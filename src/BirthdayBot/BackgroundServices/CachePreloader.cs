@@ -1,6 +1,7 @@
 ﻿using BirthdayBot.Data;
 using Microsoft.Extensions.DependencyInjection;
 using NoiPublicBot.BackgroundServices;
+using NoiPublicBot.Common;
 
 namespace BirthdayBot.BackgroundServices;
 
@@ -11,10 +12,10 @@ public sealed class CachePreloader : BackgroundService {
 
     public override async Task OnTick(int tickCount, CancellationToken token) {
         var db = BotDatabaseContext.New();
-        var cache = Shard.LocalServices.GetRequiredService<LocalCache>();
+        var cache = Shard.LocalServices.GetRequiredService<UserCache<BotDatabaseContext>>();
         await _concurrentBackgroundRefresh.WaitAsync(token);
         try {
-            await cache.BackgroundRefreshWholeShardAsync(db, cache.FilterBackground(), token);
+            await cache.BackgroundRefreshWholeShardAsync(db, CacheFilters.Background(), token);
         } finally {
             _concurrentBackgroundRefresh.Release();
         }

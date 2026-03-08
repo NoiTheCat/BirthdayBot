@@ -218,7 +218,7 @@ public class ConfigModule : BBModuleBase {
         var guildconf = guild.GetConfigOrNew(DbContext);
         if (!guildconf.IsNew) await DbContext.Entry(guildconf).Collection(t => t.UserEntries).LoadAsync();
 
-        var resultTemplate = """
+        const string resultTemplate = """
             ### Diagnostics
             Server ID: `{0}` | Bot shard: `{1}`
             Members: `{5}`
@@ -245,7 +245,7 @@ public class ConfigModule : BBModuleBase {
         results[5] = guild.MemberCount.ToString();
         results[2] = guildconf.UserEntries.Count.ToString();
         results[3] = (Cache.GetGuild(guild.Id)?.Count ?? 0).ToString();
-        results[4] = Cache.FilterBackground()(DbContext, guild.Id).Count.ToString();
+        results[4] = CacheFilters.Background()(Cache, DbContext, guild.Id).Count.ToString();
         results[6] = guildconf.GuildTimeZone?.Id ?? "Not set - using UTC";
         results[7] = SystemClock.Instance.GetCurrentInstant()
             .InZone(guildconf.GuildTimeZone ?? DateTimeZone.Utc)
