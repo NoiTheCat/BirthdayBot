@@ -5,19 +5,19 @@ using Discord.WebSocket;
 using Microsoft.EntityFrameworkCore;
 using NodaTime;
 using static BirthdayBot.Common;
+using static BirthdayBot.Localization.CommandsEnUS.Override;
 
 namespace BirthdayBot.InteractionModules;
 
-[Group("override", HelpCmdOverride)]
+[Group(Name, Description)]
 [DefaultMemberPermissions(GuildPermission.ManageGuild)]
 [CommandContextType(InteractionContextType.Guild)]
 public class BirthdayOverrideModule : BBModuleBase {
-    public const string HelpCmdOverride = "Commands to set options for other users.";
-    const string HelpOptOvTarget = "The user whose data to modify.";
-
-    [SlashCommand("set-birthday", "Set a user's birthday on their behalf.")]
-    public async Task OvSetBirthday([Summary(description: HelpOptOvTarget)] SocketGuildUser target,
-                                    [Summary(description: HelpOptDate)] string date) {
+    [SlashCommand(SetBirthday.Name, SetBirthday.Description)]
+    public async Task OvSetBirthday(
+        [Summary(description: SetBirthday.Target.Description)] SocketGuildUser target,
+        [Summary(description: SetBirthday.Date.Description)] string date)
+    {
         Cache.Update(target);
 
         // IMPORTANT: If editing here, reflect changes as needed in BirthdayModule.
@@ -38,18 +38,18 @@ public class BirthdayOverrideModule : BBModuleBase {
         user.LastProcessed = Instant.MinValue; // always reset on update
         await DbContext.SaveChangesAsync();
 
-        await RespondAsync($":white_check_mark: {FormatName(target, false)}'s birthday has been set to " +
-            $"**{FormatDate(indate)}**.").ConfigureAwait(false);
+        await RespondAsync(LRg("override.bdaySuccess", FormatName(target, false), FormatDate(indate))).ConfigureAwait(false);
     }
 
-    [SlashCommand("set-timezone", "Set a user's time zone on their behalf.")]
-    public async Task OvSetTimezone([Summary(description: HelpOptOvTarget)] SocketGuildUser target,
-                                    [Summary(description: HelpOptZone), Autocomplete<TzAutocompleteHandler>] string zone) {
+    [SlashCommand(SetTimezone.Name, SetTimezone.Description)]
+    public async Task OvSetTimezone(
+        [Summary(description: SetTimezone.Target.Description)] SocketGuildUser target,
+        [Summary(description: SetTimezone.Zone.Description), Autocomplete<TzAutocompleteHandler>] string zone)
+    {
         Cache.Update(target);
         var user = target.GetUserEntryOrNew(DbContext);
         if (user.IsNew) {
-            await RespondAsync($":x: {FormatName(target, false)} must have a birthday set first.")
-                .ConfigureAwait(false);
+            await RespondAsync(LRg("override.tzNoBirthday", FormatName(target, false))).ConfigureAwait(false);
             return;
         }
 
@@ -63,23 +63,20 @@ public class BirthdayOverrideModule : BBModuleBase {
         user.TimeZone = newzone;
         user.LastProcessed = Instant.MinValue; // always reset on update
         await DbContext.SaveChangesAsync();
-        await RespondAsync($":white_check_mark: {FormatName(target, false)}'s time zone has been set to " +
-            $"**{newzone}**.").ConfigureAwait(false);
+        await RespondAsync(LRg("override.tzSuccess", FormatName(target, false), newzone)).ConfigureAwait(false);
     }
 
-    [SlashCommand("remove-birthday", "Remove a user's birthday information on their behalf.")]
-    public async Task OvRemove([Summary(description: HelpOptOvTarget)] SocketGuildUser target) {
+    [SlashCommand(RemoveBirthday.Name, RemoveBirthday.Description)]
+    public async Task OvRemove([Summary(description: RemoveBirthday.Target.Description)] SocketGuildUser target) {
         Cache.Update(target);
 
         var query = await DbContext.UserEntries
             .Where(e => e.GuildId == Context.Guild.Id && e.UserId == target.Id)
             .ExecuteDeleteAsync();
         if (query != 0) {
-            await RespondAsync($":white_check_mark: {FormatName(target, false)}'s birthday in this server has been removed.")
-                .ConfigureAwait(false);
+            await RespondAsync(LRg("override.delSuccess", FormatName(target, false))).ConfigureAwait(false);
         } else {
-            await RespondAsync($":white_check_mark: {FormatName(target, false)}'s birthday is not registered.")
-                .ConfigureAwait(false);
+            await RespondAsync(LRg("override.delNoBirthday", FormatName(target, false))).ConfigureAwait(false);
         }
     }
 }

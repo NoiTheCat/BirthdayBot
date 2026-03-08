@@ -7,6 +7,7 @@ static class Common {
     /// <summary>
     /// Formats a user's name to a consistent, readable format which makes use of their nickname.
     /// </summary>
+    [Obsolete("Use Core's UserCacheItem.FormatName")]
     public static string FormatName(SocketGuildUser member, bool ping) {
         if (ping) return member.Mention;
 

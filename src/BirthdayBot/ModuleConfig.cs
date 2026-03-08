@@ -34,4 +34,10 @@ public class ModuleConfig : ModuleConfigBase {
             return ModalResponder.DiscordClient_ModalSubmitted(shard, modal);
         };
     }
+
+    public override ILocalizationManager? LocalizationManager
+        => new JsonLocalizationManager("Localization", "Commands");
+
+    public override Func<string, string> GenericErrorProvider
+        => loc => Localization.StringProviders.Responses.Get(loc, "errGeneric");
 }

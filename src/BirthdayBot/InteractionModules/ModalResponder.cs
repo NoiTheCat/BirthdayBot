@@ -1,5 +1,6 @@
 ﻿using Discord.WebSocket;
 using NoiPublicBot;
+using static BirthdayBot.Localization.StringProviders;
 
 namespace BirthdayBot.InteractionModules;
 
@@ -12,7 +13,7 @@ static class ModalResponder {
 
     internal static async Task DiscordClient_ModalSubmitted(ShardInstance inst, SocketModal arg) {
         Responder handler = arg.Data.CustomId switch {
-            ConfigModule.SubCmdsConfigAnnounce.ModalCidAnnounce => ConfigModule.SubCmdsConfigAnnounce.CmdSetMessageResponse,
+            ConfigModule.SubCmdsConfigAnnounce.ModFormidAnnounce => ConfigModule.SubCmdsConfigAnnounce.CmdSetMessageResponse,
             _ => DefaultHandler
         };
 
@@ -20,7 +21,7 @@ static class ModalResponder {
 
         if (arg.Channel is not SocketGuildChannel channel) {
             Log($"Modal of type `{arg.Data.CustomId}` but channel data unavailable. Sender ID {arg.User.Id}, name {arg.User}.");
-            await arg.RespondAsync(":x: Invalid request. Are you trying this command from a channel the bot can't see?")
+            await arg.RespondAsync(Responses[arg.GuildLocale]["errorGeneric"])
                 .ConfigureAwait(false);
             return;
         }
@@ -30,13 +31,13 @@ static class ModalResponder {
             await handler(arg, channel, data).ConfigureAwait(false);
         } catch (Exception e) {
             Log( $"Unhandled exception. {e}");
-            await arg.RespondAsync(Constants.GenericError);
+            await arg.RespondAsync(Responses[arg.GuildLocale]["errGeneric"]);
         }
     }
 
     private static async Task DefaultHandler(SocketModal modal, SocketGuildChannel channel,
                                              Dictionary<string, SocketMessageComponentData> data)
-        => await modal.RespondAsync(":x: ...???");
+        => await modal.RespondAsync(Responses[modal.GuildLocale]["errorGeneric"]);
 
     private static void Log(string msg) {
         Instance.Log(nameof(ModalResponder), msg);

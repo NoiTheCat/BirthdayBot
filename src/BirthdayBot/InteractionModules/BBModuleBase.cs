@@ -6,17 +6,11 @@ using Microsoft.EntityFrameworkCore;
 using NodaTime;
 using NoiPublicBot;
 using NoiPublicBot.Common;
+using static BirthdayBot.Localization.StringProviders;
 
 namespace BirthdayBot.InteractionModules;
 
 public partial class BBModuleBase : InteractionModuleBase<SocketInteractionContext> {
-    protected const string MemberCacheEmptyError = ":warning: Please try the command again.";
-    public const string AccessDeniedError = ":warning: You are not allowed to run this command.";
-
-    protected const string HelpOptDate = "A date, including the month and day. For example, \"15 January\".";
-    protected const string HelpOptZone = "A 'tzdata'-compliant time zone name. See help for more details.";
-    protected const string HelpBool = "True to enable, False to disable.";
-
     // Injected by DI:
     public ShardInstance Shard { get; set; } = null!;
     public BotDatabaseContext DbContext { get; set; } = null!;
@@ -28,9 +22,7 @@ public partial class BBModuleBase : InteractionModuleBase<SocketInteractionConte
         return base.BeforeExecuteAsync(command);
     }
 
-    /// <summary>
-    /// Checks given time zone input, throwing a FormatException if the input is not recognized as one.
-    /// </summary>
+    [Obsolete("not obsolete. Do exception handling on ArgumentException")]
     protected static DateTimeZone ParseTimeZone(string tzinput) {
         var tzdb = DateTimeZoneProviders.Tzdb;
         var result = tzdb.GetZoneOrNull(tzinput);
@@ -39,8 +31,7 @@ public partial class BBModuleBase : InteractionModuleBase<SocketInteractionConte
         var search = tzdb.Ids.FirstOrDefault(t => string.Equals(t, tzinput, StringComparison.OrdinalIgnoreCase));
         if (search != null) return tzdb.GetZoneOrNull(search)!;
 
-        throw new FormatException(":x: Unknown time zone name.\n" +
-                "To find your time zone, please refer to: https://zones.arilyn.cc/");
+        throw new ArgumentException();
     }
 
     /// <summary>
@@ -66,6 +57,25 @@ public partial class BBModuleBase : InteractionModuleBase<SocketInteractionConte
     /// </exception>
     // TODO replace with native date input?
     protected static LocalDate ParseDate(string dateInput) {
+        #warning Strings not yet localized
+        static int GetMonth(string input) {
+            return input.ToLower() switch {
+                "jan" or "january" => 1,
+                "feb" or "february" => 2,
+                "mar" or "march" => 3,
+                "apr" or "april" => 4,
+                "may" => 5,
+                "jun" or "june" => 6,
+                "jul" or "july" => 7,
+                "aug" or "august" => 8,
+                "sep" or "september" => 9,
+                "oct" or "october" => 10,
+                "nov" or "november" => 11,
+                "dec" or "december" => 12,
+                _ => throw new FormatException($":x: Can't determine month name `{input}`. Check your spelling and try again."),
+            };
+        }
+
         var m = DateParser1().Match(dateInput);
         if (!m.Success) {
             // Flip the fields around, try again
@@ -90,32 +100,6 @@ public partial class BBModuleBase : InteractionModuleBase<SocketInteractionConte
         } catch (ArgumentOutOfRangeException) {
             throw new FormatException(":x: The date you specified is not a valid calendar date.");
         }
-    }
-
-    /// <summary>
-    /// Returns information for a given month input.
-    /// </summary>
-    /// <param name="input"></param>
-    /// <returns>Tuple: Month value, upper limit of days in the month</returns>
-    /// <exception cref="FormatException">
-    /// Thrown on error. Send out to Discord as-is.
-    /// </exception>
-    private static int GetMonth(string input) {
-        return input.ToLower() switch {
-            "jan" or "january" => 1,
-            "feb" or "february" => 2,
-            "mar" or "march" => 3,
-            "apr" or "april" => 4,
-            "may" => 5,
-            "jun" or "june" => 6,
-            "jul" or "july" => 7,
-            "aug" or "august" => 8,
-            "sep" or "september" => 9,
-            "oct" or "october" => 10,
-            "nov" or "november" => 11,
-            "dec" or "december" => 12,
-            _ => throw new FormatException($":x: Can't determine month name `{input}`. Check your spelling and try again."),
-        };
     }
 
     /// <summary>
@@ -172,15 +156,13 @@ public partial class BBModuleBase : InteractionModuleBase<SocketInteractionConte
 
     // For use when responding directly to user input
     protected async Task<bool> RefreshCacheAsync(UserCache<BotDatabaseContext>.CacheFetchFilter filter) {
-        const string BusyDownloading = Constants.LoadingEmote + " Please wait a moment. Gathering data...";
-
         var wasDeferred = false;
         // casting a wide net here...
         var refresh = Cache.RequestGuildRefreshAsync(DbContext, Context.Guild.Id, filter);
         if (!refresh.IsCompleted) {
             // This may take a while
             wasDeferred = true;
-            await RespondAsync(BusyDownloading).ConfigureAwait(false);
+            await RespondAsync(LRg("loadingUsers")).ConfigureAwait(false);
             await refresh.ConfigureAwait(false);
         }
         // Run a second time in case we got an ongoing task with a narrower filter than requested
@@ -188,10 +170,19 @@ public partial class BBModuleBase : InteractionModuleBase<SocketInteractionConte
         if (!refresh.IsCompleted) {
             if (!wasDeferred) {
                 wasDeferred = true;
-                await RespondAsync(BusyDownloading).ConfigureAwait(false);
+                await RespondAsync(LRg("loadingUsers")).ConfigureAwait(false);
                 await refresh.ConfigureAwait(false);
             }
         }
         return wasDeferred;
     }
+
+    // Commands, Guild locale
+    protected string LCg(string key, params object[] format) => Commands.Get(Context.Interaction.GuildLocale, key, format);
+    // Commands, User locale
+    protected string LCu(string key, params object[] format) => Commands.Get(Context.Interaction.UserLocale, key, format);
+    // Responses, Guild locale
+    protected string LRg(string key, params object[] format) => Responses.Get(Context.Interaction.GuildLocale, key, format);
+    // Responses, User locale
+    protected string LRu(string key, params object[] format) => Responses.Get(Context.Interaction.UserLocale, key, format);
 }
