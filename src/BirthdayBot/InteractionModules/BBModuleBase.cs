@@ -10,13 +10,6 @@ using NoiPublicBot.Common;
 namespace BirthdayBot.InteractionModules;
 
 public partial class BBModuleBase : InteractionModuleBase<SocketInteractionContext> {
-    protected const string MemberCacheEmptyError = ":warning: Please try the command again.";
-    public const string AccessDeniedError = ":warning: You are not allowed to run this command.";
-
-    protected const string HelpOptDate = "A date, including the month and day. For example, \"15 January\".";
-    protected const string HelpOptZone = "A 'tzdata'-compliant time zone name. See help for more details.";
-    protected const string HelpBool = "True to enable, False to disable.";
-
     // Injected by DI:
     public ShardInstance Shard { get; set; } = null!;
     public BotDatabaseContext DbContext { get; set; } = null!;

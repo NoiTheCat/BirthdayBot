@@ -1,4 +1,9 @@
 {
+  // In this file: Command names and descriptions, parameter names and descriptions.
+  // This file must follow a strict format for the library's localization manager to process it.
+  
+  // Note: Where needed, prefer ChoiceAttribute instead of using enum types for predictable JSON property names.
+
   "help": {
     "name": "help",
     "description": "Show an overview of available commands."
@@ -185,13 +190,13 @@
     "format": {
       "name": "format",
       "description": "Specify the format of the exported data.",
-      "Simple, readable text file": {
-        "name": "Simple, readable text file"
+      "plaintext": {
+        "name": "Plain text file"
       },
-      "CSV with header": {
+      "csv": {
         "name": "CSV with header"
       },
-      "iCal (.ics) with recurring events": {
+      "ics": {
         "name": "iCal (.ics) with recurring events"
       }
     }

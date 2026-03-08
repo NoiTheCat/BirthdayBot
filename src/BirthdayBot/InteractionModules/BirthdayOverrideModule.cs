@@ -5,19 +5,20 @@ using Discord.WebSocket;
 using Microsoft.EntityFrameworkCore;
 using NodaTime;
 using static BirthdayBot.Common;
+using static BirthdayBot.Localization.CommandsEnUS.Override;
 
 namespace BirthdayBot.InteractionModules;
 
-[Group("override", HelpCmdOverride)]
+[Group(Name, Description)]
 [DefaultMemberPermissions(GuildPermission.ManageGuild)]
 [CommandContextType(InteractionContextType.Guild)]
 public class BirthdayOverrideModule : BBModuleBase {
     public const string HelpCmdOverride = "Commands to set options for other users.";
-    const string HelpOptOvTarget = "The user whose data to modify.";
-
-    [SlashCommand("set-birthday", "Set a user's birthday on their behalf.")]
-    public async Task OvSetBirthday([Summary(description: HelpOptOvTarget)] SocketGuildUser target,
-                                    [Summary(description: HelpOptDate)] string date) {
+    [SlashCommand(SetBirthday.Name, SetBirthday.Description)]
+    public async Task OvSetBirthday(
+        [Summary(description: SetBirthday.Target.Description)] SocketGuildUser target,
+        [Summary(description: SetBirthday.Date.Description)] string date)
+    {
         Cache.Update(target);
 
         // IMPORTANT: If editing here, reflect changes as needed in BirthdayModule.
@@ -42,9 +43,11 @@ public class BirthdayOverrideModule : BBModuleBase {
             $"**{FormatDate(indate)}**.").ConfigureAwait(false);
     }
 
-    [SlashCommand("set-timezone", "Set a user's time zone on their behalf.")]
-    public async Task OvSetTimezone([Summary(description: HelpOptOvTarget)] SocketGuildUser target,
-                                    [Summary(description: HelpOptZone), Autocomplete<TzAutocompleteHandler>] string zone) {
+    [SlashCommand(SetTimezone.Name, SetTimezone.Description)]
+    public async Task OvSetTimezone(
+        [Summary(description: SetTimezone.Target.Description)] SocketGuildUser target,
+        [Summary(description: SetTimezone.Zone.Description), Autocomplete<TzAutocompleteHandler>] string zone)
+    {
         Cache.Update(target);
         var user = target.GetUserEntryOrNew(DbContext);
         if (user.IsNew) {
@@ -67,8 +70,8 @@ public class BirthdayOverrideModule : BBModuleBase {
             $"**{newzone}**.").ConfigureAwait(false);
     }
 
-    [SlashCommand("remove-birthday", "Remove a user's birthday information on their behalf.")]
-    public async Task OvRemove([Summary(description: HelpOptOvTarget)] SocketGuildUser target) {
+    [SlashCommand(RemoveBirthday.Name, RemoveBirthday.Description)]
+    public async Task OvRemove([Summary(description: RemoveBirthday.Target.Description)] SocketGuildUser target) {
         Cache.Update(target);
 
         var query = await DbContext.UserEntries

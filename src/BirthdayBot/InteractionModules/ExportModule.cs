@@ -3,28 +3,26 @@ using Discord.Interactions;
 using NodaTime;
 using System.Globalization;
 using System.Text;
+// "Format" is ambiguous; using one step up from export section
+using static BirthdayBot.Localization.CommandsEnUS;
 
 namespace BirthdayBot.InteractionModules;
 
 public class ExportModule : BBModuleBase {
     public const string HelpCmdExport = "Generates a text file with all known and available birthdays.";
 
-    public enum ExportFormat {
-        [ChoiceDisplay("Simple, readable text file")]
-        Default,
-        [ChoiceDisplay("CSV with header")]
-        Csv,
-        [ChoiceDisplay("iCal (.ics) with recurring events")]
-        ICal
-    }
-
     delegate MemoryStream FileBuilder(IEnumerable<KnownGuildUser> list);
 
-    [SlashCommand("export-birthdays", HelpCmdExport)]
+    [SlashCommand(ExportBirthdays.Name, ExportBirthdays.Description)]
     [DefaultMemberPermissions(GuildPermission.ManageGuild)]
     [CommandContextType(InteractionContextType.Guild)]
     public async Task CmdExport(
-        [Summary(description: "Specify the format of the exported data.")] ExportFormat format = ExportFormat.Default) {
+        [Summary(description: ExportBirthdays.Format.Description)]
+        [Choice(ExportBirthdays.Format.Plaintext.Name, "plaintext")]
+        [Choice(ExportBirthdays.Format.Csv.Name, "csv")]
+        [Choice(ExportBirthdays.Format.Ics.Name, "ics")]
+        string format = "plaintext")
+    {
         var deferred = await RefreshCacheAsync(CacheFilters.AllMissing());
 
         var bdlist = GetAllKnownUsers(Context.Guild.Id);
@@ -32,11 +30,11 @@ public class ExportModule : BBModuleBase {
         var filename = "birthdaybot-" + Context.Guild.Id;
         FileBuilder contentSource;
         switch (format) {
-            case ExportFormat.Csv:
+            case "csv":
                 contentSource = ListExportCsv;
                 filename += ".csv";
                 break;
-            case ExportFormat.ICal:
+            case "ics":
                 contentSource = ListExportICal;
                 filename += ".ics";
                 break;

@@ -1,6 +1,7 @@
 ﻿using Discord;
 using Discord.Interactions;
 using NoiPublicBot;
+using static BirthdayBot.Localization.CommandsEnUS.Help;
 
 namespace BirthdayBot.InteractionModules;
 
@@ -31,7 +32,7 @@ public class HelpModule : BBModuleBase {
         $"` ⤷set-birthday`, `⤷set-timezone`, `⤷remove`\n" +
         "**Caution:** Skipping optional parameters __removes__ their configuration.";
 
-    [SlashCommand("help", "Show an overview of available commands.")]
+    [SlashCommand(Name, Description)]
     public async Task CmdHelp() {
         const string DMWarn = "Please note that this bot works in servers only. " +
             "The bot will not respond to any other commands within a DM.";

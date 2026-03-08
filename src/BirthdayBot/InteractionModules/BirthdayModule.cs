@@ -5,10 +5,11 @@ using Discord.Interactions;
 using Discord.WebSocket;
 using Microsoft.EntityFrameworkCore;
 using NodaTime;
+using static BirthdayBot.Localization.CommandsEnUS.Birthday;
 
 namespace BirthdayBot.InteractionModules;
 
-[Group("birthday", HelpCmdBirthday)]
+[Group(Name, Description)]
 [CommandContextType(InteractionContextType.Guild)]
 public class BirthdayModule : BBModuleBase {
     public const string HelpCmdBirthday = "Commands relating to birthdays.";
@@ -19,11 +20,13 @@ public class BirthdayModule : BBModuleBase {
     public const string HelpCmdNearest = "Get a list of users who recently had or will have a birthday.";
     private const string ErrAddOnly = ":x: You may not edit a birthday or time zone after it has been added.";
 
-    [Group("set", "Subcommands for setting birthday information.")]
+    [Group(Set.Name, Set.Description)]
     public class SubCmdsBirthdaySet : BBModuleBase {
-        [SlashCommand("date", HelpCmdSetDate)]
-        public async Task CmdSetBday([Summary(description: HelpOptDate)] string date,
-                                     [Summary(description: HelpOptZone), Autocomplete<TzAutocompleteHandler>] string? zone = null) {
+        [SlashCommand(Set.Date.Name, Set.Date.Description)]
+        public async Task CmdSetBday(
+            [Summary(description: Set.Date.Date_.Description)] string date,
+            [Summary(description: Set.Date.Zone.Description), Autocomplete<TzAutocompleteHandler>] string? zone = null)
+        {
             // IMPORTANT: If editing here, reflect changes as needed in BirthdayOverrideModule.
             var guild = ((SocketTextChannel)Context.Channel).Guild.GetConfigOrNew(DbContext);
             if (guild.IsNew) DbContext.GuildConfigurations.Add(guild); // Satisfy foreign key constraint
@@ -72,8 +75,10 @@ public class BirthdayModule : BBModuleBase {
             await RespondAsync(response, ephemeral: IsEphemeralSet()).ConfigureAwait(false);
         }
 
-        [SlashCommand("timezone", HelpCmdSetZone)]
-        public async Task CmdSetZone([Summary(description: HelpOptZone), Autocomplete<TzAutocompleteHandler>] string zone) {
+        [SlashCommand(Set.Timezone.Name, Set.Timezone.Description)]
+        public async Task CmdSetZone(
+            [Summary(description: Set.Timezone.Zone.Description), Autocomplete<TzAutocompleteHandler>] string zone)
+        {
             var user = ((SocketGuildUser)Context.User).GetUserEntryOrNew(DbContext);
             if (user.IsNew) {
                 await RespondAsync(":x: You must set a birthday first.", ephemeral: true).ConfigureAwait(false);
@@ -106,7 +111,7 @@ public class BirthdayModule : BBModuleBase {
         }
     }
 
-    [SlashCommand("remove", HelpCmdRemove)]
+    [SlashCommand(Remove.Name, Remove.Description)]
     public async Task CmdRemove() {
         var query = await DbContext.UserEntries
             .Where(e => e.GuildId == Context.Guild.Id && e.UserId == Context.User.Id)
@@ -119,8 +124,8 @@ public class BirthdayModule : BBModuleBase {
         }
     }
 
-    [SlashCommand("get", "Gets a user's birthday.")]
-    public async Task CmdGetBday([Summary(description: "Optional: The user's birthday to look up.")] SocketGuildUser? user = null) {
+    [SlashCommand(Get.Name, Get.Description)]
+    public async Task CmdGetBday([Summary(description: Get.User.Description)] SocketGuildUser? user = null) {
         Cache.Update(user);
 
         var isSelf = user is null;
@@ -141,7 +146,7 @@ public class BirthdayModule : BBModuleBase {
     // "Recent and upcoming birthdays"
     // The 'recent' bit removes time zone ambiguity and spares us from extra time zone processing here
     // TODO stop being lazy
-    [SlashCommand("show-nearest", HelpCmdNearest)]
+    [SlashCommand(ShowNearest.Name, ShowNearest.Description)]
     public async Task CmdShowNearest() {
         var deferred = await RefreshCacheAsync(CacheFilters.MissingWithinDays(15)).ConfigureAwait(false);
 

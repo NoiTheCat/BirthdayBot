@@ -1,16 +1,17 @@
-﻿using BirthdayBot.BackgroundServices;
+﻿using System.Globalization;
+using System.Text;
+using BirthdayBot.BackgroundServices;
 using BirthdayBot.Data;
 using Discord;
 using Discord.Interactions;
 using Discord.WebSocket;
 using Microsoft.EntityFrameworkCore;
 using NodaTime;
-using System.Globalization;
-using System.Text;
+using static BirthdayBot.Localization.CommandsEnUS.Config;
 
 namespace BirthdayBot.InteractionModules;
 
-[Group("config", HelpCmdConfig)]
+[Group(Name, Description)]
 [DefaultMemberPermissions(GuildPermission.ManageGuild)]
 [CommandContextType(InteractionContextType.Guild)]
 public class ConfigModule : BBModuleBase {
@@ -21,11 +22,7 @@ public class ConfigModule : BBModuleBase {
     public const string HelpPrivateConfirms = "Sets whether to make confirmation messages visible only to the user.";
     public const string HelpAddOnly = "Sets if users are restricted from editing their birthday after adding it.";
 
-    const string HelpPofxBlankUnset = " Leave blank to unset.";
-    const string HelpOptChannel = "The corresponding channel to use.";
-    const string HelpOptRole = "The corresponding role to use.";
-
-    [Group("announce", HelpCmdAnnounce)]
+    [Group(Announce.Name, Announce.Description)]
     public class SubCmdsConfigAnnounce : BBModuleBase {
         private const string HelpSubCmdChannel = "Set which channel will receive announcement messages.";
         private const string HelpSubCmdMessage = "Modify the announcement message.";
@@ -37,7 +34,7 @@ public class ConfigModule : BBModuleBase {
         private const string ModalComCidSingle = "msg-single";
         private const string ModalComCidMulti = "msg-multi";
 
-        [SlashCommand("help", "Show information regarding announcement messages.")]
+        [SlashCommand(Announce.Help.Name, Announce.Help.Description)]
         public async Task CmdAnnounceHelp() {
             const string subcommands =
                 $"`/config announce` - {HelpCmdAnnounce}\n" +
@@ -68,14 +65,16 @@ public class ConfigModule : BBModuleBase {
                 .Build()).ConfigureAwait(false);
         }
 
-        [SlashCommand("set-channel", HelpSubCmdChannel + HelpPofxBlankUnset)]
-        public async Task CmdSetChannel([Summary(description: HelpOptChannel)] SocketTextChannel? channel = null) {
+        [SlashCommand(Announce.SetChannel.Name, Announce.SetChannel.Description)]
+        public async Task CmdSetChannel(
+            [Summary(description: Announce.SetChannel.Channel.Description)] SocketTextChannel? channel = null)
+        {
             await DbUpdateGuildAsync(s => s.AnnouncementChannel = channel?.Id);
             await RespondAsync(":white_check_mark: The announcement channel has been " +
             (channel == null ? "unset." : $"set to **{channel.Name}**."));
         }
 
-        [SlashCommand("set-message", HelpSubCmdMessage)]
+        [SlashCommand(Announce.SetMessage.Name, Announce.SetMessage.Description)]
         public async Task CmdSetMessage() {
             var settings = Context.Guild.GetConfigOrNew(DbContext);
 
@@ -126,19 +125,19 @@ public class ConfigModule : BBModuleBase {
             await modal.RespondAsync(":white_check_mark: Announcement messages have been updated.");
         }
 
-        [SlashCommand("set-ping", HelpSubCmdPing)]
-        public async Task CmdSetPing([Summary(description: "Set True to ping users, False to display them normally.")] bool option) {
+        [SlashCommand(Announce.SetPing.Name, Announce.SetPing.Description)]
+        public async Task CmdSetPing([Summary(description: Announce.SetPing.Option.Description)] bool option) {
             await DbUpdateGuildAsync(s => s.AnnouncePing = option);
             await RespondAsync($":white_check_mark: Announcement pings are now **{(option ? "on" : "off")}**.").ConfigureAwait(false);
         }
 
-        const string HelpOptTestPlaceholder = "A user to add into the testing announcement as a placeholder.";
-        [SlashCommand("test", HelpSubCmdTest)]
-        public async Task CmdTest([Summary(description: HelpOptTestPlaceholder)] SocketGuildUser placeholder,
-                                  [Summary(description: HelpOptTestPlaceholder)] SocketGuildUser? placeholder2 = null,
-                                  [Summary(description: HelpOptTestPlaceholder)] SocketGuildUser? placeholder3 = null,
-                                  [Summary(description: HelpOptTestPlaceholder)] SocketGuildUser? placeholder4 = null,
-                                  [Summary(description: HelpOptTestPlaceholder)] SocketGuildUser? placeholder5 = null) {
+        [SlashCommand(Announce.Test.Name, Announce.Test.Description)]
+        public async Task CmdTest([Summary(description: Announce.Test.Placeholder.Description)] SocketGuildUser placeholder,
+                                  [Summary(description: Announce.Test.Placeholder2.Description)] SocketGuildUser? placeholder2 = null,
+                                  [Summary(description: Announce.Test.Placeholder3.Description)] SocketGuildUser? placeholder3 = null,
+                                  [Summary(description: Announce.Test.Placeholder4.Description)] SocketGuildUser? placeholder4 = null,
+                                  [Summary(description: Announce.Test.Placeholder5.Description)] SocketGuildUser? placeholder5 = null)
+        {
             // Prepare config
             var settings = Context.Guild.GetConfigOrNew(DbContext);
             if (settings.IsNew || settings.AnnouncementChannel == null) {
@@ -190,7 +189,7 @@ public class ConfigModule : BBModuleBase {
             await BirthdayUpdater.AnnounceBirthdaysAsync(settings, Context.Guild, names).ConfigureAwait(false);
         }
 
-        [SlashCommand("timers-reset", HelpSubCmdTimersReset)]
+        [SlashCommand(Announce.TimersReset.Name, Announce.TimersReset.Description)]
         public async Task CmdTimersReset() {
             await DbContext.UserEntries
                 .Where(u => u.GuildId == Context.Guild.Id)
@@ -200,8 +199,8 @@ public class ConfigModule : BBModuleBase {
         }
     }
 
-    [SlashCommand("birthday-role", HelpCmdBirthdayRole)]
-    public async Task CmdSetBRole([Summary(description: HelpOptRole)] SocketRole role) {
+    [SlashCommand(BirthdayRole.Name, BirthdayRole.Description)]
+    public async Task CmdSetBRole([Summary(description: BirthdayRole.Role.Description)] SocketRole role) {
         if (role.IsEveryone || role.IsManaged) {
             await RespondAsync(":x: This role cannot be used for this setting.", ephemeral: true);
             return;
@@ -210,7 +209,7 @@ public class ConfigModule : BBModuleBase {
         await RespondAsync($":white_check_mark: The birthday role has been set to **{role.Name}**.").ConfigureAwait(false);
     }
 
-    [SlashCommand("check", HelpCmdCheck)]
+    [SlashCommand(Check.Name, Check.Description)]
     public async Task CmdCheck() {
         static string YesOrNo(bool result) => result ? ":white_check_mark: Yes" : ":x: No";
 
@@ -278,8 +277,12 @@ public class ConfigModule : BBModuleBase {
         }.Build()).ConfigureAwait(false);
     }
 
-    [SlashCommand("set-timezone", "Configure the time zone to use by default in the server." + HelpPofxBlankUnset)]
-    public async Task CmdSetTimezone([Summary(description: HelpOptZone), Autocomplete<TzAutocompleteHandler>] string? zone = null) {
+    [SlashCommand(SetTimezone.Name, SetTimezone.Description)]
+    public async Task CmdSetTimezone(
+        [Summary(description: SetTimezone.Zone.Description)]
+        [Autocomplete<TzAutocompleteHandler>]
+        string? zone = null
+    ) {
         const string Response = ":white_check_mark: The server's time zone has been ";
 
         if (zone == null) {
@@ -299,15 +302,15 @@ public class ConfigModule : BBModuleBase {
         }
     }
 
-    [SlashCommand("private-confirms", HelpPrivateConfirms)]
-    public async Task PrivateConfirmations([Summary(description: HelpBool)] bool setting) {
+    [SlashCommand(PrivateConfirms.Name, PrivateConfirms.Description)]
+    public async Task PrivateConfirmations([Summary(description: PrivateConfirms.Setting.Description)] bool setting) {
         await DbUpdateGuildAsync(s => s.EphemeralConfirm = setting).ConfigureAwait(false);
         await RespondAsync($":white_check_mark: Private confirmations **{(setting ? "enabled" : "disabled")}**.",
             ephemeral: false).ConfigureAwait(false); // Always show this confirmation despite setting
     }
 
-    [SlashCommand("add-only", HelpAddOnly)]
-    public async Task AddOnly([Summary(description: HelpBool)] bool setting) {
+    [SlashCommand(AddOnly.Name, AddOnly.Description)]
+    public async Task CmdAddOnly([Summary(description: AddOnly.Setting.Description)] bool setting) {
         await DbUpdateGuildAsync(s => s.AddOnly = setting).ConfigureAwait(false);
         await RespondAsync($":white_check_mark: Add-only mode has been **{(setting ? "enabled" : "disabled")}**.",
             ephemeral: false).ConfigureAwait(false);
