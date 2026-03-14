@@ -1,5 +1,6 @@
 ﻿using Discord.WebSocket;
 using NoiPublicBot;
+using static BirthdayBot.Localization.StringProviders;
 
 namespace BirthdayBot.InteractionModules;
 
@@ -20,7 +21,7 @@ static class ModalResponder {
 
         if (arg.Channel is not SocketGuildChannel channel) {
             Log($"Modal of type `{arg.Data.CustomId}` but channel data unavailable. Sender ID {arg.User.Id}, name {arg.User}.");
-            await arg.RespondAsync(":x: Invalid request. Are you trying this command from a channel the bot can't see?")
+            await arg.RespondAsync(Responses[arg.GuildLocale]["errorGeneric"])
                 .ConfigureAwait(false);
             return;
         }
@@ -36,7 +37,7 @@ static class ModalResponder {
 
     private static async Task DefaultHandler(SocketModal modal, SocketGuildChannel channel,
                                              Dictionary<string, SocketMessageComponentData> data)
-        => await modal.RespondAsync(":x: ...???");
+        => await modal.RespondAsync(Responses[modal.GuildLocale]["errorGeneric"]);
 
     private static void Log(string msg) {
         Instance.Log(nameof(ModalResponder), msg);

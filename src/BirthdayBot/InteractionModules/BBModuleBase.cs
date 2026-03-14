@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using NodaTime;
 using NoiPublicBot;
 using NoiPublicBot.Common;
+using static BirthdayBot.Localization.StringProviders;
 
 namespace BirthdayBot.InteractionModules;
 
@@ -187,4 +188,15 @@ public partial class BBModuleBase : InteractionModuleBase<SocketInteractionConte
         }
         return wasDeferred;
     }
+
+    // Commands, Guild locale
+    protected string LCg(string key) => Commands.Get(Context.Interaction.GuildLocale, key);
+    // Commands, User locale
+    protected string LCu(string key) => Commands.Get(Context.Interaction.UserLocale, key);
+    // Responses, Guild locale
+    protected string LRg(string key) => Responses.Get(Context.Interaction.GuildLocale, key);
+    // Responses, User locale
+    protected string LRu(string key) => Responses.Get(Context.Interaction.UserLocale, key);
+
+    
 }

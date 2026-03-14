@@ -1,0 +1,22 @@
+{
+    // This file roughly follows the hierarchy from Commands, but is not subject to any outside restrictions.
+    // Strings not found in other translations will fall back to those found in this file.
+
+    // Common responses:
+    "errorParseFail": ":x: Unknown time zone name.\nTo find your time zone, please refer to: https://zones.arilyn.cc/",
+    "errorGeneric": ":x: An unknown error occurred. If this persists, please notify the bot owner.",
+    
+    "help": {
+        "top": "Thank you for using Birthday Bot!\nSupport, data policy, more info: https://noithecat.dev/bots/BirthdayBot\n\nThis bot is is provided for free, period. No paywalled features, subscriptions, or monetization incentives. If you'd like, please consider checking out the author's Ko-fi: https://ko-fi.com/noithecat.",
+        "headerMain": "Help & About",
+        "headerRegCmds": "Commands",
+        "headerModCmds": "Moderator commands",
+        "warnDM": "Please be aware that this bot only works in servers. None of the other commands will work within a DM.",
+        "warnEmptyParam": "**Caution:** Skipping optional parameters __removes__ their configuration.",
+        "seeAlso": "See also:"
+    },
+    "config": {},
+    "override": {},
+    "birthday": {},
+    "export-birthdays": {}
+}
