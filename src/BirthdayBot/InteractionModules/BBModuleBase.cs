@@ -190,13 +190,11 @@ public partial class BBModuleBase : InteractionModuleBase<SocketInteractionConte
     }
 
     // Commands, Guild locale
-    protected string LCg(string key) => Commands.Get(Context.Interaction.GuildLocale, key);
+    protected string LCg(string key, params object[] format) => Commands.Get(Context.Interaction.GuildLocale, key, format);
     // Commands, User locale
-    protected string LCu(string key) => Commands.Get(Context.Interaction.UserLocale, key);
+    protected string LCu(string key, params object[] format) => Commands.Get(Context.Interaction.UserLocale, key, format);
     // Responses, Guild locale
-    protected string LRg(string key) => Responses.Get(Context.Interaction.GuildLocale, key);
+    protected string LRg(string key, params object[] format) => Responses.Get(Context.Interaction.GuildLocale, key, format);
     // Responses, User locale
-    protected string LRu(string key) => Responses.Get(Context.Interaction.UserLocale, key);
-
-    
+    protected string LRu(string key, params object[] format) => Responses.Get(Context.Interaction.UserLocale, key, format);
 }

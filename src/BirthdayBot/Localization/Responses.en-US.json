@@ -17,6 +17,32 @@
     },
     "config": {},
     "override": {},
-    "birthday": {},
+    "birthday": {
+        "errAddOnly": ":x: You may not edit a birthday or time zone after it has been added.",
+        "set": {
+            "date": {
+                "success": ":white_check_mark: Your birthday has been set to **{0}**{1}.", // 0: date format - 1: optional successWithZone
+                "withZone": " at time zone **{0}**",
+                // TODO problem: hardcoded command name
+                "tzHint": "-#Tip: The `/birthday set timezone` command can help ensure your birthday gets recognized on time."
+            },
+            "zone": {
+                "success": ":white_check_mark: Your time zone has been set to **{0}**.",
+                "errNoBirthday": ":x: You must set a birthday first."
+            }
+        },
+        "remove": {
+            "success": ":white_check_mark: Your birthday in this server has been removed.",
+            "noData": ":white_check_mark: Your birthday is not registered."
+        }, 
+        "get": {
+            "noData1p": ":x: You do not have your birthday registered.",
+            "noData3p": ":x: The given user does not have their birthday registered."
+        },
+        "nearest": {
+            "header": "Recent and upcoming birthdays:",
+            "notFound": "There are no recent or upcoming birthdays (within the last 7 days and/or next 14 days)."
+        }
+    },
     "export-birthdays": {}
 }
