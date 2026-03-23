@@ -248,11 +248,8 @@ public class ConfigModule : BBModuleBase {
             await DbUpdateGuildAsync(s => s.GuildTimeZone = null);
             await RespondAsync(LRg("config.set-timezone.successDel")).ConfigureAwait(false);
         } else {
-            DateTimeZone? parsedZone;
-            try {
-                parsedZone = ParseTimeZone(zone);
-            } catch (FormatException e) {
-                await RespondAsync(e.Message).ConfigureAwait(false);
+            if (!TryParseZone(zone, out var parsedZone)) {
+                await RespondAsync(LRg("errorParseFail")).ConfigureAwait(false);
                 return;
             }
 

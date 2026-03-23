@@ -53,11 +53,8 @@ public class BirthdayOverrideModule : BBModuleBase {
             return;
         }
 
-        DateTimeZone newzone;
-        try {
-            newzone = ParseTimeZone(zone);
-        } catch (FormatException e) {
-            await RespondAsync(e.Message, ephemeral: true).ConfigureAwait(false);
+        if (!TryParseZone(zone, out var newzone)) {
+            await RespondAsync(LRu("errorParseFail"), ephemeral: true).ConfigureAwait(false);
             return;
         }
         user.TimeZone = newzone;

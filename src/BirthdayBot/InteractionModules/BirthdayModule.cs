@@ -46,10 +46,8 @@ public class BirthdayModule : BBModuleBase {
 
             DateTimeZone? inzone = null;
             if (zone != null) {
-                try {
-                    inzone = ParseTimeZone(zone);
-                } catch (FormatException e) {
-                    await ReplyAsync(e.Message).ConfigureAwait(false);
+                if (!TryParseZone(zone, out inzone)) {
+                    await ReplyAsync(LRg("errorParseFail")).ConfigureAwait(false);
                     return;
                 }
             }
@@ -87,11 +85,8 @@ public class BirthdayModule : BBModuleBase {
                 }
             }
 
-            DateTimeZone newzone;
-            try {
-                newzone = ParseTimeZone(zone);
-            } catch (FormatException e) {
-                await RespondAsync(e.Message, ephemeral: true).ConfigureAwait(false);
+            if (!TryParseZone(zone, out var newzone)) {
+                await RespondAsync(LRu("errorParseFail"), ephemeral: true).ConfigureAwait(false);
                 return;
             }
             user.TimeZone = newzone;

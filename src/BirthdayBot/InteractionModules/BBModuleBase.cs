@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Text.RegularExpressions;
 using BirthdayBot.Data;
 using Discord;
@@ -21,17 +22,20 @@ public partial class BBModuleBase : InteractionModuleBase<SocketInteractionConte
         if (Context.User is IGuildUser incoming) Cache.Update(incoming);
         return base.BeforeExecuteAsync(command);
     }
-
-    [Obsolete("not obsolete. Do exception handling on ArgumentException")]
-    protected static DateTimeZone ParseTimeZone(string tzinput) {
+    
+    protected static bool TryParseZone(string tzinput, [NotNullWhen(true)] out DateTimeZone? parsedZone) {
         var tzdb = DateTimeZoneProviders.Tzdb;
-        var result = tzdb.GetZoneOrNull(tzinput);
-        if (result != null) return result;
+        parsedZone = tzdb.GetZoneOrNull(tzinput);
+        if (parsedZone != null) return true;
 
         var search = tzdb.Ids.FirstOrDefault(t => string.Equals(t, tzinput, StringComparison.OrdinalIgnoreCase));
-        if (search != null) return tzdb.GetZoneOrNull(search)!;
+        if (search != null) {
+            parsedZone = tzdb.GetZoneOrNull(search)!;
+            return true;
+        }
 
-        throw new ArgumentException();
+        parsedZone = null;
+        return false;
     }
 
     /// <summary>
