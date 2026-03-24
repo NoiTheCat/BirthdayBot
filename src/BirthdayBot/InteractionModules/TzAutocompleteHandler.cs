@@ -22,7 +22,7 @@ public class TzAutocompleteHandler : AutocompleteHandler {
 
     private static ReadOnlyCollection<string> RebuildSuggestionBaseList() {
         // In case we're running in an uninitialized environment (command registration helper), quit early
-        if (Instance.SqlConnectionString is null) return [];
+        if (Instance.SqlConnectionString.Count == 0) return [];
 
         // This bot discourages use of certain zone names and prefer the typical Region/City format over individual countries.
         // They have been excluded from this autocomplete list.
