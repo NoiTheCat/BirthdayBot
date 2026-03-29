@@ -15,8 +15,6 @@ namespace BirthdayBot.InteractionModules;
 [DefaultMemberPermissions(GuildPermission.ManageGuild)]
 [CommandContextType(InteractionContextType.Guild)]
 public class ConfigModule : BBModuleBase {
-    public const string HelpCmdAnnounce = "Settings regarding birthday announcements.";
-
     [Group(Announce.Name, Announce.Description)]
     public class SubCmdsConfigAnnounce : BBModuleBase {
         internal const string ModFormidAnnounce = "edit-announce";
@@ -249,7 +247,7 @@ public class ConfigModule : BBModuleBase {
             await RespondAsync(LRg("config.set-timezone.successDel")).ConfigureAwait(false);
         } else {
             if (!TryParseZone(zone, out var parsedZone)) {
-                await RespondAsync(LRg("errorParseFail")).ConfigureAwait(false);
+                await RespondAsync(LRg("errParseZone")).ConfigureAwait(false);
                 return;
             }
 

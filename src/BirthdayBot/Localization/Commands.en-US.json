@@ -129,9 +129,25 @@
       "date": {
         "name": "date",
         "description": "Sets or updates your birthday.",
-        "date": {
-          "name": "date",
-          "description": "A date, including the month and day. For example, \"15 January\"."
+        "day": {
+          "name": "day",
+          "description": "Day of the month - a value between 1 and 31."
+        },
+        "month": {
+          "name": "month",
+          "description": "The corresponding month of your birthday.",
+          "january": "January",
+          "february": "February",
+          "march": "March",
+          "april": "April",
+          "may": "May",
+          "june": "June",
+          "july": "July",
+          "august": "August",
+          "september": "September",
+          "october": "October",
+          "november": "November",
+          "december": "December"
         },
         "zone": {
           "name": "zone",
@@ -158,9 +174,25 @@
         "name": "target",
         "description": "The user whose data to modify."
       },
-      "date": {
-        "name": "date",
-        "description": "A date, including the month and day. For example, \"15 January\"."
+      "day": {
+        "name": "day",
+        "description": "Day of the month - a value between 1 and 31."
+      },
+      "month": {
+        "name": "month",
+        "description": "The corresponding month of the user's birthday.",
+        "january": "January",
+        "february": "February",
+        "march": "March",
+        "april": "April",
+        "may": "May",
+        "june": "June",
+        "july": "July",
+        "august": "August",
+        "september": "September",
+        "october": "October",
+        "november": "November",
+        "december": "December"
       }
     },
     "set-timezone": {

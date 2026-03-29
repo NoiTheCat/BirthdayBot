@@ -16,15 +16,17 @@ public class BirthdayModule : BBModuleBase {
     public class SubCmdsBirthdaySet : BBModuleBase {
         [SlashCommand(Set.Date.Name, Set.Date.Description)]
         public async Task CmdSetBday(
-            [Summary(description: Set.Date.Date_.Description)] string date,
+            [Summary(description: Set.Date.Day.Description)] string day,
+            [Summary(description: Set.Date.Month.Description)] MonthName month,
             [Summary(description: Set.Date.Zone.Description), Autocomplete<TzAutocompleteHandler>] string? zone = null)
         {
             // IMPORTANT: If editing here, reflect changes as needed in BirthdayOverrideModule.
+
+            // Add-only check
             var guild = ((SocketTextChannel)Context.Channel).Guild.GetConfigOrNew(DbContext);
             if (guild.IsNew) DbContext.GuildConfigurations.Add(guild); // Satisfy foreign key constraint
             var user = ((SocketGuildUser)Context.User).GetUserEntryOrNew(DbContext);
             if (user.IsNew) DbContext.UserEntries.Add(user);
-
             if (guild.AddOnly) {
                 if (!user.IsNew) {
                     if (((SocketGuildUser)Context.User).GuildPermissions.ManageGuild) {
@@ -35,30 +37,23 @@ public class BirthdayModule : BBModuleBase {
                 }
             }
 
-            LocalDate indate;
-            try {
-                indate = ParseDate(date);
-            } catch (FormatException e) {
-                // Our parse method's FormatException has its message to send out to Discord.
-                await RespondAsync(e.Message, ephemeral: true).ConfigureAwait(false);
+            if (!TryParseDate(day, month, out var indate)) {
+                await RespondAsync(LRu("errParseDate"), ephemeral: true).ConfigureAwait(false);
+                return;
+            }
+            DateTimeZone? inzone = null;
+            if (zone != null && !TryParseZone(zone, out inzone)) {
+                await ReplyAsync(LRg("errParseZone")).ConfigureAwait(false);
                 return;
             }
 
-            DateTimeZone? inzone = null;
-            if (zone != null) {
-                if (!TryParseZone(zone, out inzone)) {
-                    await ReplyAsync(LRg("errorParseFail")).ConfigureAwait(false);
-                    return;
-                }
-            }
-
-            user.BirthDate = indate;
+            user.BirthDate = indate.Value;
             user.TimeZone = inzone ?? user.TimeZone;
             user.LastProcessed = Instant.MinValue; // always reset on update
             await DbContext.SaveChangesAsync();
 
             var withZoneResponse = inzone != null ? LRg("birthday.set.date.withZone", inzone) : string.Empty;
-            var response = LRg("birthday.set.date.success", FormatDate(indate), withZoneResponse);
+            var response = LRg("birthday.set.date.success", DateFormat(indate.Value, GuildLocale), withZoneResponse);
             // TODO make hint configurable (on/off, default on)
             if (user.TimeZone == null) response += "\n" + LRg("birthday.set.date.tzHint");
             await RespondAsync(response, ephemeral: IsEphemeralSet()).ConfigureAwait(false);
@@ -86,7 +81,7 @@ public class BirthdayModule : BBModuleBase {
             }
 
             if (!TryParseZone(zone, out var newzone)) {
-                await RespondAsync(LRu("errorParseFail"), ephemeral: true).ConfigureAwait(false);
+                await RespondAsync(LRu("errParseZone"), ephemeral: true).ConfigureAwait(false);
                 return;
             }
             user.TimeZone = newzone;
@@ -123,7 +118,7 @@ public class BirthdayModule : BBModuleBase {
             return;
         }
 
-        await RespondAsync($"{Common.FormatName(user!, false)}: `{FormatDate(targetdata.BirthDate)}`" +
+        await RespondAsync($"{Common.FormatName(user!, false)}: `{DateFormat(targetdata.BirthDate, GuildLocale, abbreviated: false)}`" +
             (targetdata.TimeZone == null ? string.Empty : $" - {targetdata.TimeZone}")).ConfigureAwait(false);
     }
 
@@ -178,14 +173,14 @@ public class BirthdayModule : BBModuleBase {
 
             var first = true;
             output.AppendLine();
-            output.Append($"● `{FormatDate(results.First().BirthDate)}`: ");
+            output.Append($"● `{DateFormat(results.First().BirthDate, GuildLocale, abbreviated: true)}`: ");
             foreach (var item in names) {
                 // If the output is starting to fill up, send out this message and prepare a new one.
                 if (output.Length > 800) {
                     await OutputAsync(output.ToString()).ConfigureAwait(false);
                     output.Clear();
                     first = true;
-                    output.Append($"● `{FormatDate(results.First().BirthDate)}`: ");
+                    output.Append($"● `{DateFormat(results.First().BirthDate, GuildLocale, abbreviated: true)}`: ");
                 }
 
                 if (first) first = false;

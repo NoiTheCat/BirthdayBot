@@ -16,17 +16,14 @@ public class BirthdayOverrideModule : BBModuleBase {
     [SlashCommand(SetBirthday.Name, SetBirthday.Description)]
     public async Task OvSetBirthday(
         [Summary(description: SetBirthday.Target.Description)] SocketGuildUser target,
-        [Summary(description: SetBirthday.Date.Description)] string date)
+        [Summary(description: SetBirthday.Day.Description)] string day,
+        [Summary(description: SetBirthday.Month.Description)] MonthName month)
     {
         Cache.Update(target);
-
         // IMPORTANT: If editing here, reflect changes as needed in BirthdayModule.
-        LocalDate indate;
-        try {
-            indate = ParseDate(date);
-        } catch (FormatException e) {
-            // Our parse method's FormatException has its message to send out to Discord.
-            await RespondAsync(e.Message, ephemeral: true).ConfigureAwait(false);
+
+        if (!TryParseDate(day, month, out var indate)) {
+            await RespondAsync(LRu("errParseDate"), ephemeral: true).ConfigureAwait(false);
             return;
         }
 
@@ -34,11 +31,12 @@ public class BirthdayOverrideModule : BBModuleBase {
         if (guild.IsNew) DbContext.GuildConfigurations.Add(guild); // Satisfy foreign key constraint
         var user = target.GetUserEntryOrNew(DbContext);
         if (user.IsNew) DbContext.UserEntries.Add(user);
-        user.BirthDate = indate;
+        user.BirthDate = indate.Value;
         user.LastProcessed = Instant.MinValue; // always reset on update
         await DbContext.SaveChangesAsync();
 
-        await RespondAsync(LRg("override.bdaySuccess", FormatName(target, false), FormatDate(indate))).ConfigureAwait(false);
+        await RespondAsync(LRg("override.bdaySuccess", FormatName(target, false), DateFormat(indate.Value, GuildLocale)))
+            .ConfigureAwait(false);
     }
 
     [SlashCommand(SetTimezone.Name, SetTimezone.Description)]
@@ -54,7 +52,7 @@ public class BirthdayOverrideModule : BBModuleBase {
         }
 
         if (!TryParseZone(zone, out var newzone)) {
-            await RespondAsync(LRu("errorParseFail"), ephemeral: true).ConfigureAwait(false);
+            await RespondAsync(LRu("errParseZone"), ephemeral: true).ConfigureAwait(false);
             return;
         }
         user.TimeZone = newzone;

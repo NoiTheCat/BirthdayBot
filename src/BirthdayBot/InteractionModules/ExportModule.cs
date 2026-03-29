@@ -58,7 +58,7 @@ public class ExportModule : BBModuleBase {
         writer.WriteLine(LRg("export-birthdays.textHeader", Context.Guild.Name));
         writer.WriteLine();
         foreach (var item in list) {
-            writer.Write($"● {FormatDate(item.BirthDate)}: ");
+            writer.Write($"● {DateFormat(item.BirthDate, "en-GB", abbreviated: true)}: "); // keep previous behavior, explicitly use en-GB
             writer.Write(item.UserId);
             writer.Write(" " + item.CacheUser.Username);
             if (item.CacheUser.GlobalName != null) writer.Write($" ({item.CacheUser.GlobalName})");
@@ -100,7 +100,7 @@ public class ExportModule : BBModuleBase {
             writer.Write(',');
             writer.Write(csvEscape(item.CacheUser.GuildNickname)); // may be empty
             writer.Write(',');
-            writer.Write($"{FormatDate(item.BirthDate)}");
+            writer.Write($"{DateFormat(item.BirthDate, "en-GB", abbreviated: true)}"); // keep previous behavior, explicitly use en-GB
             writer.Write(',');
             writer.Write(item.BirthDate.Month);
             writer.Write(',');

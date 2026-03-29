@@ -1,10 +1,11 @@
 using System.Diagnostics.CodeAnalysis;
-using System.Text.RegularExpressions;
+using System.Globalization;
 using BirthdayBot.Data;
 using Discord;
 using Discord.Interactions;
 using Microsoft.EntityFrameworkCore;
 using NodaTime;
+using NodaTime.Text;
 using NoiPublicBot;
 using NoiPublicBot.Common;
 using static BirthdayBot.Localization.StringProviders;
@@ -16,6 +17,10 @@ public partial class BBModuleBase : InteractionModuleBase<SocketInteractionConte
     public ShardInstance Shard { get; set; } = null!;
     public BotDatabaseContext DbContext { get; set; } = null!;
     public UserCache<BotDatabaseContext> Cache { get; set; } = null!;
+
+    // Other helpers:
+    protected string GuildLocale => Context.Interaction.GuildLocale;
+    protected string UserLocale => Context.Interaction.UserLocale;
 
     // Opportunistically caches user data coming in via interactions.
     public override Task BeforeExecuteAsync(ICommandInfo command) {
@@ -44,72 +49,35 @@ public partial class BBModuleBase : InteractionModuleBase<SocketInteractionConte
     protected bool IsEphemeralSet()
         => DbContext.GuildConfigurations.Where(r => r.GuildId == Context.Guild.Id).SingleOrDefault()?.EphemeralConfirm ?? false;
 
-    #region Date parsing
-    const string FormatError = ":x: Unrecognized date format. The following formats are accepted, as examples: "
-            + "`15-jan`, `jan-15`, `15 jan`, `jan 15`, `15 January`, `January 15`.";
+    #region Date handling
+    public enum MonthName {
+        January, February, March, April, May, June, July, August, September, October, November, December
+    }
 
-    [GeneratedRegex(@"^(?<day>\d{1,2})[ -](?<month>[A-Za-z]+)$")]
-    private static partial Regex DateParser1();
-    [GeneratedRegex(@"^(?<month>[A-Za-z]+)[ -](?<day>\d{1,2})$")]
-    private static partial Regex DateParser2();
-
-    /// <summary>
-    /// Parses a date input.
-    /// </summary>
-    /// <exception cref="FormatException">
-    /// Thrown for any parsing issue. Reason is expected to be sent to Discord as-is.
-    /// </exception>
-    // TODO replace with native date input?
-    protected static LocalDate ParseDate(string dateInput) {
-        #warning Strings not yet localized
-        static int GetMonth(string input) {
-            return input.ToLower() switch {
-                "jan" or "january" => 1,
-                "feb" or "february" => 2,
-                "mar" or "march" => 3,
-                "apr" or "april" => 4,
-                "may" => 5,
-                "jun" or "june" => 6,
-                "jul" or "july" => 7,
-                "aug" or "august" => 8,
-                "sep" or "september" => 9,
-                "oct" or "october" => 10,
-                "nov" or "november" => 11,
-                "dec" or "december" => 12,
-                _ => throw new FormatException($":x: Can't determine month name `{input}`. Check your spelling and try again."),
-            };
-        }
-
-        var m = DateParser1().Match(dateInput);
-        if (!m.Success) {
-            // Flip the fields around, try again
-            m = DateParser2().Match(dateInput);
-            if (!m.Success) throw new FormatException(FormatError);
-        }
-
-        int day, month;
-        string monthVal;
-        try {
-            day = int.Parse(m.Groups["day"].Value);
-        } catch (FormatException) {
-            throw new Exception(FormatError);
-        }
-        monthVal = m.Groups["month"].Value;
-
-        // TODO look into framework's localization stuff, may be able to convert better
-        month = GetMonth(monthVal);
+    /// <exception cref="FormatException">Thrown for any parsing issue.</exception>
+    protected static bool TryParseDate(string dayInput, MonthName monthInput, [NotNullWhen(true)] out LocalDate? result) {
+        result = null;
+        if (!int.TryParse(dayInput, out var day)) return false;
+        var month = (int)monthInput + 1;
 
         try {
-            return new(2000, month, day);
+            result = new(2000, month, day);
+            return true;
         } catch (ArgumentOutOfRangeException) {
-            throw new FormatException(":x: The date you specified is not a valid calendar date.");
+            return false;
         }
     }
 
-    /// <summary>
-    /// Returns a string representing a birthday in a consistent format.
-    /// </summary>
-    protected static string FormatDate(LocalDate date) => $"{date.Day:00}-{Common.MonthNames[date.Month]}";
+    protected static string DateFormat(LocalDate date, string locale, bool abbreviated = false) {
+        // Avoid inconsistency - if we otherwise have zero support for the given locale, fall back to default.
+        if (!Localization.SupportedLocales.List.Contains(locale)) locale = "en_US";
+
+        var culture = new CultureInfo(locale);
+        var outPattern = culture.DateTimeFormat.MonthDayPattern;
+        if (abbreviated) outPattern = outPattern.Replace("MMMM", "MMM").Replace("d", "dd");
+
+        return LocalDatePattern.Create(outPattern, culture).Format(date);
+    }
     #endregion
 
     #region Whole guild queries
@@ -181,12 +149,12 @@ public partial class BBModuleBase : InteractionModuleBase<SocketInteractionConte
         return wasDeferred;
     }
 
-    // Commands, Guild locale
-    protected string LCg(string key, params object[] format) => Commands.Get(Context.Interaction.GuildLocale, key, format);
-    // Commands, User locale
-    protected string LCu(string key, params object[] format) => Commands.Get(Context.Interaction.UserLocale, key, format);
-    // Responses, Guild locale
-    protected string LRg(string key, params object[] format) => Responses.Get(Context.Interaction.GuildLocale, key, format);
-    // Responses, User locale
-    protected string LRu(string key, params object[] format) => Responses.Get(Context.Interaction.UserLocale, key, format);
+    /// <summary>Get string from Commands using guild locale.</summary>
+    protected string LCg(string key, params object[] format) => Commands.Get(GuildLocale, key, format);
+    /// <summary>Get string from Commands using user locale.</summary>
+    protected string LCu(string key, params object[] format) => Commands.Get(UserLocale, key, format);
+    /// <summary>Get string from Responses using guild locale.</summary>
+    protected string LRg(string key, params object[] format) => Responses.Get(GuildLocale, key, format);
+    /// <summary>Get string from Responses using user locale.</summary>
+    protected string LRu(string key, params object[] format) => Responses.Get(UserLocale, key, format);
 }
