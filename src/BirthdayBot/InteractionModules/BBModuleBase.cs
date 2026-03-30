@@ -150,11 +150,11 @@ public partial class BBModuleBase : InteractionModuleBase<SocketInteractionConte
     }
 
     /// <summary>Get string from Commands using guild locale.</summary>
-    protected string LCg(string key, params object[] format) => Commands.Get(GuildLocale, key, format);
+    protected string LCg(string key, params object?[] format) => Commands.Get(GuildLocale, key, format);
     /// <summary>Get string from Commands using user locale.</summary>
-    protected string LCu(string key, params object[] format) => Commands.Get(UserLocale, key, format);
+    protected string LCu(string key, params object?[] format) => Commands.Get(UserLocale, key, format);
     /// <summary>Get string from Responses using guild locale.</summary>
-    protected string LRg(string key, params object[] format) => Responses.Get(GuildLocale, key, format);
+    protected string LRg(string key, params object?[] format) => Responses.Get(GuildLocale, key, format);
     /// <summary>Get string from Responses using user locale.</summary>
-    protected string LRu(string key, params object[] format) => Responses.Get(UserLocale, key, format);
+    protected string LRu(string key, params object?[] format) => Responses.Get(UserLocale, key, format);
 }

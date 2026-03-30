@@ -115,6 +115,11 @@
     },
     "export-birthdays": {
         "success": ":white_check_mark: Exported {0} birthdays to file.",
-        "textHeader": "Birthdays in {0}"
+        "textHeader": "Birthdays in {0}",
+        "ical": {
+            "evName": "Birthday: {0}",
+            // Line breaks within the calendar description are a literal "\n"
+            "evDesc": "Birthday for {0}\\nFrom {1}\\n\\nExported from Birthday Bot"
+        }
     }
 }
