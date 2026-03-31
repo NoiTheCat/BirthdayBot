@@ -6,29 +6,27 @@ title: Documentation
 
 **An automated way to recognize birthdays in your community!**
 
-Birthday Bot is a utility for your community which enables your users to share their birthdays, check birthdays of others, and mark and announce birthdays as they happen. Server moderators can additionally set up a default time zone with users having the option to set their own, ensuring all birthdays are recognized precisely on time.
+Birthday Bot is a utility for your community that enables your members to share their birthdays and check the birthdays of others. It is versatile, customizable, and is under active development with new features being suggested and added often. This bot can mark and announce birthdays as they happen, allowing users and moderators to set time zones to ensure all birthdays can be recognized just in time.
 
 ### Getting started
-Invite the bot via the link on the sidebar. Please note that several permissions are requested during the invite process which are required for the bot to function properly.
+The bot may be invited with [this link](https://discord.com/oauth2/authorize?client_id=470673087671566366&permissions=268451840&scope=applications.commands+bot). Please be aware that several permissions are requested, all of which are needed for the bot function properly.
 
-Once added, a small amount of initial set-up before it's ready for use:
-* Create a dedicated birthday role to be used only by the bot. Ensure the new role is placed beneath the bot's own role.
-* Instruct the bot to use the role: `/config role set-birthday-role`
-> <p style="font-style: normal"><svg xmlns="http://www.w3.org/2000/svg" style="vertical-align: -0.125em;" width="1em" height="1em" viewBox="0 0 16 16"><g fill="currentColor"><path d="M4.54.146A.5.5 0 0 1 4.893 0h6.214a.5.5 0 0 1 .353.146l4.394 4.394a.5.5 0 0 1 .146.353v6.214a.5.5 0 0 1-.146.353l-4.394 4.394a.5.5 0 0 1-.353.146H4.893a.5.5 0 0 1-.353-.146L.146 11.46A.5.5 0 0 1 0 11.107V4.893a.5.5 0 0 1 .146-.353L4.54.146zM5.1 1L1 5.1v5.8L5.1 15h5.8l4.1-4.1V5.1L10.9 1H5.1z"/><path d="M7.002 11a1 1 0 1 1 2 0a1 1 0 0 1-2 0zM7.1 4.995a.905.905 0 1 1 1.8 0l-.35 3.507a.552.552 0 0 1-1.1 0L7.1 4.995z"/></g></svg> <strong>Do not use an existing role!</strong> This bot will take full and exclusive control over it. Users that have the role but are not having a birthday
-  *will* be removed from it!</p>
-
-Optional, but recommended:
-* Customize the announcement message: See `/config announce help` for more information.
-* Set the birthday announcement channel: `/config announce set-channel`
-* Set a default time zone: `/config set-timezone`
+Next, you may do one or more of these options:
+* Set up a role (purely cosmetic) for the bot to assign to members during their birthday and set it with `/config role set-birthday-role`
+* Set up birthday announcements by designating an announcement channel with `/config announce set-channel`
+  * See `/config announce help` for more options
 
 ### Supporting the bot
-Birthday Bot is provided for free, period. No paywalled features, subscriptions, or monetization insentices. This is an independent hobby project done in my spare time, and all costs associated with it come out of my pocket. My only interest is to provide something that I hope others find as useful as I do.
+[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/J3J65TW2E)
 
-That said, this bot has proven to be far more popular than I ever anticipated, and keeping things running has occasionally strained me both financially and time-wise. If you'd like, please consider pitching in a bit to cover my recurring costs by checking out my Ko-fi page on the sidebar.
+Birthday Bot is provided for free - period. There are no paywalls, subscriptions, or hidden exclusive features. This is an independent hobby project done in my spare time. The costs for this project to keep it working and available comes out of my own pocket, on my own time. My goal is to provide something that I hope others can find to be useful and helpful, maybe make some people happy in the process.
+
+If you'd like, please consider pitching in a bit to cover my recurring costs (or simply buying me a drink, a snack) by checking out my Ko-fi page.
 
 ### Privacy and Security
-This bot collects and stores only information necessary for its operation, then associated to user, server, and role IDs. As little information is stored as possible and access to the database is strongly restricted through proper security practices.
+The data retained by this bot is minimal; only server and user IDs are held and only to associate them with user information provided by users and/or moderators, or to associate servers and their custom configuration. As little information is stored as possible and access to the database is strongly restricted through proper security practices.<br />
+In the event that a bot leaves a server for any reason, server-wide configuration and user data is retained for a period of time\* until it is automatically discarded. Once removed, there are no guarantees that the data can be recovered afterwards.<br />
+<small>\* At least, that's the intent. An issue during the rewrite put this issue on hold. Once resolved, this page will be updated with exact timeframes for data retention.</small>
 
 Birthday information is not shared between servers *by design*, for those preferring to be selective about where they want their information known. Users must set their birthday settings in each individual server.
 

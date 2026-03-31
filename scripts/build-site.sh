@@ -2,7 +2,7 @@
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# Requires (Arch): ruby-bundler
+# Requires (Arch): ruby-bundler, ruby-erb
 
 cd $SCRIPT_DIR"/../docs"
 
