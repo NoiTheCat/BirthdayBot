@@ -1,0 +1,6 @@
+{
+    // Workaround for ExportModule bug where DateFormat returns an incorrect format
+    // due to en-GB not being picked up as a supported language.
+    
+    // A real en-GB localization will be made soon enough.
+}

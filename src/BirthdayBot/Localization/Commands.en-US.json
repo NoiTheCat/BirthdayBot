@@ -1,0 +1,236 @@
+{
+  // In this file: Command names and descriptions, parameter names and descriptions.
+  // This file must follow a strict format for the library's localization manager to process it.
+  
+  // Note: Where needed, prefer ChoiceAttribute instead of using enum types for predictable JSON property names.
+
+  "help": {
+    "name": "help",
+    "description": "Show an overview of available commands."
+  },
+  "config": {
+    "name": "config",
+    "description": "Configure basic settings for the bot.",
+    "birthday-role": {
+      "name": "birthday-role",
+      "description": "Set the role given to users having a birthday.",
+      "role": {
+        "name": "role",
+        "description": "The corresponding role to use."
+      }
+    },
+    "check": {
+      "name": "check",
+      "description": "Report the bot's current configuration."
+    },
+    "set-timezone": {
+      "name": "set-timezone",
+      "description": "Configure the time zone to use by default in the server. Leave blank to unset.",
+      "zone": {
+        "name": "zone",
+        "description": "A 'tzdata'-compliant time zone name. See help for more details."
+      }
+    },
+    "private-confirms": {
+      "name": "private-confirms",
+      "description": "Sets whether to make confirmation messages visible only to the user.",
+      "setting": {
+        "name": "setting",
+        "description": "True to enable, False to disable."
+      }
+    },
+    "add-only": {
+      "name": "add-only",
+      "description": "Sets if users are restricted from editing their birthday after adding it.",
+      "setting": {
+        "name": "setting",
+        "description": "True to enable, False to disable."
+      }
+    },
+    "announce": {
+      "name": "announce",
+      "description": "Settings regarding birthday announcements.",
+      "help": {
+        "name": "help",
+        "description": "Show information regarding announcement messages."
+      },
+      "set-channel": {
+        "name": "set-channel",
+        "description": "Set which channel will receive announcement messages. Leave blank to unset.",
+        "channel": {
+          "name": "channel",
+          "description": "The corresponding channel to use."
+        }
+      },
+      "set-message": {
+        "name": "set-message",
+        "description": "Modify the announcement message."
+      },
+      "set-ping": {
+        "name": "set-ping",
+        "description": "Set whether to ping users mentioned in the announcement.",
+        "option": {
+          "name": "option",
+          "description": "Set True to ping users, False to display them normally."
+        }
+      },
+      "test": {
+        "name": "test",
+        "description": "Immediately attempt to send an announcement message as configured.",
+        "placeholder": {
+          "name": "placeholder",
+          "description": "A user to add into the testing announcement as a placeholder."
+        },
+        "placeholder2": {
+          "name": "placeholder2",
+          "description": "A user to add into the testing announcement as a placeholder."
+        },
+        "placeholder3": {
+          "name": "placeholder3",
+          "description": "A user to add into the testing announcement as a placeholder."
+        },
+        "placeholder4": {
+          "name": "placeholder4",
+          "description": "A user to add into the testing announcement as a placeholder."
+        },
+        "placeholder5": {
+          "name": "placeholder5",
+          "description": "A user to add into the testing announcement as a placeholder."
+        }
+      },
+      "timers-reset": {
+        "name": "timers-reset",
+        "description": "Resets the bot's internal timers to possibly repeat today's announcements."
+      }
+    }
+  },
+  "birthday": {
+    "name": "birthday",
+    "description": "Commands relating to birthdays.",
+    "remove": {
+      "name": "remove",
+      "description": "Removes your birthday information from this bot."
+    },
+    "get": {
+      "name": "get",
+      "description": "Gets a user's birthday.",
+      "user": {
+        "name": "user",
+        "description": "Optional: The user's birthday to look up."
+      }
+    },
+    "show-nearest": {
+      "name": "show-nearest",
+      "description": "Get a list of users who recently had or will have a birthday."
+    },
+    "set": {
+      "name": "set",
+      "description": "Subcommands for setting birthday information.",
+      "date": {
+        "name": "date",
+        "description": "Sets or updates your birthday.",
+        "day": {
+          "name": "day",
+          "description": "Day of the month - a value between 1 and 31."
+        },
+        "month": {
+          "name": "month",
+          "description": "The corresponding month of your birthday.",
+          "january": "January",
+          "february": "February",
+          "march": "March",
+          "april": "April",
+          "may": "May",
+          "june": "June",
+          "july": "July",
+          "august": "August",
+          "september": "September",
+          "october": "October",
+          "november": "November",
+          "december": "December"
+        },
+        "zone": {
+          "name": "zone",
+          "description": "A 'tzdata'-compliant time zone name. See help for more details."
+        }
+      },
+      "timezone": {
+        "name": "timezone",
+        "description": "Sets or updates your time zone if your birthday is already set.",
+        "zone": {
+          "name": "zone",
+          "description": "A 'tzdata'-compliant time zone name. See help for more details."
+        }
+      }
+    }
+  },
+  "override": {
+    "name": "override",
+    "description": "Commands to set options for other users.",
+    "set-birthday": {
+      "name": "set-birthday",
+      "description": "Set a user's birthday on their behalf.",
+      "target": {
+        "name": "target",
+        "description": "The user whose data to modify."
+      },
+      "day": {
+        "name": "day",
+        "description": "Day of the month - a value between 1 and 31."
+      },
+      "month": {
+        "name": "month",
+        "description": "The corresponding month of the user's birthday.",
+        "january": "January",
+        "february": "February",
+        "march": "March",
+        "april": "April",
+        "may": "May",
+        "june": "June",
+        "july": "July",
+        "august": "August",
+        "september": "September",
+        "october": "October",
+        "november": "November",
+        "december": "December"
+      }
+    },
+    "set-timezone": {
+      "name": "set-timezone",
+      "description": "Set a user's time zone on their behalf.",
+      "target": {
+        "name": "target",
+        "description": "The user whose data to modify."
+      },
+      "zone": {
+        "name": "zone",
+        "description": "A 'tzdata'-compliant time zone name. See help for more details."
+      }
+    },
+    "remove-birthday": {
+      "name": "remove-birthday",
+      "description": "Remove a user's birthday information on their behalf.",
+      "target": {
+        "name": "target",
+        "description": "The user whose data to modify."
+      }
+    }
+  },
+  "export-birthdays": {
+    "name": "export-birthdays",
+    "description": "Generates a text file with all known and available birthdays.",
+    "format": {
+      "name": "format",
+      "description": "Specify the format of the exported data.",
+      "plaintext": {
+        "name": "Plain text file"
+      },
+      "csv": {
+        "name": "CSV with header"
+      },
+      "ics": {
+        "name": "iCal (.ics) with recurring events"
+      }
+    }
+  }
+}

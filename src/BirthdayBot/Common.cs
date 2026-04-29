@@ -7,6 +7,7 @@ static class Common {
     /// <summary>
     /// Formats a user's name to a consistent, readable format which makes use of their nickname.
     /// </summary>
+    [Obsolete("Use Core's UserCacheItem.FormatName")]
     public static string FormatName(SocketGuildUser member, bool ping) {
         if (ping) return member.Mention;
 
@@ -35,10 +36,4 @@ static class Common {
             return $"{username}#{member.Discriminator}";
         }
     }
-
-    public static Dictionary<int, string> MonthNames { get; } = new() {
-        { 1, "Jan" }, { 2, "Feb" }, { 3, "Mar" }, { 4, "Apr" }, { 5, "May" }, { 6, "Jun" },
-        { 7, "Jul" }, { 8, "Aug" }, { 9, "Sep" }, { 10, "Oct" }, { 11, "Nov" }, { 12, "Dec" }
-    };
-
 }

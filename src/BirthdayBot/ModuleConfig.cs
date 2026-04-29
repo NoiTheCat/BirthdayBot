@@ -1,6 +1,7 @@
 using BirthdayBot.BackgroundServices;
 using BirthdayBot.Data;
 using BirthdayBot.InteractionModules;
+using Discord.Interactions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using NoiPublicBot;
@@ -33,4 +34,10 @@ public class ModuleConfig : ModuleConfigBase {
             return ModalResponder.DiscordClient_ModalSubmitted(shard, modal);
         };
     }
+
+    public override ILocalizationManager? LocalizationManager
+        => new JsonLocalizationManager("Localization", "Commands");
+
+    public override Func<string, string> GenericErrorProvider
+        => loc => Localization.StringProviders.Responses.Get(loc, "errGeneric");
 }

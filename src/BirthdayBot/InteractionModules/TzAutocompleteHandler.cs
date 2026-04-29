@@ -10,19 +10,19 @@ using NoiPublicBot;
 namespace BirthdayBot.InteractionModules;
 
 public class TzAutocompleteHandler : AutocompleteHandler {
-    private static readonly TimeSpan _maxListAge = TimeSpan.FromHours(24);
+    private static readonly Duration _maxListAge = Duration.FromHours(24);
     private static readonly ReaderWriterLockSlim _lock = new();
     private static ReadOnlyCollection<string> _baseZonesList;
-    private static DateTimeOffset _lastListUpdate;
+    private static Instant _lastListUpdate;
 
     static TzAutocompleteHandler() {
         _baseZonesList = RebuildSuggestionBaseList();
-        _lastListUpdate = DateTimeOffset.UtcNow;
+        _lastListUpdate = SystemClock.Instance.GetCurrentInstant();
     }
 
     private static ReadOnlyCollection<string> RebuildSuggestionBaseList() {
         // In case we're running in an uninitialized environment (command registration helper), quit early
-        if (Instance.SqlConnectionString is null) return [];
+        if (Instance.SqlConnectionString.Count == 0) return [];
 
         // This bot discourages use of certain zone names and prefer the typical Region/City format over individual countries.
         // They have been excluded from this autocomplete list.
@@ -73,7 +73,7 @@ public class TzAutocompleteHandler : AutocompleteHandler {
         _lock.EnterUpgradeableReadLock();
         try {
             // Should regenerate base list?
-            var now = DateTimeOffset.UtcNow;
+            var now = SystemClock.Instance.GetCurrentInstant();
             if (now - _lastListUpdate > _maxListAge) {
                 _lock.EnterWriteLock();
                 try {

@@ -8,6 +8,7 @@ using NodaTime;
 using NoiPublicBot.BackgroundServices;
 using NoiPublicBot.Common;
 using System.Text;
+using static BirthdayBot.Localization.StringProviders;
 
 namespace BirthdayBot.BackgroundServices;
 // Core automatic functionality of the bot. Manages role memberships based on birthday information,
@@ -208,9 +209,6 @@ public class BirthdayUpdater : BackgroundService {
     }
     #endregion
 
-    public const string DefaultAnnounce = "Please wish a happy birthday to %n!";
-    public const string DefaultAnnouncePl = "Please wish a happy birthday to our esteemed members: %n";
-
     // Made public for the announcement message test feature
     public static async Task AnnounceBirthdaysAsync(GuildConfig settings, SocketGuild g, IEnumerable<string> names) {
         if (!names.Any()) return;
@@ -220,8 +218,10 @@ public class BirthdayUpdater : BackgroundService {
         if (!c.Guild.CurrentUser.GetPermissions(c).SendMessages) return;
 
         string announceMsg;
-        if (names.Count() == 1) announceMsg = settings.AnnounceMessage ?? settings.AnnounceMessagePl ?? DefaultAnnounce;
-        else announceMsg = settings.AnnounceMessagePl ?? settings.AnnounceMessage ?? DefaultAnnouncePl;
+        if (names.Count() == 1)
+            announceMsg = settings.AnnounceMessage ?? settings.AnnounceMessagePl ?? Responses.Get(g.PreferredLocale, "defaultSingle");
+        else
+            announceMsg = settings.AnnounceMessagePl ?? settings.AnnounceMessage ?? Responses.Get(g.PreferredLocale, "defaultMulti");
         announceMsg = announceMsg.TrimEnd();
         if (!announceMsg.Contains("%n")) announceMsg += " %n";
 

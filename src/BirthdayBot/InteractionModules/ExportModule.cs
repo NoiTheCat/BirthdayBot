@@ -3,28 +3,23 @@ using Discord.Interactions;
 using NodaTime;
 using System.Globalization;
 using System.Text;
+using static BirthdayBot.Localization.CommandsEnUS;
 
 namespace BirthdayBot.InteractionModules;
 
 public class ExportModule : BBModuleBase {
-    public const string HelpCmdExport = "Generates a text file with all known and available birthdays.";
-
-    public enum ExportFormat {
-        [ChoiceDisplay("Simple, readable text file")]
-        Default,
-        [ChoiceDisplay("CSV with header")]
-        Csv,
-        [ChoiceDisplay("iCal (.ics) with recurring events")]
-        ICal
-    }
-
     delegate MemoryStream FileBuilder(IEnumerable<KnownGuildUser> list);
 
-    [SlashCommand("export-birthdays", HelpCmdExport)]
+    [SlashCommand(ExportBirthdays.Name, ExportBirthdays.Description)]
     [DefaultMemberPermissions(GuildPermission.ManageGuild)]
     [CommandContextType(InteractionContextType.Guild)]
     public async Task CmdExport(
-        [Summary(description: "Specify the format of the exported data.")] ExportFormat format = ExportFormat.Default) {
+        [Summary(description: ExportBirthdays.Format.Description)]
+        [Choice(ExportBirthdays.Format.Plaintext.Name, "plaintext")]
+        [Choice(ExportBirthdays.Format.Csv.Name, "csv")]
+        [Choice(ExportBirthdays.Format.Ics.Name, "ics")]
+        string format = "plaintext")
+    {
         var deferred = await RefreshCacheAsync(CacheFilters.AllMissing());
 
         var bdlist = GetAllKnownUsers(Context.Guild.Id);
@@ -32,11 +27,11 @@ public class ExportModule : BBModuleBase {
         var filename = "birthdaybot-" + Context.Guild.Id;
         FileBuilder contentSource;
         switch (format) {
-            case ExportFormat.Csv:
+            case "csv":
                 contentSource = ListExportCsv;
                 filename += ".csv";
                 break;
-            case ExportFormat.ICal:
+            case "ics":
                 contentSource = ListExportICal;
                 filename += ".ics";
                 break;
@@ -46,7 +41,7 @@ public class ExportModule : BBModuleBase {
                 break;
         }
         var output = contentSource(bdlist);
-        var outtext = $"Exported {bdlist.Count()} birthdays to file.";
+        var outtext = LRg("export-birthdays.success", bdlist.Count());
         if (!deferred) {
             await RespondWithFileAsync(output, filename, text: outtext).ConfigureAwait(false);
         } else {
@@ -56,14 +51,14 @@ public class ExportModule : BBModuleBase {
     }
 
     private MemoryStream ListExportNormal(IEnumerable<KnownGuildUser> list) {
-        // Output: "● Mon-dd: (user ID) Username [ - Nickname: (nickname)]"
+        // Output: "● Mon-dd: (user ID) Username [ - Nickname: (nickname)][ | Time zone: (zone)]"
         var result = new MemoryStream();
         var writer = new StreamWriter(result, Encoding.UTF8) { NewLine = "\r\n" };
 
-        writer.WriteLine($"Birthdays in {Context.Guild.Name}");
+        writer.WriteLine(LRg("export-birthdays.textHeader", Context.Guild.Name));
         writer.WriteLine();
         foreach (var item in list) {
-            writer.Write($"● {FormatDate(item.BirthDate)}: ");
+            writer.Write($"● {DateFormatExport(item.BirthDate)}: ");
             writer.Write(item.UserId);
             writer.Write(" " + item.CacheUser.Username);
             if (item.CacheUser.GlobalName != null) writer.Write($" ({item.CacheUser.GlobalName})");
@@ -105,7 +100,7 @@ public class ExportModule : BBModuleBase {
             writer.Write(',');
             writer.Write(csvEscape(item.CacheUser.GuildNickname)); // may be empty
             writer.Write(',');
-            writer.Write($"{FormatDate(item.BirthDate)}");
+            writer.Write($"{DateFormatExport(item.BirthDate)}");
             writer.Write(',');
             writer.Write(item.BirthDate.Month);
             writer.Write(',');
@@ -120,8 +115,28 @@ public class ExportModule : BBModuleBase {
     }
 
     private MemoryStream ListExportICal(IEnumerable<KnownGuildUser> list) {
+        // iCalendar standard limits each line to 75 bytes
+        static string ICalFold(string input) {
+            const string Fold = "\r\n "; // Fold marker; 3 bytes
+            const int limit = 75;
+            if (Encoding.UTF8.GetByteCount(input) <= limit) return input;
+
+            var allowance = limit - 3; // adjust for fold
+            var result = new StringBuilder();
+            foreach (var r in input.EnumerateRunes()) {
+                var charSize = Encoding.UTF8.GetByteCount(r.ToString());
+                if (charSize > allowance) {
+                    result.Append(Fold);
+                    allowance = limit;
+                }
+                result.Append(r);
+                allowance -= charSize;
+            }
+            return result.ToString();
+        }
+
         var result = new MemoryStream();
-        var writer = new StreamWriter(result, Encoding.UTF8) { NewLine = "\r\n" };
+        var writer = new StreamWriter(result, Encoding.UTF8) { NewLine = "\r\n" }; // required by standard
         writer.WriteLine("BEGIN:VCALENDAR");
         writer.WriteLine("VERSION:2.0");
         writer.WriteLine("PRODID:-//NoiTheCat//BirthdayBot//EN");
@@ -129,10 +144,6 @@ public class ExportModule : BBModuleBase {
         var dtstamp = SystemClock.Instance.GetCurrentInstant()
             .InUtc().ToString("yyyyMMdd'T'HHmmss'Z'", DateTimeFormatInfo.InvariantInfo);
         foreach (var item in list) {
-            // Some lines may be too long.
-            // iCal ics standard disallows lines over 75 bytes - some attempt is made to avoid that limit
-            // Line continuations are defined as leading space in new line
-
             // FormatName is specific to Discord output, but this isn't for Discord. Need to return back to unescaped form.
             // A simple replace is not sufficient - any intended \ characters get stripped away.
             static string Unescape(string input) {
@@ -157,12 +168,8 @@ public class ExportModule : BBModuleBase {
             writer.WriteLine($"UID:{Context.Guild.Id ^ item.UserId:00000000000000000000}@birthdaybot");
             writer.WriteLine($"DTSTART:2000{item.BirthDate.Month:00}{item.BirthDate.Day:00}"); // start at year 2000; time omitted
             writer.WriteLine("RRULE:FREQ=YEARLY");
-            writer.WriteLine($"SUMMARY:Birthday: "); // Similar output to molochxte's contributed script
-            writer.WriteLine($" {Unescape(item.DisplayName)}");
-            writer.WriteLine("DESCRIPTION: Birthday for "); 
-            writer.WriteLine($" {item.CacheUser.Username}\\n");
-            writer.WriteLine($" From {Context.Guild.Name}\\n");
-            writer.WriteLine(" Exported from Birthday Bot");
+            writer.WriteLine(ICalFold("SUMMARY:" + LRg("export-birthdays.ical.evName", Unescape(item.DisplayName))));
+            writer.WriteLine(ICalFold("DESCRIPTION:" + LRg("export-birthdays.ical.evDesc", item.CacheUser.Username, Context.Guild.Name)));
             writer.WriteLine("END:VEVENT");
         }
 
@@ -171,4 +178,8 @@ public class ExportModule : BBModuleBase {
         result.Position = 0;
         return result;
     }
+
+    // This ends up exporting in a format equivalent to those in versions prior to adding localization support
+    private static string DateFormatExport(LocalDate date)
+        => DateFormat(date, "en-GB", true).Replace(' ', '-');
 }

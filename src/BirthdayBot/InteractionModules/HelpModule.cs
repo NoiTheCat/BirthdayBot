@@ -1,53 +1,72 @@
 ﻿using Discord;
 using Discord.Interactions;
 using NoiPublicBot;
+using static BirthdayBot.Localization.CommandsEnUS.Help;
 
 namespace BirthdayBot.InteractionModules;
 
 [CommandContextType(InteractionContextType.Guild, InteractionContextType.BotDm)]
 public class HelpModule : BBModuleBase {
-    private const string TopMessage =
-        "Thank you for using Birthday Bot!\n" +
-        "Support, data policy, more info: https://noithecat.dev/bots/BirthdayBot\n\n" +
-        "This bot is provided for free, without any paywalls or exclusive paid features. If this bot has been useful to you, " +
-        "please consider making a small contribution via the author's Ko-fi: https://ko-fi.com/noithecat.";
-    private const string RegularCommandsField =
-        $"`/birthday` - {BirthdayModule.HelpCmdBirthday}\n" +
-        $"` ⤷get` - {BirthdayModule.HelpCmdGet}\n" +
-        $"` ⤷show-nearest` - {BirthdayModule.HelpCmdNearest}\n" +
-        $"` ⤷set date` - {BirthdayModule.HelpCmdSetDate}\n" +
-        $"` ⤷set timezone` - {BirthdayModule.HelpCmdSetZone}\n" +
-        $"` ⤷remove` - {BirthdayModule.HelpCmdRemove}";
-    private const string ModCommandsField =
-        $"`/config` - {ConfigModule.HelpCmdConfig}\n" +
-        $"` ⤷add-only` - {ConfigModule.HelpAddOnly}\n" +
-        $"` ⤷check` - {ConfigModule.HelpCmdCheck}\n" +
-        $"` ⤷announce` - {ConfigModule.HelpCmdAnnounce}\n" +
-        $"`  ⤷` See also: `/config announce help`.\n" +
-        $"` ⤷birthday-role` - {ConfigModule.HelpCmdBirthdayRole}\n" +
-        $"` ⤷private-confirms` - {ConfigModule.HelpPrivateConfirms}\n" +
-        $"`/export-birthdays` - {ExportModule.HelpCmdExport}\n" +
-        $"`/override` - {BirthdayOverrideModule.HelpCmdOverride}\n" +
-        $"` ⤷set-birthday`, `⤷set-timezone`, `⤷remove`\n" +
-        "**Caution:** Skipping optional parameters __removes__ their configuration.";
+    private bool? _isGuild;
 
-    [SlashCommand("help", "Show an overview of available commands.")]
+    // This is the only command that can be invoked outside a guild.
+    // Need custom logic to determine whether to use guild or user-specific locale.
+    private Func<string, string> LR {
+        get {
+            if (!_isGuild.HasValue) _isGuild = Context.Channel is not IDMChannel;
+            return _isGuild.Value ? key => LRg(key) : key => LRu(key);
+        }
+    }
+    private Func<string, string> LC {
+        get {
+            if (!_isGuild.HasValue) _isGuild = Context.Channel is not IDMChannel;
+            return _isGuild.Value ? key => LCg(key) : key => LCu(key);
+        }
+    }
+
+    [SlashCommand(Name, Description)]
     public async Task CmdHelp() {
-        const string DMWarn = "Please note that this bot works in servers only. " +
-            "The bot will not respond to any other commands within a DM.";
 #if DEBUG
-        var ver = "DEBUG flag set";
+        var ver = "I'm a Debug build";
 #else
         var ver = "v" + System.Reflection.Assembly.GetExecutingAssembly().GetName().Version!.ToString(3);
 #endif
+        var (reg, mod) = BuildHelpMessage();
         var result = new EmbedBuilder()
-            .WithAuthor("Help & About")
+            .WithAuthor(LR("help.headerMain"))
             .WithFooter($"Birthday Bot {ver} - Shard {Shard.ShardId:00} up {Instance.BotUptime}",
                 Context.Client.CurrentUser.GetAvatarUrl())
-            .WithDescription(TopMessage)
-            .AddField("Commands", RegularCommandsField)
-            .AddField("Moderator commands", ModCommandsField)
+            .WithDescription(LR("help.top"))
+            .AddField(LR("help.headerRegCmds"), reg)
+            .AddField(LR("help.headerModCmds"), mod)
             .Build();
-        await RespondAsync(text: Context.Channel is IDMChannel ? DMWarn : null, embed: result).ConfigureAwait(false);
+        await RespondAsync(text: _isGuild!.Value ? null : LR("help.warnDM") , embed: result).ConfigureAwait(false);
+    }
+
+    private (string reg, string mod) BuildHelpMessage() {
+        // Note: This may not work for more international groups...
+        // TODO Find a way to grab the slash command name directly from Discord, place them here. Will need a different type of formatting
+        var RegularCommandsField = $"""
+            `/{LC("birthday.name")}` - {LC("birthday.description")}
+            ` ⤷{LC("birthday.get.name")}` - {LC("birthday.get.description")}
+            ` ⤷{LC("birthday.show-nearest.name")}` - {LC("birthday.show-nearest.description")}
+            ` ⤷{LC("birthday.set.name")} {LC("birthday.set.date.name")}` - {LC("birthday.set.date.description")}
+            ` ⤷{LC("birthday.set.name")} {LC("birthday.set.timezone.name")}` - {LC("birthday.set.timezone.description")}
+            ` ⤷{LC("birthday.remove.name")}` - {LC("birthday.remove.description")}
+            """;
+        var ModCommandsField = $"""
+            `/{LC("config.name")}` - {LC("config.description")}
+            ` ⤷{LC("config.add-only.name")}` - {LC("config.add-only.description")}
+            ` ⤷{LC("config.check.name")}` - {LC("config.check.description")}
+            ` ⤷{LC("config.announce.name")}` - {LC("config.announce.description")}
+            `  ⤷ `{LR("help.seeAlso")} `/{LC("config.name")} {LC("config.announce.name")} {LC("config.announce.help.name")}`.
+            ` ⤷{LC("config.birthday-role.name")}` - {LC("config.birthday-role.description")}
+            ` ⤷{LC("config.private-confirms.name")}` - {LC("config.private-confirms.description")}
+            `/{LC("export-birthdays.name")}` - {LC("export-birthdays.description")}
+            `/{LC("override.name")}` - {LC("override.description")}
+            ` ⤷{LC("override.set-birthday.name")}`, `⤷{LC("override.set-timezone.name")}`, `⤷{LC("override.remove-birthday.name")}`
+            {LR("help.warnEmptyParam")}
+            """;
+        return (RegularCommandsField, ModCommandsField);
     }
 }

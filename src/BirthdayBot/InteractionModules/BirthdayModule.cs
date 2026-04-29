@@ -5,78 +5,67 @@ using Discord.Interactions;
 using Discord.WebSocket;
 using Microsoft.EntityFrameworkCore;
 using NodaTime;
+using static BirthdayBot.Localization.CommandsEnUS.Birthday;
 
 namespace BirthdayBot.InteractionModules;
 
-[Group("birthday", HelpCmdBirthday)]
+[Group(Name, Description)]
 [CommandContextType(InteractionContextType.Guild)]
 public class BirthdayModule : BBModuleBase {
-    public const string HelpCmdBirthday = "Commands relating to birthdays.";
-    public const string HelpCmdSetDate = "Sets or updates your birthday.";
-    public const string HelpCmdSetZone = "Sets or updates your time zone if your birthday is already set.";
-    public const string HelpCmdRemove = "Removes your birthday information from this bot.";
-    public const string HelpCmdGet = "Gets a user's birthday.";
-    public const string HelpCmdNearest = "Get a list of users who recently had or will have a birthday.";
-    private const string ErrAddOnly = ":x: You may not edit a birthday or time zone after it has been added.";
-
-    [Group("set", "Subcommands for setting birthday information.")]
+    [Group(Set.Name, Set.Description)]
     public class SubCmdsBirthdaySet : BBModuleBase {
-        [SlashCommand("date", HelpCmdSetDate)]
-        public async Task CmdSetBday([Summary(description: HelpOptDate)] string date,
-                                     [Summary(description: HelpOptZone), Autocomplete<TzAutocompleteHandler>] string? zone = null) {
+        [SlashCommand(Set.Date.Name, Set.Date.Description)]
+        public async Task CmdSetBday(
+            [Summary(description: Set.Date.Day.Description)] string day,
+            [Summary(description: Set.Date.Month.Description)] MonthName month,
+            [Summary(description: Set.Date.Zone.Description), Autocomplete<TzAutocompleteHandler>] string? zone = null)
+        {
             // IMPORTANT: If editing here, reflect changes as needed in BirthdayOverrideModule.
+
+            // Add-only check
             var guild = ((SocketTextChannel)Context.Channel).Guild.GetConfigOrNew(DbContext);
             if (guild.IsNew) DbContext.GuildConfigurations.Add(guild); // Satisfy foreign key constraint
             var user = ((SocketGuildUser)Context.User).GetUserEntryOrNew(DbContext);
             if (user.IsNew) DbContext.UserEntries.Add(user);
-
             if (guild.AddOnly) {
                 if (!user.IsNew) {
                     if (((SocketGuildUser)Context.User).GuildPermissions.ManageGuild) {
                         // Don't enforce if user has Manage Guild permission
                     } else {
-                        await RespondAsync(ErrAddOnly, ephemeral: true).ConfigureAwait(false);
+                        await RespondAsync(LRu("birthday.errAddOnly"), ephemeral: true).ConfigureAwait(false);
                     }
                 }
             }
 
-            LocalDate indate;
-            try {
-                indate = ParseDate(date);
-            } catch (FormatException e) {
-                // Our parse method's FormatException has its message to send out to Discord.
-                await RespondAsync(e.Message, ephemeral: true).ConfigureAwait(false);
+            if (!TryParseDate(day, month, out var indate)) {
+                await RespondAsync(LRu("errParseDate"), ephemeral: true).ConfigureAwait(false);
+                return;
+            }
+            DateTimeZone? inzone = null;
+            if (zone != null && !TryParseZone(zone, out inzone)) {
+                await ReplyAsync(LRg("errParseZone")).ConfigureAwait(false);
                 return;
             }
 
-            DateTimeZone? inzone = null;
-            if (zone != null) {
-                try {
-                    inzone = ParseTimeZone(zone);
-                } catch (FormatException e) {
-                    await ReplyAsync(e.Message).ConfigureAwait(false);
-                    return;
-                }
-            }
-
-            user.BirthDate = indate;
+            user.BirthDate = indate.Value;
             user.TimeZone = inzone ?? user.TimeZone;
             user.LastProcessed = Instant.MinValue; // always reset on update
             await DbContext.SaveChangesAsync();
 
-            var response = $":white_check_mark: Your birthday has been set to **{FormatDate(indate)}**";
-            if (inzone != null) response += $" at time zone **{inzone}**";
-            response += ".";
-            if (user.TimeZone == null)
-                response += "\n-# Tip: The `/birthday set timezone` command ensures your birthday is recognized on time!";
+            var withZoneResponse = inzone != null ? LRg("birthday.set.date.withZone", inzone) : string.Empty;
+            var response = LRg("birthday.set.date.success", DateFormat(indate.Value, GuildLocale), withZoneResponse);
+            // TODO make hint configurable (on/off, default on)
+            if (user.TimeZone == null) response += "\n" + LRg("birthday.set.date.tzHint");
             await RespondAsync(response, ephemeral: IsEphemeralSet()).ConfigureAwait(false);
         }
 
-        [SlashCommand("timezone", HelpCmdSetZone)]
-        public async Task CmdSetZone([Summary(description: HelpOptZone), Autocomplete<TzAutocompleteHandler>] string zone) {
+        [SlashCommand(Set.Timezone.Name, Set.Timezone.Description)]
+        public async Task CmdSetZone(
+            [Summary(description: Set.Timezone.Zone.Description), Autocomplete<TzAutocompleteHandler>] string zone)
+        {
             var user = ((SocketGuildUser)Context.User).GetUserEntryOrNew(DbContext);
             if (user.IsNew) {
-                await RespondAsync(":x: You must set a birthday first.", ephemeral: true).ConfigureAwait(false);
+                await RespondAsync(LRg("birthday.set.zone.errNoBirthday"), ephemeral: true).ConfigureAwait(false);
                 return;
             }
 
@@ -85,42 +74,37 @@ public class BirthdayModule : BBModuleBase {
                     if (((SocketGuildUser)Context.User).GuildPermissions.ManageGuild) {
                         // Don't enforce if user has Manage Guild permission
                     } else {
-                        await RespondAsync(ErrAddOnly, ephemeral: true).ConfigureAwait(false);
+                        await RespondAsync(LRu("birthday.errAddOnly"), ephemeral: true).ConfigureAwait(false);
                         return;
                     }
                 }
             }
 
-            DateTimeZone newzone;
-            try {
-                newzone = ParseTimeZone(zone);
-            } catch (FormatException e) {
-                await RespondAsync(e.Message, ephemeral: true).ConfigureAwait(false);
+            if (!TryParseZone(zone, out var newzone)) {
+                await RespondAsync(LRu("errParseZone"), ephemeral: true).ConfigureAwait(false);
                 return;
             }
             user.TimeZone = newzone;
             user.LastProcessed = Instant.MinValue; // always reset on update
             await DbContext.SaveChangesAsync();
-            await RespondAsync($":white_check_mark: Your time zone has been set to **{newzone}**.",
-                               ephemeral: IsEphemeralSet()).ConfigureAwait(false);
+            await RespondAsync(LRg("birthday.set.zone.success", newzone), ephemeral: IsEphemeralSet()).ConfigureAwait(false);
         }
     }
 
-    [SlashCommand("remove", HelpCmdRemove)]
+    [SlashCommand(Remove.Name, Remove.Description)]
     public async Task CmdRemove() {
         var query = await DbContext.UserEntries
             .Where(e => e.GuildId == Context.Guild.Id && e.UserId == Context.User.Id)
             .ExecuteDeleteAsync();
         if (query != 0) {
-            await RespondAsync(":white_check_mark: Your birthday in this server has been removed.");
+            await RespondAsync(LRg("birthday.remove.success")).ConfigureAwait(false);
         } else {
-            await RespondAsync(":white_check_mark: Your birthday is not registered.", ephemeral: IsEphemeralSet())
-                .ConfigureAwait(false);
+            await RespondAsync(LRg("birthday.remove.noData"), ephemeral: IsEphemeralSet()).ConfigureAwait(false);
         }
     }
 
-    [SlashCommand("get", "Gets a user's birthday.")]
-    public async Task CmdGetBday([Summary(description: "Optional: The user's birthday to look up.")] SocketGuildUser? user = null) {
+    [SlashCommand(Get.Name, Get.Description)]
+    public async Task CmdGetBday([Summary(description: Get.User.Description)] SocketGuildUser? user = null) {
         Cache.Update(user);
 
         var isSelf = user is null;
@@ -129,19 +113,19 @@ public class BirthdayModule : BBModuleBase {
         var targetdata = user!.GetUserEntryOrNew(DbContext);
 
         if (targetdata.IsNew) {
-            if (isSelf) await RespondAsync(":x: You do not have your birthday registered.", ephemeral: true).ConfigureAwait(false);
-            else await RespondAsync(":x: The given user does not have their birthday registered.", ephemeral: true).ConfigureAwait(false);
+            if (isSelf) await RespondAsync(LRg("birthday.get.noData1p"), ephemeral: true).ConfigureAwait(false);
+            else await RespondAsync(LRg("birthday.get.noData3p"), ephemeral: true).ConfigureAwait(false);
             return;
         }
 
-        await RespondAsync($"{Common.FormatName(user!, false)}: `{FormatDate(targetdata.BirthDate)}`" +
-            (targetdata.TimeZone == null ? "" : $" - {targetdata.TimeZone}")).ConfigureAwait(false);
+        await RespondAsync($"{Common.FormatName(user!, false)}: `{DateFormat(targetdata.BirthDate, GuildLocale, abbreviated: false)}`" +
+            (targetdata.TimeZone == null ? string.Empty : $" - {targetdata.TimeZone}")).ConfigureAwait(false);
     }
 
     // "Recent and upcoming birthdays"
     // The 'recent' bit removes time zone ambiguity and spares us from extra time zone processing here
     // TODO stop being lazy
-    [SlashCommand("show-nearest", HelpCmdNearest)]
+    [SlashCommand(ShowNearest.Name, ShowNearest.Description)]
     public async Task CmdShowNearest() {
         var deferred = await RefreshCacheAsync(CacheFilters.MissingWithinDays(15)).ConfigureAwait(false);
 
@@ -168,7 +152,7 @@ public class BirthdayModule : BBModuleBase {
 
         var output = new StringBuilder();
         var resultCount = 0;
-        output.AppendLine("Recent and upcoming birthdays:");
+        output.AppendLine(LRg("birthday.nearest.header"));
         for (var count = 0; count <= 21; count++) { // cover 21 days total (7 prior, current day, 14 upcoming)
             // oh I guess we sort as we go. what was I thinking?
             var results = query.Where(i => i.BirthDate.DayOfYear == search);
@@ -189,14 +173,14 @@ public class BirthdayModule : BBModuleBase {
 
             var first = true;
             output.AppendLine();
-            output.Append($"● `{FormatDate(results.First().BirthDate)}`: ");
+            output.Append($"● `{DateFormat(results.First().BirthDate, GuildLocale, abbreviated: true)}`: ");
             foreach (var item in names) {
                 // If the output is starting to fill up, send out this message and prepare a new one.
                 if (output.Length > 800) {
                     await OutputAsync(output.ToString()).ConfigureAwait(false);
                     output.Clear();
                     first = true;
-                    output.Append($"● `{FormatDate(results.First().BirthDate)}`: ");
+                    output.Append($"● `{DateFormat(results.First().BirthDate, GuildLocale, abbreviated: true)}`: ");
                 }
 
                 if (first) first = false;
@@ -206,10 +190,9 @@ public class BirthdayModule : BBModuleBase {
         }
 
         if (resultCount == 0)
-            await OutputAsync(
-                "There are no recent or upcoming birthdays (within the last 7 days and/or next 14 days).")
-                .ConfigureAwait(false);
+            await OutputAsync(LRg("birthday.nearest.notFound")).ConfigureAwait(false);
         else
+            // we fell through from the above loop
             await OutputAsync(output.ToString()).ConfigureAwait(false);
     }
 }

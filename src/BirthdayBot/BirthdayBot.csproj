@@ -6,14 +6,15 @@
     <OutputType>Exe</OutputType>
     <RootNamespace>BirthdayBot</RootNamespace>
 
-    <!-- Uses only English language resources (needed by dependencies) -->
-    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
-
     <TargetFramework>net10.0</TargetFramework>
     <LangVersion>latest</LangVersion>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
   </PropertyGroup>
+
+  <ItemGroup>
+    <AdditionalFiles Include="Localization/Commands.*.json" />
+  </ItemGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
     <PlatformTarget>AnyCPU</PlatformTarget>
@@ -31,6 +32,10 @@
     <ServerGarbageCollection>true</ServerGarbageCollection>
   </PropertyGroup>
 
+  <ItemGroup>
+    <Content Include="Localization/*.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
     <PlatformTarget>AnyCPU</PlatformTarget>
   </PropertyGroup>
@@ -40,6 +45,10 @@
   <ItemGroup>
     <ProjectReference Include="../Core/src/NpbCore/NpbCore.csproj" />
     <ProjectReference Include="../Core/src/NpbCore.Config/NpbCore.Config.csproj" />
+
+    <ProjectReference Include="../Core/src/NpbCore.JsonGen/NpbCore.JsonGen.csproj"
+                      OutputItemType="Analyzer"
+                      ReferenceOutputAssembly="false" />
   </ItemGroup>
 
   <ItemGroup>

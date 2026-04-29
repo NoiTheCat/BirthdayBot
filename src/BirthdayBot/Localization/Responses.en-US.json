@@ -1,0 +1,125 @@
+{
+    // This file roughly follows the hierarchy from Commands, but is not subject to any outside restrictions.
+    // Strings not found in other translations will fall back to those found in this file.
+
+    // Common responses:
+    "errGeneric": ":x: An unknown error occurred. If it persists, please notify the bot owner.",
+    "errorParseFail": ":x: Unknown time zone name.\nTo find your time zone, please refer to: https://zones.arilyn.cc/",
+    "errorGeneric": ":x: An unknown error occurred. If this persists, please notify the bot owner.",
+    "loadingUsers": "<a:bot_thinking:1468047802721374403> Please wait a moment. Gathering data...",
+
+    // Other strings that don't fit into a category:
+    "defaultSingle": "Please wish a happy birthday to %n!",
+    "defaultMulti": "Please wish a happy birthday to our esteemed members: %n",
+    
+    "help": {
+        "top": "Thank you for using Birthday Bot!\nSupport, data policy, more info: https://noithecat.dev/bots/BirthdayBot\n\nThis bot is is provided for free - period. There are no paywalls, subscriptions, or hidden exclusive features. If you'd like, please consider [supporting the author](https://ko-fi.com/noithecat).",
+        "headerMain": "Help & About",
+        "headerRegCmds": "Commands",
+        "headerModCmds": "Moderator commands",
+        "warnDM": "Please be aware that this bot only works in servers. None of the other commands will work within a DM.",
+        "warnEmptyParam": "**Caution:** Skipping optional parameters __removes__ their configuration.",
+        "seeAlso": "See also:"
+    },
+    "config": {
+        "announce": {
+            "help": {
+                "header": "Announcement configuration",
+                "f1Header": "What is an announcement message?",
+                "f1Body": "As the name implies, an announcement message is the messages displayed when somebody's birthday arrives. If enabled, an announcment message is shown at midnight respective to the appropriate time zone, first using the user's local time (if it is known), or else using the server's default time zone, or else referring back to midnight in Universal Time (UTC).\n\nTo enable announcement messages, use the `set-channel` subcommand.",
+                "f2Header": "Customization",
+                "f2Body": "The `set-message` subcommand allow moderators to edit the message sent into the announcement channel.\nTwo messages may be provided: `single` sets the message that is displayed when one user has a birthday, and `multi` sets the message used when two or more users have birthdays. If only one of the two messages have been set, this bot will use the same message in both cases.\n\nThe custom message supports the following tokens:\n* `%n` - Name(s) of those with birthdays\n* `%e` - `@everyone` ping"
+            },
+            "set-channel": {
+                "successAdd": ":white_check_mark: The announcement channel has been set to **{0}**.",
+                "successDel": ":white_check_mark: The announcement channel has been unset."
+            },
+            "set-message": {
+                "formTitle": "Edit announcement message",
+                "labelSingle": "Single - Message for one birthday",
+                "labelMulti": "Multi - Message for multiple birthdays",
+                "msgSuccess": ":white_check_mark: Announcement messages have been updated."
+            },
+            "set-ping": {
+                "successOn": ":white_check_mark: Ping members in announcements: **enabled**.",
+                "successOff": ":white_check_mark: Ping members in announcements: **disabled**."
+            },
+            "test": {
+                "errNoChannel": ":x: Unable to send a birthday message. The announcement channel is not configured.",
+                "errPermissions": ":x: Unable to send a birthday message. Insufficient permissions to send to the announcement channel.",
+                "invoke": ":white_check_mark: An announcement test will be sent to {0}."
+            },
+            "reset-timers": ":white_check_mark: Internal timers for all users have been reset. If there are birthdays, it may take several minutes before a new announcement is made."
+        },
+        "role": {
+            "errBadRole": ":x: This role cannot be used for this setting.",
+            "success": ":white_check_mark: The birthday role has been set to **{0}**."
+        },
+        "check": {
+            "header": "Status and config check",
+            "pass": ":white_check_mark: Yes",
+            "fail": ":x: No",
+            // TODO have LocalizedStringResolver allow arrays of strings to allow neatly storing large strings like these
+            "template": "#### Diagnostics\nServer ID: `{0}` | Bot shard: `{1}`\nMembers: `{5}`\nBirthdays registered: `{2}`\nUsers in cache: `{3}`\nBackground cache eligibility: `{4}`\n#### Validation\n- Default server time zone\n    Set to: `{6}`\n    Current time: {7}\n- Birthday role\n    Set to: {8}\n    Exists: {9}\n    Bot has permission to use: {10}\n- Announcement channel\n    Set to: {11}\n    Exists: {12}\n    Bot has permission to use: {13}",
+            "notAvailable": "n/a",
+            "notSet": "Not set",
+            "notSetAttn": "Not set!",
+            "usingUtcFallback": "Not set - using UTC"
+        },
+        "set-timezone": {
+            "successAdd": ":white_check_mark: The server's time zone has been set to **{0}**.",
+            "successDel": ":white_check_mark: The server's time zone has been unset."
+        },
+        "private-confirms": {
+            "successOn": ":white_check_mark: Private confirmation messages **enabled**.",
+            "successOff": ":white_check_mark: Private confirmation messages **disabled**."
+        },
+        "add-only": {
+            "successOn": ":white_check_mark: Add-only mode has been **enabled**.",
+            "successOff": ":white_check_mark: Add-only mode has been **disabled**."
+        }
+    },
+    "override": {
+        "bdaySuccess": ":white_check_mark: {0}'s birthday has been set to **{1}**.",
+        "tzSuccess": ":white_check_mark: {0}'s time zone has been set to **{1}**.",
+        "tzNoBirthday":":x: {0} must have a birthday set first.",
+        "delSuccess": ":white_check_mark: {0}'s birthday in this server has been removed.",
+        "delNoBirthday": ":white_check_mark: {0}'s birthday is not registered."
+    },
+    "birthday": {
+        "errAddOnly": ":x: You may not edit a birthday or time zone after it has been added.",
+        "set": {
+            "date": {
+                "success": ":white_check_mark: Your birthday has been set to **{0}**{1}.", // 0: date format - 1: optional successWithZone
+                "withZone": " at time zone **{0}**",
+                // TODO problem: hardcoded command name
+                "tzHint": "-# Tip: The `/birthday set timezone` command can help ensure your birthday gets recognized on time."
+            },
+            "zone": {
+                "success": ":white_check_mark: Your time zone has been set to **{0}**.",
+                "errNoBirthday": ":x: You must set a birthday first."
+            }
+        },
+        "remove": {
+            "success": ":white_check_mark: Your birthday in this server has been removed.",
+            "noData": ":white_check_mark: Your birthday is not registered."
+        }, 
+        "get": {
+            "noData1p": ":x: You do not have your birthday registered.",
+            "noData3p": ":x: The given user does not have their birthday registered."
+        },
+        "nearest": {
+            "header": "Recent and upcoming birthdays:",
+            "notFound": "There are no recent or upcoming birthdays (within the last 7 days and/or next 14 days)."
+        }
+    },
+    "export-birthdays": {
+        "success": ":white_check_mark: Exported {0} birthdays to file.",
+        "textHeader": "Birthdays in {0}",
+        "ical": {
+            "evName": "Birthday: {0}",
+            // Line breaks within the calendar description are a literal "\n"
+            "evDesc": "Birthday for {0}\\nFrom {1}\\n\\nExported from Birthday Bot"
+        }
+    }
+}
