@@ -5,7 +5,7 @@ using Discord.Interactions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using NoiPublicBot;
-using NoiPublicBot.Common;
+using NoiPublicBot.Common.UserCache;
 using Npgsql;
 
 namespace BirthdayBot;

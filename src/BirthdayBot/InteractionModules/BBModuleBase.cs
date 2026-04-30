@@ -7,7 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using NodaTime;
 using NodaTime.Text;
 using NoiPublicBot;
-using NoiPublicBot.Common;
+using NoiPublicBot.Common.UserCache;
 using static BirthdayBot.Localization.StringProviders;
 
 namespace BirthdayBot.InteractionModules;

@@ -46,18 +46,16 @@
     <ProjectReference Include="../Core/src/NpbCore/NpbCore.csproj" />
     <ProjectReference Include="../Core/src/NpbCore.Config/NpbCore.Config.csproj" />
 
-    <ProjectReference Include="../Core/src/NpbCore.JsonGen/NpbCore.JsonGen.csproj"
-                      OutputItemType="Analyzer"
-                      ReferenceOutputAssembly="false" />
+    <ProjectReference Include="../Core/src/NpbCore.JsonGen/NpbCore.JsonGen.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
   </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="EFCore.NamingConventions" Version="10.0.1" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.3">
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.7">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
-    <PackageReference Include="NodaTime" Version="3.3.1" />
+    <PackageReference Include="NodaTime" Version="3.3.2" />
   </ItemGroup>
 
 </Project>

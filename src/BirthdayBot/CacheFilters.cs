@@ -1,7 +1,7 @@
 using System.Linq.Expressions;
 using BirthdayBot.Data;
 using NodaTime;
-using NoiPublicBot.Common;
+using NoiPublicBot.Common.UserCache;
 
 namespace BirthdayBot;
 

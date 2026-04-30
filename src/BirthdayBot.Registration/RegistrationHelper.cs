@@ -10,7 +10,7 @@ using NoiPublicBot.Config;
 using Npgsql;
 using BirthdayBot;
 using BirthdayBot.Data;
-using NoiPublicBot.Common;
+using NoiPublicBot.Common.UserCache;
 
 // Usage:
 // dotnet run --project src/BirthdayBot.Registration/BirthdayBot.Registration.csproj -c CONFIGTYPE -- -c path/to/settings.json

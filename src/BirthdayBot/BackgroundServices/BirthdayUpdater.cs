@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using NodaTime;
 using NoiPublicBot.BackgroundServices;
-using NoiPublicBot.Common;
+using NoiPublicBot.Common.UserCache;
 using System.Text;
 using static BirthdayBot.Localization.StringProviders;
 
