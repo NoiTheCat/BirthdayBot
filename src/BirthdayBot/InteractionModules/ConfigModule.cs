@@ -173,13 +173,18 @@ public class ConfigModule : BBModuleBase {
     }
 
     [SlashCommand(BirthdayRole.Name, BirthdayRole.Description)]
-    public async Task CmdSetBRole([Summary(description: BirthdayRole.Role.Description)] SocketRole role) {
-        if (role.IsEveryone || role.IsManaged) {
-            await RespondAsync(LRu("config.role.errBadRole"), ephemeral: true);
-            return;
+    public async Task CmdSetBRole([Summary(description: BirthdayRole.Role.Description)] SocketRole? role) {
+        if (role is not null) {
+            if (role.IsEveryone || role.IsManaged) {
+                await RespondAsync(LRu("config.role.errBadRole"), ephemeral: true);
+                return;
+            }
+            await DbUpdateGuildAsync(s => s.BirthdayRole = role.Id);
+            await RespondAsync(LRg("config.role.successAdd", role.Name)).ConfigureAwait(false);
+        } else {
+            await DbUpdateGuildAsync(s => s.BirthdayRole = null);
+            await RespondAsync(LRg("config.role.successDel")).ConfigureAwait(false);
         }
-        await DbUpdateGuildAsync(s => s.BirthdayRole = role.Id);
-        await RespondAsync(LRg("config.role.success", role.Name)).ConfigureAwait(false);
     }
 
     [SlashCommand(Check.Name, Check.Description)]

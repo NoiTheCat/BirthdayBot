@@ -53,7 +53,8 @@
         },
         "role": {
             "errBadRole": ":x: This role cannot be used for this setting.",
-            "success": ":white_check_mark: The birthday role has been set to **{0}**."
+            "successAdd": ":white_check_mark: The birthday role has been set to **{0}**.",
+            "successDel": ":white_check_mark: The birthday role has been unset."
         },
         "check": {
             "header": "Status and config check",
