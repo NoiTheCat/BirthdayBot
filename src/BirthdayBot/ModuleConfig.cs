@@ -18,7 +18,7 @@ public class ModuleConfig : ModuleConfigBase {
     ];
 
     public override void PreShardSetup(ref IServiceCollection services) {
-        services.AddSingleton(s => new UserCache<BotDatabaseContext>(s.GetRequiredService<ShardInstance>()));
+        services.AddSingleton(s => new UserCache<BotDatabaseContext>(s.GetRequiredService<ShardInstance>(), new WarmCacheProvider()));
         services.AddDbContext<BotDatabaseContext>(opts => opts
             .UseNpgsql(Instance.SqlConnectionString.ConnectionString,
             npgopts => npgopts.UseNodaTime())
