@@ -60,23 +60,23 @@ public class ConfigModule : BBModuleBase {
             var form = new ModalBuilder {
                 Title = LRu("config.announce.set-message.formTitle"),
                 CustomId = ModFormidAnnounce,
-            }.AddTextInput(new TextInputBuilder {
-                Label = LRu("config.announce.set-message.labelSingle"),
-                CustomId = ModCpidSetmsgSingle,
-                Style = TextInputStyle.Paragraph,
-                MaxLength = 1500,
-                Required = false,
-                Placeholder = LRg("defaultSingle"),
-                Value = settings.AnnounceMessage ?? string.Empty
-            }).AddTextInput(new TextInputBuilder() {
-                Label = LRu("config.announce.set-message.labelMulti"),
-                CustomId = ModCpidSetmsgMulti,
-                Style = TextInputStyle.Paragraph,
-                MaxLength = 1500,
-                Required = false,
-                Placeholder = LRg("defaultMulti"),
-                Value = settings.AnnounceMessagePl ?? string.Empty
-            });
+            }.AddTextInput(
+                label: LRu("config.announce.set-message.labelSingle"),
+                customId: ModCpidSetmsgSingle,
+                style: TextInputStyle.Paragraph,
+                maxLength: 1500,
+                required: false,
+                placeholder: LRg("defaultSingle"),
+                value: settings.AnnounceMessage ?? string.Empty
+            ).AddTextInput(
+                label: LRu("config.announce.set-message.labelMulti"),
+                customId: ModCpidSetmsgMulti,
+                style: TextInputStyle.Paragraph,
+                maxLength: 1500,
+                required: false,
+                placeholder: LRg("defaultMulti"),
+                value: settings.AnnounceMessagePl ?? string.Empty
+            );
 
             await RespondWithModalAsync(form.Build()).ConfigureAwait(false);
         }
