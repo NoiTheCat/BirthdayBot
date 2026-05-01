@@ -105,20 +105,22 @@ public class BirthdayModule : BBModuleBase {
 
     [SlashCommand(Get.Name, Get.Description)]
     public async Task CmdGetBday([Summary(description: Get.User.Description)] SocketGuildUser? user = null) {
-        Cache.Update(user);
+        var cachedUser = Cache.Update(user);
 
         var isSelf = user is null;
-        if (isSelf) user = (SocketGuildUser)Context.User;
+        if (isSelf) {
+            user = (SocketGuildUser)Context.User;
+            cachedUser = Cache.GetUser(Context.Guild.Id, Context.Guild.CurrentUser.Id);
+        }
 
         var targetdata = user!.GetUserEntryOrNew(DbContext);
-
         if (targetdata.IsNew) {
             if (isSelf) await RespondAsync(LRg("birthday.get.noData1p"), ephemeral: true).ConfigureAwait(false);
             else await RespondAsync(LRg("birthday.get.noData3p"), ephemeral: true).ConfigureAwait(false);
             return;
         }
 
-        await RespondAsync($"{Common.FormatName(user!, false)}: `{DateFormat(targetdata.BirthDate, GuildLocale, abbreviated: false)}`" +
+        await RespondAsync($"{cachedUser!.FormatName()}: `{DateFormat(targetdata.BirthDate, GuildLocale, abbreviated: false)}`" +
             (targetdata.TimeZone == null ? string.Empty : $" - {targetdata.TimeZone}")).ConfigureAwait(false);
     }
 
