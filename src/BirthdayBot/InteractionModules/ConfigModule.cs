@@ -164,10 +164,13 @@ public class ConfigModule : BBModuleBase {
 
         [SlashCommand(Announce.TimersReset.Name, Announce.TimersReset.Description)]
         public async Task CmdTimersReset() {
-            // TODO should also invalidate all guild user cache
             await DbContext.UserEntries
                 .Where(u => u.GuildId == Context.Guild.Id)
                 .ExecuteUpdateAsync(upd => upd.SetProperty(p => p.LastProcessed, Instant.MinValue));
+            var caches = Cache.GetGuild(Context.Guild.Id, includeNullEntries: true);
+            if (caches != null) {
+                foreach (var c in caches) Cache.Invalidate(Context.Guild.Id, c.Key);
+            }
             await RespondAsync(LRg("config.announce.reset-timers"));
         }
     }

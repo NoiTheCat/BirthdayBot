@@ -100,7 +100,7 @@
       },
       "timers-reset": {
         "name": "timers-reset",
-        "description": "Resets the bot's internal timers to possibly repeat today's announcements."
+        "description": "Resets the bot's internal cache and timers to repeat today's announcements, if any."
       }
     }
   },
