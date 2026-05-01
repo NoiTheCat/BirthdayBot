@@ -12,7 +12,6 @@ class WarmCacheProvider : IWarmCacheProvider {
             .Where(x => x.ExpiresAt > SystemClock.Instance.GetCurrentInstant())
             .Select(c => c.Data)
             .SingleOrDefault();
-        Console.WriteLine((result is null ? "miss" : "hit") + ": " + userId);
         return Task.FromResult(result);
     }
 
@@ -22,7 +21,6 @@ class WarmCacheProvider : IWarmCacheProvider {
             .Where(x => x.GuildId == guildId && x.UserId == userId)
             .SingleOrDefault();
         if (entry is null) {
-            Console.WriteLine("update: add " + userId);
             entry = new WarmCacheItem {
                 GuildId = guildId,
                 UserId = userId,
@@ -31,16 +29,21 @@ class WarmCacheProvider : IWarmCacheProvider {
             };
             db.WarmCache.Add(entry);
         } else {
-            Console.WriteLine("update: upd " + userId);
             entry.ExpiresAt = expiresAt;
             entry.Data = json;
         }
         await db.SaveChangesAsync();
-        
+
+    }
+    
+    public async Task RemoveGuildAsync(ulong guildId) {
+        using var db = BotDatabaseContext.New();
+        await db.WarmCache
+            .Where(x => x.GuildId == guildId)
+            .ExecuteDeleteAsync();
     }
 
-    public async Task RemoveAsync(ulong guildId, ulong userId) {
-        Console.WriteLine("remove " + userId);
+    public async Task RemoveUserAsync(ulong guildId, ulong userId) {
         using var db = BotDatabaseContext.New();
         await db.WarmCache
             .Where(x => x.GuildId == guildId && x.UserId == userId)
