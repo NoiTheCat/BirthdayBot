@@ -3,3 +3,11 @@
 .vs/
 *.user
 debug.json
+
+# /docs is a Jekyll site
+docs/_site
+docs/.sass-cache
+docs/.jekyll-cache
+docs/.jekyll-metadata
+docs/vendor
+docs/.bundle

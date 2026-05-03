@@ -1,0 +1,7 @@
+source "https://rubygems.org"
+gem "jekyll", "~> 4.4"
+gem "jekyll-remote-theme"
+gem "jekyll-seo-tag"
+
+# dependency of dependency of ... is failing to compile in v4.33
+gem 'google-protobuf', '~> 4.32'
