@@ -40,4 +40,6 @@ public class ModuleConfig : ModuleConfigBase {
 
     public override Func<string, string> GenericErrorProvider
         => loc => Localization.StringProviders.Responses.Get(loc, "errGeneric");
+
+    public override DbContext? StartupMigrationsDbContext => BotDatabaseContext.New();
 }
