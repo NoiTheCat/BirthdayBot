@@ -16,7 +16,7 @@
       "description": "Set the role given to users having a birthday.",
       "role": {
         "name": "role",
-        "description": "The corresponding role to use."
+        "description": "The corresponding role to use. Leave blank to unset."
       }
     },
     "check": {

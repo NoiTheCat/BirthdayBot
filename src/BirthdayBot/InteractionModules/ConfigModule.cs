@@ -173,7 +173,7 @@ public class ConfigModule : BBModuleBase {
     }
 
     [SlashCommand(BirthdayRole.Name, BirthdayRole.Description)]
-    public async Task CmdSetBRole([Summary(description: BirthdayRole.Role.Description)] SocketRole? role) {
+    public async Task CmdSetBRole([Summary(description: BirthdayRole.Role.Description)] SocketRole? role = null) {
         if (role is not null) {
             if (role.IsEveryone || role.IsManaged) {
                 await RespondAsync(LRu("config.role.errBadRole"), ephemeral: true);
