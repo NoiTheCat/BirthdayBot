@@ -96,7 +96,7 @@ public class ConfigModule : BBModuleBase {
             settings.AnnounceMessage = newSingle;
             settings.AnnounceMessagePl = newMulti;
             await db.SaveChangesAsync();
-            var reply = Localization.StringProviders.Responses.Get(modal.GuildLocale, "config.announce.msgSuccess");
+            var reply = Localization.StringProviders.Responses.Get(modal.GuildLocale, "config.announce.set-message.msgSuccess");
             await modal.RespondAsync(reply);
         }
 

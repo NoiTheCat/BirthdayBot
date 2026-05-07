@@ -13,7 +13,14 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <!-- for analyzers -->
     <AdditionalFiles Include="Localization/Commands.*.json" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- build output -->
+    <Content Include="Localization/Commands.*.json" CopyToOutputDirectory="Always" />
+    <Content Include="Localization/Responses.*.json" CopyToOutputDirectory="Always" />
   </ItemGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
@@ -31,10 +38,6 @@
     <!-- Server GC better suits a long-running service -->
     <ServerGarbageCollection>true</ServerGarbageCollection>
   </PropertyGroup>
-
-  <ItemGroup>
-    <Content Include="Localization/*.json" CopyToOutputDirectory="PreserveNewest" />
-  </ItemGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
     <PlatformTarget>AnyCPU</PlatformTarget>
