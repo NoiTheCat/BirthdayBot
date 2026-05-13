@@ -21,7 +21,7 @@ static class ModalResponder {
 
         if (arg.Channel is not SocketGuildChannel channel) {
             Log($"Modal of type `{arg.Data.CustomId}` but channel data unavailable. Sender ID {arg.User.Id}, name {arg.User}.");
-            await arg.RespondAsync(Responses[arg.GuildLocale]["errorGeneric"])
+            await arg.RespondAsync(Responses[arg.GuildLocale]["errGeneric"])
                 .ConfigureAwait(false);
             return;
         }
@@ -37,7 +37,7 @@ static class ModalResponder {
 
     private static async Task DefaultHandler(SocketModal modal, SocketGuildChannel channel,
                                              Dictionary<string, SocketMessageComponentData> data)
-        => await modal.RespondAsync(Responses[modal.GuildLocale]["errorGeneric"]);
+        => await modal.RespondAsync(Responses[modal.GuildLocale]["errGeneric"]);
 
     private static void Log(string msg) {
         Instance.Log(nameof(ModalResponder), msg);

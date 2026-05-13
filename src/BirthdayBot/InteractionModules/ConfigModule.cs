@@ -60,23 +60,23 @@ public class ConfigModule : BBModuleBase {
             var form = new ModalBuilder {
                 Title = LRu("config.announce.set-message.formTitle"),
                 CustomId = ModFormidAnnounce,
-            }.AddTextInput(new TextInputBuilder {
-                Label = LRu("config.announce.set-message.labelSingle"),
-                CustomId = ModCpidSetmsgSingle,
-                Style = TextInputStyle.Paragraph,
-                MaxLength = 1500,
-                Required = false,
-                Placeholder = LRg("defaultSingle"),
-                Value = settings.AnnounceMessage ?? string.Empty
-            }).AddTextInput(new TextInputBuilder() {
-                Label = LRu("config.announce.set-message.labelMulti"),
-                CustomId = ModCpidSetmsgMulti,
-                Style = TextInputStyle.Paragraph,
-                MaxLength = 1500,
-                Required = false,
-                Placeholder = LRg("defaultMulti"),
-                Value = settings.AnnounceMessagePl ?? string.Empty
-            });
+            }.AddTextInput(
+                label: LRu("config.announce.set-message.labelSingle"),
+                customId: ModCpidSetmsgSingle,
+                style: TextInputStyle.Paragraph,
+                maxLength: 1500,
+                required: false,
+                placeholder: LRg("defaultSingle"),
+                value: settings.AnnounceMessage ?? string.Empty
+            ).AddTextInput(
+                label: LRu("config.announce.set-message.labelMulti"),
+                customId: ModCpidSetmsgMulti,
+                style: TextInputStyle.Paragraph,
+                maxLength: 1500,
+                required: false,
+                placeholder: LRg("defaultMulti"),
+                value: settings.AnnounceMessagePl ?? string.Empty
+            );
 
             await RespondWithModalAsync(form.Build()).ConfigureAwait(false);
         }
@@ -96,7 +96,7 @@ public class ConfigModule : BBModuleBase {
             settings.AnnounceMessage = newSingle;
             settings.AnnounceMessagePl = newMulti;
             await db.SaveChangesAsync();
-            var reply = Localization.StringProviders.Responses.Get(modal.GuildLocale, "config.announce.msgSuccess");
+            var reply = Localization.StringProviders.Responses.Get(modal.GuildLocale, "config.announce.set-message.msgSuccess");
             await modal.RespondAsync(reply);
         }
 
@@ -164,22 +164,27 @@ public class ConfigModule : BBModuleBase {
 
         [SlashCommand(Announce.TimersReset.Name, Announce.TimersReset.Description)]
         public async Task CmdTimersReset() {
-            // TODO should also invalidate all guild user cache
             await DbContext.UserEntries
                 .Where(u => u.GuildId == Context.Guild.Id)
                 .ExecuteUpdateAsync(upd => upd.SetProperty(p => p.LastProcessed, Instant.MinValue));
+            Cache.Invalidate(Context.Guild.Id);
             await RespondAsync(LRg("config.announce.reset-timers"));
         }
     }
 
     [SlashCommand(BirthdayRole.Name, BirthdayRole.Description)]
-    public async Task CmdSetBRole([Summary(description: BirthdayRole.Role.Description)] SocketRole role) {
-        if (role.IsEveryone || role.IsManaged) {
-            await RespondAsync(LRu("config.role.errBadRole"), ephemeral: true);
-            return;
+    public async Task CmdSetBRole([Summary(description: BirthdayRole.Role.Description)] SocketRole? role = null) {
+        if (role is not null) {
+            if (role.IsEveryone || role.IsManaged) {
+                await RespondAsync(LRu("config.role.errBadRole"), ephemeral: true);
+                return;
+            }
+            await DbUpdateGuildAsync(s => s.BirthdayRole = role.Id);
+            await RespondAsync(LRg("config.role.successAdd", role.Name)).ConfigureAwait(false);
+        } else {
+            await DbUpdateGuildAsync(s => s.BirthdayRole = null);
+            await RespondAsync(LRg("config.role.successDel")).ConfigureAwait(false);
         }
-        await DbUpdateGuildAsync(s => s.BirthdayRole = role.Id);
-        await RespondAsync(LRg("config.role.success", role.Name)).ConfigureAwait(false);
     }
 
     [SlashCommand(Check.Name, Check.Description)]

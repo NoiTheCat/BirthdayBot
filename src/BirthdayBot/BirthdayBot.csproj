@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <Version>4.1.1</Version>
+    <Version>4.2.0</Version>
     <Authors>NoiTheCat</Authors>
     <OutputType>Exe</OutputType>
     <RootNamespace>BirthdayBot</RootNamespace>
@@ -13,7 +13,14 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <!-- for analyzers -->
     <AdditionalFiles Include="Localization/Commands.*.json" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- build output -->
+    <Content Include="Localization/Commands.*.json" CopyToOutputDirectory="Always" />
+    <Content Include="Localization/Responses.*.json" CopyToOutputDirectory="Always" />
   </ItemGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
@@ -32,10 +39,6 @@
     <ServerGarbageCollection>true</ServerGarbageCollection>
   </PropertyGroup>
 
-  <ItemGroup>
-    <Content Include="Localization/*.json" CopyToOutputDirectory="PreserveNewest" />
-  </ItemGroup>
-
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
     <PlatformTarget>AnyCPU</PlatformTarget>
   </PropertyGroup>
@@ -46,18 +49,16 @@
     <ProjectReference Include="../Core/src/NpbCore/NpbCore.csproj" />
     <ProjectReference Include="../Core/src/NpbCore.Config/NpbCore.Config.csproj" />
 
-    <ProjectReference Include="../Core/src/NpbCore.JsonGen/NpbCore.JsonGen.csproj"
-                      OutputItemType="Analyzer"
-                      ReferenceOutputAssembly="false" />
+    <ProjectReference Include="../Core/src/NpbCore.JsonGen/NpbCore.JsonGen.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
   </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="EFCore.NamingConventions" Version="10.0.1" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.3">
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.7">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
-    <PackageReference Include="NodaTime" Version="3.3.1" />
+    <PackageReference Include="NodaTime" Version="3.3.2" />
   </ItemGroup>
 
 </Project>

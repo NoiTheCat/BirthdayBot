@@ -5,7 +5,7 @@ using Discord.Interactions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using NoiPublicBot;
-using NoiPublicBot.Common;
+using NoiPublicBot.Common.UserCache;
 using Npgsql;
 
 namespace BirthdayBot;
@@ -18,7 +18,7 @@ public class ModuleConfig : ModuleConfigBase {
     ];
 
     public override void PreShardSetup(ref IServiceCollection services) {
-        services.AddSingleton(s => new UserCache<BotDatabaseContext>(s.GetRequiredService<ShardInstance>()));
+        services.AddSingleton(s => new UserCache<BotDatabaseContext>(s.GetRequiredService<ShardInstance>(), new WarmCacheProvider()));
         services.AddDbContext<BotDatabaseContext>(opts => opts
             .UseNpgsql(Instance.SqlConnectionString.ConnectionString,
             npgopts => npgopts.UseNodaTime())
@@ -40,4 +40,6 @@ public class ModuleConfig : ModuleConfigBase {
 
     public override Func<string, string> GenericErrorProvider
         => loc => Localization.StringProviders.Responses.Get(loc, "errGeneric");
+
+    public override DbContext? StartupMigrationsDbContext => BotDatabaseContext.New();
 }

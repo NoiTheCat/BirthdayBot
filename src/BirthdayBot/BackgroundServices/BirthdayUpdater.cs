@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using NodaTime;
 using NoiPublicBot.BackgroundServices;
-using NoiPublicBot.Common;
+using NoiPublicBot.Common.UserCache;
 using System.Text;
 using static BirthdayBot.Localization.StringProviders;
 
@@ -36,12 +36,17 @@ public class BirthdayUpdater : BackgroundService {
             var guild = Shard.DiscordClient.GetGuild(gid);
             if (guild is null) continue;
             if (!shardGuilds.TryGetValue(gid, out var config)) continue; // In cache but no config - this is probably not actually possible?
-            // TODO Birthday role no longer strictly required for this operation. Must reconsider the following checks
-            if (!guild.CurrentUser.GuildPermissions.ManageRoles) continue;
-            var role = guild.GetRole(config.BirthdayRole ?? 0);
-            if (role is null) continue;
-            if (role.Position >= guild.CurrentUser.Hierarchy) continue;
-            if (IsRoleIdInvalid(role)) continue;
+
+            // Check if birthday role usable
+            bool IsRoleUsable() {
+                if (!guild.CurrentUser.GuildPermissions.ManageRoles) return false;
+                var role = guild.GetRole(config.BirthdayRole ?? 0);
+                if (role is null) return false;
+                if (role.Position >= guild.CurrentUser.Hierarchy) return false;
+                if (IsRoleIdInvalid(role)) return false;
+                return true;
+            }
+            var doRoleManipulation = IsRoleUsable();
 
             // All clear - set up all remaining data before doing work
             db.Entry(config).Collection(t => t.UserEntries).Load();
@@ -58,25 +63,29 @@ public class BirthdayUpdater : BackgroundService {
                 // Extra checks are no longer necessary.
                 var announceList = new List<string>();
                 foreach (var u in starting) {
-                    try {
-                        await rest.AddRoleAsync(config.GuildId, u.User.UserId, config.BirthdayRole!.Value).ConfigureAwait(false);
-                    } catch (HttpException ex) when (ex.DiscordCode == DiscordErrorCode.UnknownMember) {
-                        // User's gone. Invalidate cache item, carry on.
-                        cache.Invalidate(config.GuildId, u.User.UserId);
-                        continue;
+                    if (doRoleManipulation) {
+                        try {
+                            await rest.AddRoleAsync(config.GuildId, u.User.UserId, config.BirthdayRole!.Value).ConfigureAwait(false);
+                        } catch (HttpException ex) when (ex.DiscordCode == DiscordErrorCode.UnknownMember) {
+                            // If role manipulation is allowed, we got to see that our cache for this particular
+                            // user is no longer invalid. Do something about it, carry on.
+                            cache.Invalidate(config.GuildId, u.User.UserId);
+                            continue;
+                        }
                     }
                     if (config.AnnouncePing) announceList.Add($"<@{u.User.UserId}>");
                     else announceList.Add(u.User.FormatName());
                 }
-                foreach (var u in ending) {
-                    try {
-                        await rest.RemoveRoleAsync(config.GuildId, u.User.UserId, config.BirthdayRole!.Value).ConfigureAwait(false);
-                    } catch (HttpException ex) when (ex.DiscordCode == DiscordErrorCode.UnknownMember) {
-                        // User's gone. Invalidate cache item, and nothing more to do.
-                        cache.Invalidate(config.GuildId, u.User.UserId);
+                if (doRoleManipulation) {
+                    foreach (var u in ending) {
+                        try {
+                            await rest.RemoveRoleAsync(config.GuildId, u.User.UserId, config.BirthdayRole!.Value).ConfigureAwait(false);
+                        } catch (HttpException ex) when (ex.DiscordCode == DiscordErrorCode.UnknownMember) {
+                            // See similar exception handler above
+                            cache.Invalidate(config.GuildId, u.User.UserId);
+                        }
                     }
                 }
-
                 await AnnounceBirthdaysAsync(config, guild, announceList).ConfigureAwait(false);
 
                 db.SaveChanges();

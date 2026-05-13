@@ -16,7 +16,7 @@
       "description": "Set the role given to users having a birthday.",
       "role": {
         "name": "role",
-        "description": "The corresponding role to use."
+        "description": "The corresponding role to use. Leave blank to unset."
       }
     },
     "check": {
@@ -100,7 +100,7 @@
       },
       "timers-reset": {
         "name": "timers-reset",
-        "description": "Resets the bot's internal timers to possibly repeat today's announcements."
+        "description": "Resets the bot's internal cache and timers to repeat today's announcements, if any."
       }
     }
   },

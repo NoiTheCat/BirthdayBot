@@ -4,8 +4,8 @@
 
     // Common responses:
     "errGeneric": ":x: An unknown error occurred. If it persists, please notify the bot owner.",
-    "errorParseFail": ":x: Unknown time zone name.\nTo find your time zone, please refer to: https://zones.arilyn.cc/",
-    "errorGeneric": ":x: An unknown error occurred. If this persists, please notify the bot owner.",
+    "errParseDate": ":x: The date you specified is not a valid calendar date.",
+    "errParseZone": ":x: Unknown time zone name.\nTo find your time zone, please refer to: https://zones.arilyn.cc/",
     "loadingUsers": "<a:bot_thinking:1468047802721374403> Please wait a moment. Gathering data...",
 
     // Other strings that don't fit into a category:
@@ -53,7 +53,8 @@
         },
         "role": {
             "errBadRole": ":x: This role cannot be used for this setting.",
-            "success": ":white_check_mark: The birthday role has been set to **{0}**."
+            "successAdd": ":white_check_mark: The birthday role has been set to **{0}**.",
+            "successDel": ":white_check_mark: The birthday role has been unset."
         },
         "check": {
             "header": "Status and config check",
