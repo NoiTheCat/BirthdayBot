@@ -29,11 +29,11 @@ public class BirthdayModule : BBModuleBase {
             if (user.IsNew) DbContext.UserEntries.Add(user);
             if (guild.AddOnly) {
                 if (!user.IsNew) {
-                    if (((SocketGuildUser)Context.User).GuildPermissions.ManageGuild) {
-                        // Don't enforce if user has Manage Guild permission
-                    } else {
+                    if (!((SocketGuildUser)Context.User).GuildPermissions.ManageGuild) {
                         await RespondAsync(LRu("birthday.errAddOnly"), ephemeral: true).ConfigureAwait(false);
+                        return;
                     }
+                    // Else don't enforce if user has Manage Guild permission
                 }
             }
 
@@ -43,7 +43,7 @@ public class BirthdayModule : BBModuleBase {
             }
             DateTimeZone? inzone = null;
             if (zone != null && !TryParseZone(zone, out inzone)) {
-                await ReplyAsync(LRg("errParseZone")).ConfigureAwait(false);
+                await RespondAsync(LRg("errParseZone")).ConfigureAwait(false);
                 return;
             }
 
