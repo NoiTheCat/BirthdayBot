@@ -110,7 +110,7 @@ public class BirthdayModule : BBModuleBase {
         var isSelf = user is null;
         if (isSelf) {
             user = (SocketGuildUser)Context.User;
-            cachedUser = Cache.GetUser(Context.Guild.Id, Context.Guild.CurrentUser.Id);
+            cachedUser = Cache.GetUser(Context.Guild.Id, user.Id);
         }
 
         var targetdata = user!.GetUserEntryOrNew(DbContext);
