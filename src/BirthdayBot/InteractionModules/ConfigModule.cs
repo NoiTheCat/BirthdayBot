@@ -44,7 +44,9 @@ public class ConfigModule : BBModuleBase {
 
         [SlashCommand(Announce.SetChannel.Name, Announce.SetChannel.Description)]
         public async Task CmdSetChannel(
-            [Summary(description: Announce.SetChannel.Channel.Description)] SocketTextChannel? channel = null)
+            [Summary(description: Announce.SetChannel.Channel.Description)]
+            [ChannelTypes(ChannelType.Text, ChannelType.News)]
+            ITextChannel? channel = null)
         {
             await DbUpdateGuildAsync(s => s.AnnouncementChannel = channel?.Id);
             await RespondAsync(channel != null
