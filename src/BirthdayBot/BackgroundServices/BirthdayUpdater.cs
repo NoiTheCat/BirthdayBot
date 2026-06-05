@@ -7,6 +7,7 @@ using Microsoft.Extensions.DependencyInjection;
 using NodaTime;
 using NoiPublicBot.BackgroundServices;
 using NoiPublicBot.Common.UserCache;
+using System.Net;
 using System.Text;
 using static BirthdayBot.Localization.StringProviders;
 
@@ -27,7 +28,7 @@ public class BirthdayUpdater : BackgroundService {
 
         foreach (var (gid, users) in cacheG) {
             // Allow interruptions only in between processing guilds.
-            token.ThrowIfCancellationRequested();
+            if (token.IsCancellationRequested) return;
 
             // Quit immediately if disconnected.
             if (Shard.DiscordClient.ConnectionState != ConnectionState.Connected) break;
@@ -36,31 +37,21 @@ public class BirthdayUpdater : BackgroundService {
             var guild = Shard.DiscordClient.GetGuild(gid);
             if (guild is null) continue;
             if (!shardGuilds.TryGetValue(gid, out var config)) continue; // In cache but no config - this is probably not actually possible?
-
-            // Check if birthday role usable
-            bool IsRoleUsable() {
-                if (!guild.CurrentUser.GuildPermissions.ManageRoles) return false;
-                var role = guild.GetRole(config.BirthdayRole ?? 0);
-                if (role is null) return false;
-                if (role.Position >= guild.CurrentUser.Hierarchy) return false;
-                if (IsRoleIdInvalid(role)) return false;
-                return true;
-            }
-            var doRoleManipulation = IsRoleUsable();
+            var doRoleManipulation = IsRoleUsable(guild, config);
 
             // All clear - set up all remaining data before doing work
             db.Entry(config).Collection(t => t.UserEntries).Load();
             var items = PrepareUserInfo(users, shardGuilds.GetValueOrDefault(gid)?.UserEntries);
             if (items is null || items.Count == 0) continue; // No eligible users in this guild
-            // Transaction ensures if errors occur during processing, timestamp updates aren't affected
+
+            // Given that the cache contains entries for a day prior and ahead, the same data set can be used
+            // to determine new and expiring birthdays.
+            var (starting, ending) = GetCrossedThresholds(db, items);
+            var rest = Shard.DiscordClient.Rest;
             using (var tx = db.Database.BeginTransaction()) {
-                // Given that the cache contains entries for a day prior and ahead, the same data set can be used
-                // to determine new and expiring birthdays.
-                var (starting, ending) = GetUpdateCrossedThresholds(db, items);
-                var rest = Shard.DiscordClient.Rest;
-                // Note about role management: At some point, Discord.Net stopped throwing exceptions on
-                // trying to add roles when role already added, or removing when role isn't set.
-                // Extra checks are no longer necessary.
+                // Transaction ensures announcement + role application is either fully complete before recording to database
+                // or else records none, to ensure a full retry of all eligible users
+
                 var announceList = new List<string>();
                 foreach (var u in starting) {
                     if (doRoleManipulation) {
@@ -75,24 +66,45 @@ public class BirthdayUpdater : BackgroundService {
                     }
                     if (config.AnnouncePing) announceList.Add($"<@{u.User.UserId}>");
                     else announceList.Add(u.User.FormatName());
-                }
-                if (doRoleManipulation) {
-                    foreach (var u in ending) {
-                        try {
-                            await rest.RemoveRoleAsync(config.GuildId, u.User.UserId, config.BirthdayRole!.Value).ConfigureAwait(false);
-                        } catch (HttpException ex) when (ex.DiscordCode == DiscordErrorCode.UnknownMember) {
-                            // See similar exception handler above
-                            cache.Invalidate(config.GuildId, u.User.UserId);
-                        }
-                    }
+                    UpdateThreshold(db, u);
                 }
                 await AnnounceBirthdaysAsync(config, guild, announceList).ConfigureAwait(false);
-
                 db.SaveChanges();
                 tx.Commit();
             }
+
+            foreach (var u in ending) {
+                if (doRoleManipulation) {
+                    try {
+                        await rest.RemoveRoleAsync(config.GuildId, u.User.UserId, config.BirthdayRole!.Value).ConfigureAwait(false);
+                    } catch (HttpException ex) {
+                        if (ex.DiscordCode == DiscordErrorCode.UnknownMember) {
+                            // See equivalent exception handler above
+                            cache.Invalidate(config.GuildId, u.User.UserId);
+                            continue;
+                        } else {
+                            // Rough workaround for https://github.com/discord/discord-api-docs/issues/6549
+                            // TODO Consider if a more robust workaround is needed
+                            Log($"Warning: Encountered HTTP status code {Enum.GetName(typeof(HttpStatusCode), ex.HttpCode)} "
+                                + "on attempted role removal");
+                            break;
+                        }
+                    }
+                }
+                UpdateThreshold(db, u);
+            }
+            
             await Task.Yield();
         }
+    }
+
+    private bool IsRoleUsable(SocketGuild guild, GuildConfig config) {
+        if (!guild.CurrentUser.GuildPermissions.ManageRoles) return false;
+        var role = guild.GetRole(config.BirthdayRole ?? 0);
+        if (role is null) return false;
+        if (role.Position >= guild.CurrentUser.Hierarchy) return false;
+        if (IsRoleIdInvalid(role)) return false;
+        return true;
     }
 
     private bool IsRoleIdInvalid(SocketRole role) {
@@ -166,55 +178,50 @@ public class BirthdayUpdater : BackgroundService {
         return result;
     }
 
-    private (IEnumerable<Item> starting, IEnumerable<Item> ending) GetUpdateCrossedThresholds(
-                                                                        BotDatabaseContext db, IEnumerable<Item> users) {
+    private (IEnumerable<Item> starting, IEnumerable<Item> ending)
+        GetCrossedThresholds(BotDatabaseContext db, IEnumerable<Item> users) {
         var starting = new List<Item>();
         var ending = new List<Item>();
         var currentTime = SystemClock.Instance.GetCurrentInstant();
 
-        void UpdateDb(UserEntry row) {
-            db.Attach(row);
-            db.Entry(row).State = EntityState.Modified;
-            row.LastProcessed = currentTime;
-        }
-
         var isLeapYear = DateTime.IsLeapYear(DateTimeOffset.UtcNow.Year);
         foreach (var u in users) {
-            // Avoid out of range errors in conversions... LastProcessed is currently only read here.
+            // Avoiding out-of-range operations during relative position calculation...
             var uLastProc = u.DbRow.LastProcessed;
             if (uLastProc == Instant.MinValue) uLastProc = Instant.FromUnixTimeSeconds(0);
 
-            // Check relative to current month/day (ignoring year) to see when the birthday is/was
+            // Checking relative to current month/day (ignoring year) to see when the birthday is/was
             var bdayDatePos = u.GetRelativeDayPosition(currentTime, isLeapYear);
             // And check where we're located in time compared to the last_processed value (year matters)
             var lactDatePos = GetRelativeDayPosition(currentTime, uLastProc, u.Zone);
-            if (bdayDatePos == TimePosition.After) {
-                // The birthday has passed.
+            if (bdayDatePos == TimePosition.After) { // Current day is after the birthday
                 if (lactDatePos == TimePosition.Before) {
-                    // Before -> After: Missed it. Update and do nothing else.
-                    UpdateDb(u.DbRow);
+                    // Before -> After: Missed it. Silently update it, move on.
+                    UpdateThreshold(db, u);
                 } else if (lactDatePos == TimePosition.During) {
                     // During -> After: Birthday is ending.
-                    UpdateDb(u.DbRow);
                     ending.Add(u);
                 } else {
-                    // After -> After: Do nothing.
+                    // After -> After: Nothing to do.
                 }
-            } else if (bdayDatePos == TimePosition.During) {
-                // It is currently the birthday.
+            } else if (bdayDatePos == TimePosition.During) { // Current day is the birthday
                 if (lactDatePos == TimePosition.Before) {
                     // Before -> During: Birthday is starting.
-                    UpdateDb(u.DbRow);
                     starting.Add(u);
                 }
                 // During -> During: Do nothing.
-                // After -> During: Impossible.
-            } else {
-                // The birthday has not yet occurred.
-                // Before -> any: Do nothing.
+                // After -> During: Not possible.
             }
+            // Else: Current day is before the birthday.
+            // Before -> any: Do nothing.
         }
         return (starting, ending);
+    }
+    
+    private void UpdateThreshold(BotDatabaseContext db, Item entity) {
+        db.Attach(entity.DbRow);
+        db.Entry(entity.DbRow).State = EntityState.Modified;
+        entity.DbRow.LastProcessed = SystemClock.Instance.GetCurrentInstant();
     }
     #endregion
 

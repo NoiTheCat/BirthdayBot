@@ -5,10 +5,10 @@ using NoiPublicBot.Common.UserCache;
 
 namespace BirthdayBot.Data;
 
-public sealed class BotDatabaseContext(DbContextOptions<BotDatabaseContext> options) : DbContext(options) {
+public sealed class BotDatabaseContext(DbContextOptions<BotDatabaseContext> options) : DbContext(options), IWarmCacheAwareContext {
     public DbSet<GuildConfig> GuildConfigurations { get; set; } = null!;
     public DbSet<UserEntry> UserEntries { get; set; } = null!;
-    public DbSet<WarmCacheItem> WarmCache { get; set; } = null!;
+    public DbSet<EFWarmCacheEntry> WarmCache { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder) {
         modelBuilder.Entity<GuildConfig>(entity => {
@@ -39,7 +39,7 @@ public sealed class BotDatabaseContext(DbContextOptions<BotDatabaseContext> opti
             entity.Ignore(e => e.IsNew);
         });
 
-        modelBuilder.ApplyConfiguration(new WarmCacheItemConfig());
+        modelBuilder.ApplyConfiguration(new EFWarmCacheConfig());
     }
 
     /// <summary>
