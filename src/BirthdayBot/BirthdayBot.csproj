@@ -1,47 +1,37 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <Version>4.2.1</Version>
+    <Version>4.2.2</Version>
     <Authors>NoiTheCat</Authors>
-    <OutputType>Exe</OutputType>
     <RootNamespace>BirthdayBot</RootNamespace>
 
-    <TargetFramework>net10.0</TargetFramework>
     <LangVersion>latest</LangVersion>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+
+    <OutputType>Exe</OutputType>
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <TargetFramework>net10.0</TargetFramework>
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- for analyzers -->
-    <AdditionalFiles Include="Localization/Commands.*.json" />
-  </ItemGroup>
+    <!-- for analyzers (code generation) -->
+    <AdditionalFiles Include="Localization/Commands.en-US.json" />
 
-  <ItemGroup>
-    <!-- build output -->
+    <!-- include translations in output-->
     <Content Include="Localization/Commands.*.json" CopyToOutputDirectory="Always" />
     <Content Include="Localization/Responses.*.json" CopyToOutputDirectory="Always" />
   </ItemGroup>
 
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
-    <PlatformTarget>AnyCPU</PlatformTarget>
-
-    <!-- Optimizations for cold boots -->
-    <PublishReadyToRun>true</PublishReadyToRun>
-    <PublishReadyToRunComposite>true</PublishReadyToRunComposite>
-    <!-- More aggressive JIT optimization strategy (debug symbols help it along) -->
-    <TieredCompilation>true</TieredCompilation>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)'=='Release'">
+    <!-- Settings suitable for long-running services -->
     <TieredPGO>true</TieredPGO>
-    <TieredCompilationQuickJit>true</TieredCompilationQuickJit>
-    <TieredCompilationQuickJitForLoops>true</TieredCompilationQuickJitForLoops>
-    <DebugType>embedded</DebugType>
-    <!-- Server GC better suits a long-running service -->
     <ServerGarbageCollection>true</ServerGarbageCollection>
   </PropertyGroup>
 
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
-    <PlatformTarget>AnyCPU</PlatformTarget>
-  </PropertyGroup>
 
   <!-- WHEN UPDATING EF CORE: Don't forget to also run "dotnet tool update (dash dash)local dotnet-ef" -->
 
@@ -54,7 +44,7 @@
 
   <ItemGroup>
     <PackageReference Include="EFCore.NamingConventions" Version="10.0.1" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.7">
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.8">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
