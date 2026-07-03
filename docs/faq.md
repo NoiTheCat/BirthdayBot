@@ -23,7 +23,7 @@ title: Frequently Asked Questions
 - `/help` - Shows general information about each command.
 - `/config announce help` - Shows information on setting up the announcement message.
 
-### Important and/or useful commands for setup
+### Relevant for setup
 - `/config announce set-channel`
   - Set the channel the bot will post the birthday announcements. Leave blank to disable announcements.
 - `/config announce set-message`
@@ -34,8 +34,34 @@ title: Frequently Asked Questions
   - Sets the role to be given to members having a birthday. Must be set up ahead of time; see further below.
 - `/config set-timezone`
   - Sets the default time zone for your server - the implied time zone if a user doesn't add their own. If left blank, the default is UTC/GMT.
+### Other commands for bot administration
+By default, members need the "Manage Server" permissions to run these. This can be changed through your server's "Integrations" settings.
+- `/export-birthdays`
+  - Generates a file with all birthdays saved in your server.
+- `/override remove-birthday`
+  - Removes a member's birthday on their behalf.
+- `/override set-birthday`
+  - Sets a member's birthday on their behalf.
+- `/override set-timezone`
+  - Sets a member's time zone on their behalf.
+### Testing and troubleshooting
 - `/config check`
-  - Tests the bot's current configuration, posting the results.
+  - Gives some diagnostic information and tests its permissions.
+- `/config announce test`
+  - Sends an announcement message to the announcement channel immediately with a given name or set of names.
+- `/config announce timers-reset`
+  - Resets the bot's internal state for the server. This may make the bot reannounce the day's birthdays, remove the roles of those whose birthdays ended recently, or fix other obscure issues.
+### General commands
+- `/birthday get`
+  -# Gets the birthday of the member specified. Leaving the user blank will return your birthday.
+- `/birthday remove`
+  -# Removes your birthday information from this bot, in that server.
+- `/birthday set date`
+  -# Sets or updates your birthday.
+- `/birthday set timezone`
+  -# Sets or updates your time zone, if you have a birthday set.
+- `/birthday show-nearest`
+  -# Shows a list of members who had a birthday in the last 7 days and/or in the next 14 days.
 
 ## Questions
 ### Why isn't the bot replying to the help commands?
@@ -44,7 +70,7 @@ title: Frequently Asked Questions
   - If the bot is offline everywhere and no one has said anything in the support server, ping the owner to let them know. (Don't spam please.)
 - Ensure you have the correct Birthday Bot.
   - Verify that its profile picture is primarily *red*.
-  - A different Birthday Bot exists with a primarily *blue* picture. There is absolutely **no relation** between this bot and that one. For their contact information you could try checking [their Top.gg page&nbsp;<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24"><path fill="currentColor" d="M14 3v2h3.59l-9.83 9.83l1.41 1.41L19 6.41V10h2V3m-2 16H5V5h7V3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7h-2z"/></svg>](https://top.gg/bot/656621136808902656).
+  - A different Birthday Bot exists with a primarily *blue* picture. There is absolutely **no relation** between this bot and that one. For their contact information, you could try checking [their Top.gg page&nbsp;<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24"><path fill="currentColor" d="M14 3v2h3.59l-9.83 9.83l1.41 1.41L19 6.41V10h2V3m-2 16H5V5h7V3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7h-2z"/></svg>](https://top.gg/bot/656621136808902656).
 
 ### What is the birthday role?
 This is a custom role that you create with a name and color of your choice. If set, Birthday Bot can automatically assign it to a member when it is their birthday, and remove it when the birthday is over.
@@ -80,7 +106,7 @@ After the Birthday Bot assigns the custom birthday role to a member, it can also
 
 #### When will the bot post the birthday announcement?
 At midnight of the appropriate time zone. The bot decides the time zone to use based on whether certain pieces of information exist.
-* **First priority**: Does the individual's have a time zone set (with `/birthday set timezone` or `/override set-timezone`)?
+* **First priority**: Does the individual have a time zone set (with `/birthday set timezone` or `/override set-timezone`)?
 * **Second priority**: Does the server have a default time zone (set with `/config set-timezone`)?
 * **Otherwise**, use universal time (UTC).
 
