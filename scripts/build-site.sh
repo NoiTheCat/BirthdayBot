@@ -16,8 +16,8 @@ bundle install
 bundle exec jekyll build
 
 # External theme assumes site will be on domain root, even if configured paths are relative
-sed -i 's|/assets/|./assets/|g' _site//index.html
-sed -i '/class="img-circle"/s|src="/|src="./|g' _site/index.html
+sed -i 's|/assets/|./assets/|g' _site/*.html
+sed -i '/class="img-circle"/s|src="/|src="./|g' _site/*.html
 
 echo
 echo "Complete."
