@@ -41,7 +41,7 @@ title: Frequently Asked Questions
 ### Why isn't the bot replying to the help commands?
 - Check to make sure the bot has the correct [permissions](#recommend-permissions) for both the server and the channel you ran the command in.
 - Make sure the bot is online. If the bot is online in one server and offline in another, try to kick the bot from your server and re-invite it. It will retain all previously set settings and birthdays.
-  - If the bot is offline everywhere and no one has said anything in <#431923841166475283>, ping the owner to let him know. (Don't spam please.)
+  - If the bot is offline everywhere and no one has said anything in the support server, ping the owner to let them know. (Don't spam please.)
 - Ensure you have the correct Birthday Bot.
   - Verify that its profile picture is primarily *red*.
   - A different Birthday Bot exists with a primarily *blue* picture. There is absolutely **no relation** between this bot and that one. For their contact information you could try checking [their Top.gg page&nbsp;<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24"><path fill="currentColor" d="M14 3v2h3.59l-9.83 9.83l1.41 1.41L19 6.41V10h2V3m-2 16H5V5h7V3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7h-2z"/></svg>](https://top.gg/bot/656621136808902656).
@@ -94,7 +94,7 @@ This bot only accepts time zone names from the IANA Time Zone Database (a.k.a Ol
 
 The following links may be helpful for finding a zone:
 - [tz by xSke&nbsp;<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24"><path fill="currentColor" d="M14 3v2h3.59l-9.83 9.83l1.41 1.41L19 6.41V10h2V3m-2 16H5V5h7V3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7h-2z"/></svg>](https://xske.github.io/tz/): Detects your device's time zone and allows you to quickly copy it for pasting later.
-  - -# Suggested by **ankh**
+  - Suggested by **ankh**
 - [Time Zone Picker by Arilyn Bots&nbsp;<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24"><path fill="currentColor" d="M14 3v2h3.59l-9.83 9.83l1.41 1.41L19 6.41V10h2V3m-2 16H5V5h7V3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7h-2z"/></svg>](https://zones.arilyn.cc/): Shows all other time zones by their geographic boundaries. Great for finding someone else's zone.
   - Suggested by **VG007ukEUxbox**
 
