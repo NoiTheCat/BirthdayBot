@@ -1,11 +1,11 @@
 using System.Collections.ObjectModel;
+using BirthdayBot.Data;
+using Discord;
 using Discord.Interactions;
+using Discord.WebSocket;
 using Microsoft.EntityFrameworkCore;
 using NodaTime;
-using Discord;
-using Discord.WebSocket;
-using BirthdayBot.Data;
-using NoiPublicBot;
+using Serilog;
 
 namespace BirthdayBot.InteractionModules;
 
@@ -21,8 +21,7 @@ public class TzAutocompleteHandler : AutocompleteHandler {
     }
 
     private static ReadOnlyCollection<string> RebuildSuggestionBaseList() {
-        // In case we're running in an uninitialized environment (command registration helper), quit early
-        if (Instance.SqlConnectionString.Count == 0) return [];
+        Log.Verbose($"{nameof(TzAutocompleteHandler)} rebuilding list");
 
         // This bot discourages use of certain zone names and prefer the typical Region/City format over individual countries.
         // They have been excluded from this autocomplete list.

@@ -7,6 +7,7 @@ using Discord.Interactions;
 using Discord.WebSocket;
 using Microsoft.EntityFrameworkCore;
 using NodaTime;
+using NoiPublicBot;
 using static BirthdayBot.Localization.CommandsEnUS.Config;
 
 namespace BirthdayBot.InteractionModules;
@@ -197,7 +198,9 @@ public class ConfigModule : BBModuleBase {
 
         var guild = Context.Guild;
         var guildconf = guild.GetConfigOrNew(DbContext);
-        if (!guildconf.IsNew) await DbContext.Entry(guildconf).Collection(t => t.UserEntries).LoadAsync();
+        if (!guildconf.IsNew) await DbContext.Entry(guildconf).Collection(t => t.UserEntries).LoadAsync().ConfigureAwait(false);
+
+        Log.Information("config-check invoked in {GuildId}.", Context.Guild.Id);
 
         var results = new string[14];
         results[0] = Context.Guild.Id.ToString();

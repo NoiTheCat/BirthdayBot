@@ -12,6 +12,7 @@ static class ModalResponder {
                                     Dictionary<string, SocketMessageComponentData> data);
 
     internal static async Task DiscordClient_ModalSubmitted(ShardInstance inst, SocketModal arg) {
+        var log = inst.Log.ForContext("Source", nameof(ModalResponder));
         Responder handler = arg.Data.CustomId switch {
             ConfigModule.SubCmdsConfigAnnounce.ModFormidAnnounce => ConfigModule.SubCmdsConfigAnnounce.CmdSetMessageResponse,
             _ => DefaultHandler
@@ -20,18 +21,18 @@ static class ModalResponder {
         var data = arg.Data.Components.ToDictionary(k => k.CustomId);
 
         if (arg.Channel is not SocketGuildChannel channel) {
-            Log($"Modal of type `{arg.Data.CustomId}` but channel data unavailable. Sender ID {arg.User.Id}, name {arg.User}.");
-            await arg.RespondAsync(Responses[arg.GuildLocale]["errGeneric"])
-                .ConfigureAwait(false);
+            log.Warning("Got {ModalId}, but channel data unavailable. Guild: {GuildId} User: {UserId}",
+                arg.Data.CustomId, arg.GuildId, arg.User.Id);
+            await arg.RespondAsync(Responses[arg.GuildLocale]["errGeneric"]).ConfigureAwait(false);
             return;
         }
 
         try {
-            Log($"Modal of type `{arg.Data.CustomId}` at {channel.Guild}!{arg.User}.");
+            log.Information("Received {ModalId} at {GuildId}!{UserId}.", arg.Data.CustomId, arg.GuildId, arg.User.Id);
             await handler(arg, channel, data).ConfigureAwait(false);
         } catch (Exception e) {
-            Log( $"Unhandled exception. {e}");
-            await arg.RespondAsync(Responses[arg.GuildLocale]["errGeneric"]);
+            log.Error(e, "Modal handler threw an exception.");
+            await arg.RespondAsync(Responses[arg.GuildLocale]["errGeneric"]).ConfigureAwait(false);
         }
     }
 
