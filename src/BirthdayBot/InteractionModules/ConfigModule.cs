@@ -49,10 +49,10 @@ public class ConfigModule : BBModuleBase {
             [ChannelTypes(ChannelType.Text, ChannelType.News)]
             IGuildChannel? channel = null)
         {
-            await DbUpdateGuildAsync(s => s.AnnouncementChannel = channel?.Id);
+            await DbUpdateGuildAsync(s => s.AnnouncementChannel = channel?.Id).ConfigureAwait(false);
             await RespondAsync(channel != null
                 ? LRg("config.announce.set-channel.successAdd", channel.Name)
-                : LRg("config.announce.set-channel.successDel"));
+                : LRg("config.announce.set-channel.successDel")).ConfigureAwait(false);
         }
 
         [SlashCommand(Announce.SetMessage.Name, Announce.SetMessage.Description)]
@@ -98,14 +98,14 @@ public class ConfigModule : BBModuleBase {
             if (settings.IsNew) db.GuildConfigurations.Add(settings);
             settings.AnnounceMessage = newSingle;
             settings.AnnounceMessagePl = newMulti;
-            await db.SaveChangesAsync();
+            await db.SaveChangesAsync().ConfigureAwait(false);
             var reply = Localization.StringProviders.Responses.Get(modal.GuildLocale, "config.announce.set-message.msgSuccess");
-            await modal.RespondAsync(reply);
+            await modal.RespondAsync(reply).ConfigureAwait(false);
         }
 
         [SlashCommand(Announce.SetPing.Name, Announce.SetPing.Description)]
         public async Task CmdSetPing([Summary(description: Announce.SetPing.Option.Description)] bool option) {
-            await DbUpdateGuildAsync(s => s.AnnouncePing = option);
+            await DbUpdateGuildAsync(s => s.AnnouncePing = option).ConfigureAwait(false);
             await RespondAsync(LRg("config.announce.set-ping.success" + (option ? "On" : "Off"))).ConfigureAwait(false);
         }
 
@@ -162,16 +162,17 @@ public class ConfigModule : BBModuleBase {
                 }
             }
 
-            await BirthdayUpdater.AnnounceBirthdaysAsync(settings, Context.Guild, names).ConfigureAwait(false);
+            await BirthdayUpdater.AnnounceBirthdaysAsync(settings, Context.Guild, names, Log).ConfigureAwait(false);
         }
 
         [SlashCommand(Announce.TimersReset.Name, Announce.TimersReset.Description)]
         public async Task CmdTimersReset() {
             await DbContext.UserEntries
                 .Where(u => u.GuildId == Context.Guild.Id)
-                .ExecuteUpdateAsync(upd => upd.SetProperty(p => p.LastProcessed, Instant.MinValue));
+                .ExecuteUpdateAsync(upd => upd.SetProperty(p => p.LastProcessed, Instant.MinValue))
+                .ConfigureAwait(false);
             Cache.Invalidate(Context.Guild.Id);
-            await RespondAsync(LRg("config.announce.reset-timers"));
+            await RespondAsync(LRg("config.announce.reset-timers")).ConfigureAwait(false);
         }
     }
 
@@ -179,13 +180,13 @@ public class ConfigModule : BBModuleBase {
     public async Task CmdSetBRole([Summary(description: BirthdayRole.Role.Description)] SocketRole? role = null) {
         if (role is not null) {
             if (role.IsEveryone || role.IsManaged) {
-                await RespondAsync(LRu("config.role.errBadRole"), ephemeral: true);
+                await RespondAsync(LRu("config.role.errBadRole"), ephemeral: true).ConfigureAwait(false);
                 return;
             }
-            await DbUpdateGuildAsync(s => s.BirthdayRole = role.Id);
+            await DbUpdateGuildAsync(s => s.BirthdayRole = role.Id).ConfigureAwait(false);
             await RespondAsync(LRg("config.role.successAdd", role.Name)).ConfigureAwait(false);
         } else {
-            await DbUpdateGuildAsync(s => s.BirthdayRole = null);
+            await DbUpdateGuildAsync(s => s.BirthdayRole = null).ConfigureAwait(false);
             await RespondAsync(LRg("config.role.successDel")).ConfigureAwait(false);
         }
     }
@@ -253,7 +254,7 @@ public class ConfigModule : BBModuleBase {
         string? zone = null
     ) {
         if (zone == null) {
-            await DbUpdateGuildAsync(s => s.GuildTimeZone = null);
+            await DbUpdateGuildAsync(s => s.GuildTimeZone = null).ConfigureAwait(false);
             await RespondAsync(LRg("config.set-timezone.successDel")).ConfigureAwait(false);
         } else {
             if (!TryParseZone(zone, out var parsedZone)) {
@@ -261,7 +262,7 @@ public class ConfigModule : BBModuleBase {
                 return;
             }
 
-            await DbUpdateGuildAsync(s => s.GuildTimeZone = parsedZone);
+            await DbUpdateGuildAsync(s => s.GuildTimeZone = parsedZone).ConfigureAwait(false);
             await RespondAsync(LRg("config.set-timezone.successAdd", parsedZone)).ConfigureAwait(false);
         }
     }

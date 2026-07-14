@@ -38,9 +38,5 @@ static class ModalResponder {
 
     private static async Task DefaultHandler(SocketModal modal, SocketGuildChannel channel,
                                              Dictionary<string, SocketMessageComponentData> data)
-        => await modal.RespondAsync(Responses[modal.GuildLocale]["errGeneric"]);
-
-    private static void Log(string msg) {
-        Instance.Log(nameof(ModalResponder), msg);
-    }
+        => await modal.RespondAsync(Responses[modal.GuildLocale]["errGeneric"]).ConfigureAwait(false);
 }

@@ -9,6 +9,7 @@ using Serilog;
 
 namespace BirthdayBot.InteractionModules;
 
+// TODO Why isn't this using TimezoneAutocompleteBase?
 public class TzAutocompleteHandler : AutocompleteHandler {
     private static readonly Duration _maxListAge = Duration.FromHours(24);
     private static readonly ReaderWriterLockSlim _lock = new();

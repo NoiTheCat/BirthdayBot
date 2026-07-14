@@ -20,7 +20,7 @@ public class ExportModule : BBModuleBase {
         [Choice(ExportBirthdays.Format.Ics.Name, "ics")]
         string format = "plaintext")
     {
-        var deferred = await RefreshCacheAsync(CacheFilters.AllMissing());
+        var deferred = await RefreshCacheAsync(CacheFilters.AllMissing()).ConfigureAwait(false);
 
         var bdlist = GetAllKnownUsers(Context.Guild.Id);
 

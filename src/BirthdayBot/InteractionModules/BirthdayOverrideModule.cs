@@ -32,7 +32,7 @@ public class BirthdayOverrideModule : BBModuleBase {
         if (user.IsNew) DbContext.UserEntries.Add(user);
         user.BirthDate = indate.Value;
         user.LastProcessed = Instant.MinValue; // always reset on update
-        await DbContext.SaveChangesAsync();
+        await DbContext.SaveChangesAsync().ConfigureAwait(false);
 
         await RespondAsync(LRg("override.bdaySuccess", cachedTarget.FormatName(), DateFormat(indate.Value, GuildLocale)))
             .ConfigureAwait(false);
@@ -57,7 +57,7 @@ public class BirthdayOverrideModule : BBModuleBase {
         }
         user.TimeZone = newzone;
         user.LastProcessed = Instant.MinValue; // always reset on update
-        await DbContext.SaveChangesAsync();
+        await DbContext.SaveChangesAsync().ConfigureAwait(false);
         await RespondAsync(LRg("override.tzSuccess", cachedTarget.FormatName(), newzone)).ConfigureAwait(false);
     }
 
@@ -67,7 +67,7 @@ public class BirthdayOverrideModule : BBModuleBase {
 
         var query = await DbContext.UserEntries
             .Where(e => e.GuildId == Context.Guild.Id && e.UserId == target.Id)
-            .ExecuteDeleteAsync();
+            .ExecuteDeleteAsync().ConfigureAwait(false);
         if (query != 0) {
             await RespondAsync(LRg("override.delSuccess", cachedTarget.FormatName())).ConfigureAwait(false);
         } else {

@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using NodaTime;
 using NodaTime.Text;
 using NoiPublicBot;
+using NoiPublicBot.Common;
 using NoiPublicBot.Common.UserCache;
 using Serilog;
 using static BirthdayBot.Localization.StringProviders;
@@ -22,7 +23,7 @@ public partial class BBModuleBase : InteractionModuleBase<SocketInteractionConte
     // Other helpers:
     protected string GuildLocale => Context.Interaction.GuildLocale;
     protected string UserLocale => Context.Interaction.UserLocale;
-    protected ILogger Log => Shard.Log.ForContext("Source", GetType().Name);
+    protected ILogger Log => Shard.Log.ForContext(Constants.LProp_Src, GetType().Name);
 
     // Opportunistically caches user data coming in via interactions.
     public override Task BeforeExecuteAsync(ICommandInfo command) {

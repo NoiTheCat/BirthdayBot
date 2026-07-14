@@ -47,7 +47,7 @@ public class BirthdayModule : BBModuleBase {
             user.BirthDate = indate.Value;
             user.TimeZone = inzone ?? user.TimeZone;
             user.LastProcessed = Instant.MinValue; // always reset on update
-            await DbContext.SaveChangesAsync();
+            await DbContext.SaveChangesAsync().ConfigureAwait(false);
 
             var withZoneResponse = inzone != null ? LRg("birthday.set.date.withZone", inzone) : string.Empty;
             var response = LRg("birthday.set.date.success", DateFormat(indate.Value, GuildLocale), withZoneResponse);
@@ -101,7 +101,7 @@ public class BirthdayModule : BBModuleBase {
         }
 
         DbContext.UserEntries.Remove(uEntry);
-        await DbContext.SaveChangesAsync();
+        await DbContext.SaveChangesAsync().ConfigureAwait(false);
         await RespondAsync(LRg("birthday.remove.success")).ConfigureAwait(false);
     }
 

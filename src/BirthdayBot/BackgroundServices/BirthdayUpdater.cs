@@ -42,14 +42,13 @@ public class BirthdayUpdater : BackgroundService {
             var items = UserInformation.Consolidate(users, guildConfigs.GetValueOrDefault(gid)?.UserEntries);
             if (items is null || items.Count == 0) continue; // No eligible users in this guild
 
-            // Given that the cache contains entries for a day prior and ahead, the same data set can be used
-            // to determine new and expiring birthdays.
+            // Cache is assumed to contain entries for a 72 hour period centered on the current time, 
+            // so all cached users will be checked to determine new and expiring birthdays.
             var (starting, ending) = GetCrossedThresholds(db, items);
             var rest = Shard.DiscordClient.Rest;
+            // Transaction ensures announcement and role application are either fully complete before recording to database
+            // or else records none, ensuring a full retry of all eligible users
             using (var tx = db.Database.BeginTransaction()) {
-                // Transaction ensures announcement + role application is either fully complete before recording to database
-                // or else records none, to ensure a full retry of all eligible users
-
                 var announceList = new List<string>();
                 foreach (var u in starting) {
                     if (doRoleManipulation) {
@@ -70,7 +69,7 @@ public class BirthdayUpdater : BackgroundService {
                 await AnnounceBirthdaysAsync(config, guild, announceList, Log).ConfigureAwait(false);
                 var upd1 = db.SaveChanges();
                 tx.Commit();
-                Log.Verbose("Updated {GuildId} users: {UpdateCount} row(s)", config.GuildId, upd1);
+                Log.Verbose("Transaction 1 updated {GuildId}: {UpdateCount} user row(s)", config.GuildId, upd1);
             }
 
             foreach (var u in ending) {
@@ -94,7 +93,7 @@ public class BirthdayUpdater : BackgroundService {
                 UpdateThreshold(db, u);
             }
             var upd2 = await db.SaveChangesAsync().ConfigureAwait(false);
-            Log.Verbose("Updated {GuildId} users: {UpdateCount} row(s)", config.GuildId, upd2);
+            Log.Verbose("Transaction 2 updated {GuildId}: {UpdateCount} user row(s)", config.GuildId, upd2);
             await Task.Yield();
         }
     }
