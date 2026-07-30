@@ -103,23 +103,7 @@ public class BirthdayUpdater : BackgroundService {
         var role = guild.GetRole(config.BirthdayRole ?? 0);
         if (role is null) return false;
         if (role.Position >= guild.CurrentUser.Hierarchy) return false;
-        if (IsRoleIdInvalid(role)) return false;
         return true;
-    }
-
-    private bool IsRoleIdInvalid(SocketRole role) {
-        // This remains here for exceptional circumstances, back when the configured role was unchecked during input.
-        // May be removed in the future.
-        if (role.IsEveryone || role.IsManaged) {
-            using var db = BotDatabaseContext.New(); // a new, extremely short-lived db context
-            var conf = db.GuildConfigurations.Where(g => g.GuildId == role.Guild.Id).SingleOrDefault();
-            if (conf == null) return true; // ????
-            conf.BirthdayRole = null;
-            db.SaveChanges();
-            Log.Warning($"{nameof(IsRoleIdInvalid)} triggered in guild {{GuildId}}.", conf.GuildId);
-            return true;
-        }
-        return false;
     }
 
     #region Threshold checks
