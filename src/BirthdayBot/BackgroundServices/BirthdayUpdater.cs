@@ -245,7 +245,7 @@ public class BirthdayUpdater : BackgroundService {
 
         announceMsg = announceMsg
             .Replace("%n", string.Join(", ", names))
-            .Replace("%e", $"<@&{g.EveryoneRole.Id}>");
+            .Replace("%e", $"@everyone");
 
         localLog.Verbose($"{nameof(AnnounceBirthdaysAsync)} for guild {{GuildId}}: will attempt in channel {{ChannelId}}," 
             + " with {{NameCount}} entries", g.Id, c.Id, names.Count());
