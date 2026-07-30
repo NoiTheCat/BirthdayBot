@@ -1,6 +1,5 @@
 using BirthdayBot.BackgroundServices;
 using BirthdayBot.Data;
-using BirthdayBot.InteractionModules;
 using Discord.Interactions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -26,12 +25,6 @@ public class ModuleConfig : ModuleConfigBase {
             .UseNpgsql(Instance.SqlConnectionString.ConnectionString,
             npgopts => npgopts.UseNodaTime())
             .UseSnakeCaseNamingConvention());
-    }
-
-    public override void PostShardSetup(ShardInstance shard) {
-        shard.DiscordClient.ModalSubmitted += modal => {
-            return ModalResponder.DiscordClient_ModalSubmitted(shard, modal);
-        };
     }
 
     public override IEnumerable<(LogEventLevel log, string message, object?[]? propertyValues)> StatusMessages(ShardInstance shard) {

@@ -7,7 +7,6 @@ using Discord.Interactions;
 using Discord.WebSocket;
 using Microsoft.EntityFrameworkCore;
 using NodaTime;
-using NoiPublicBot;
 using static BirthdayBot.Localization.CommandsEnUS.Config;
 
 namespace BirthdayBot.InteractionModules;
@@ -18,10 +17,6 @@ namespace BirthdayBot.InteractionModules;
 public class ConfigModule : BBModuleBase {
     [Group(Announce.Name, Announce.Description)]
     public class SubCmdsConfigAnnounce : BBModuleBase {
-        internal const string ModFormidAnnounce = "edit-announce";
-        private const string ModCpidSetmsgSingle = "msg-single";
-        private const string ModCpidSetmsgMulti = "msg-multi";
-
         [SlashCommand(Announce.Help.Name, Announce.Help.Description)]
         public async Task CmdAnnounceHelp() {
             // Note: This may not work for more international groups...
@@ -47,61 +42,37 @@ public class ConfigModule : BBModuleBase {
         public async Task CmdSetChannel(
             [Summary(description: Announce.SetChannel.Channel.Description)]
             [ChannelTypes(ChannelType.Text, ChannelType.News)]
-            IGuildChannel? channel = null)
-        {
+            IGuildChannel? channel = null) {
             await DbUpdateGuildAsync(s => s.AnnouncementChannel = channel?.Id).ConfigureAwait(false);
             await RespondAsync(channel != null
                 ? LRg("config.announce.set-channel.successAdd", channel.Name)
                 : LRg("config.announce.set-channel.successDel")).ConfigureAwait(false);
         }
 
+        #region Announce message modal
+
+
         [SlashCommand(Announce.SetMessage.Name, Announce.SetMessage.Description)]
         public async Task CmdSetMessage() {
             var settings = Context.Guild.GetConfigOrNew(DbContext);
-
-            // Modal displayed in the user's preferred locale, but message placeholder is in guild's preferred locale
-            var form = new ModalBuilder {
-                Title = LRu("config.announce.set-message.formTitle"),
-                CustomId = ModFormidAnnounce,
-            }.AddTextInput(
-                label: LRu("config.announce.set-message.labelSingle"),
-                customId: ModCpidSetmsgSingle,
-                style: TextInputStyle.Paragraph,
-                maxLength: 1500,
-                required: false,
-                placeholder: LRg("defaultSingle"),
-                value: settings.AnnounceMessage ?? string.Empty
-            ).AddTextInput(
-                label: LRu("config.announce.set-message.labelMulti"),
-                customId: ModCpidSetmsgMulti,
-                style: TextInputStyle.Paragraph,
-                maxLength: 1500,
-                required: false,
-                placeholder: LRg("defaultMulti"),
-                value: settings.AnnounceMessagePl ?? string.Empty
-            );
-
-            await RespondWithModalAsync(form.Build()).ConfigureAwait(false);
+            var form = AnnouncementMsgModal.Create(settings, UserLocale, GuildLocale);
+            await RespondWithModalAsync(form).ConfigureAwait(false);
         }
 
-        // Must be static - responds to modal interaction
-        internal static async Task CmdSetMessageResponse(SocketModal modal, SocketGuildChannel channel,
-                                                  Dictionary<string, SocketMessageComponentData> data) {
-            var newSingle = data[ModCpidSetmsgSingle].Value;
-            var newMulti = data[ModCpidSetmsgMulti].Value;
-            if (string.IsNullOrWhiteSpace(newSingle)) newSingle = null;
-            if (string.IsNullOrWhiteSpace(newMulti)) newMulti = null;
+        [ModalInteraction(AnnouncementMsgModal.CustomId, ignoreGroupNames: true)]
+        public async Task SetAnnounceModalResponseAsync(AnnouncementMsgModal response) {
+            var guildConf = Context.Guild.GetConfigOrNew(DbContext);
+            if (guildConf.IsNew) DbContext.GuildConfigurations.Add(guildConf);
 
-            // We're missing the usual context. Can't use DbUpdateGuildAsync.
-            var db = BotDatabaseContext.New();
-            var settings = channel.Guild.GetConfigOrNew(db);
-            if (settings.IsNew) db.GuildConfigurations.Add(settings);
-            settings.AnnounceMessage = newSingle;
-            settings.AnnounceMessagePl = newMulti;
-            await db.SaveChangesAsync().ConfigureAwait(false);
-            var reply = Localization.StringProviders.Responses.Get(modal.GuildLocale, "config.announce.set-message.msgSuccess");
-            await modal.RespondAsync(reply).ConfigureAwait(false);
+            guildConf.AnnounceMessage = string.IsNullOrWhiteSpace(response.TextSingle) ? null : response.TextSingle;
+            guildConf.AnnounceMessagePl = string.IsNullOrWhiteSpace(response.TextMulti) ? null : response.TextMulti;
+            await DbContext.SaveChangesAsync().ConfigureAwait(false);
+            
+            await RespondAsync(Localization.StringProviders
+                .Responses.Get(Context.Interaction.GuildLocale, "config.announce.set-message.msgSuccess"))
+                .ConfigureAwait(false);
         }
+        #endregion
 
         [SlashCommand(Announce.SetPing.Name, Announce.SetPing.Description)]
         public async Task CmdSetPing([Summary(description: Announce.SetPing.Option.Description)] bool option) {
