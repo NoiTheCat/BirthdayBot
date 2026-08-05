@@ -13,6 +13,7 @@ public class UserEntry {
     /// <summary>
     /// To measure the entry's TTL.
     /// </summary>
+    // TODO consider switching to DateOnly equivalent
     public Instant LastSeen { get; set; }
     /// <summary>
     /// The last time that <see cref="BackgroundServices.BirthdayUpdater"/> acted on this entry in a meaningful way.
