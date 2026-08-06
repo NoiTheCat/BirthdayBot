@@ -22,7 +22,7 @@ public class ModuleConfig : ModuleConfigBase {
             s => new UserCache<BotDatabaseContext>(s.GetRequiredService<ShardInstance>(),
                                                    new EFWarmCacheProvider(BotDatabaseContext.New)));
         services.AddDbContext<BotDatabaseContext>(opts => opts
-            .UseNpgsql(Instance.SqlConnectionString.ConnectionString,
+            .UseNpgsql(Instance.SqlConnectionString,
             npgopts => npgopts.UseNodaTime())
             .UseSnakeCaseNamingConvention());
     }

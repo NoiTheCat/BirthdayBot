@@ -47,7 +47,7 @@ public class BirthdayUpdater : BackgroundService
                 .Where(u => u.GuildId == gid)
                 .Where(u => cache[gid].Keys.ToHashSet().Contains(u.UserId))
                 .ToListAsync().ConfigureAwait(false);
-            Log.Verbose("{GuildId}: Loaded {UserConfCount} user row(s)", gid, userRows.Count);
+            Log.Verbose("{GuildId}: {UserConfCount} rows obtained", gid, userRows.Count);
             if (userRows.Count == 0) continue;
             var guildTz = await db.GuildConfigurations
                 .Where(g => g.GuildId == gid)
@@ -111,7 +111,7 @@ public class BirthdayUpdater : BackgroundService
         await AnnounceBirthdaysAsync(config, guild, announceList, Log).ConfigureAwait(false);
         var updateCount = await db.SaveChangesAsync().ConfigureAwait(false);
         await tx.CommitAsync().ConfigureAwait(false);
-        Log.Verbose("{GuildId} starting: {UpdateCount} user row(s)", config.GuildId, updateCount);
+        Log.Verbose("{GuildId} starting: {UpdateCount} rows updated", config.GuildId, updateCount);
     }
 
     private async Task HandleEndingBirthdaysAsync(GuildConfig config, IEnumerable<UserInformation> users, bool doRoleManipulation)
@@ -148,7 +148,7 @@ public class BirthdayUpdater : BackgroundService
             u.DbEntry.LastSeen = SystemClock.Instance.GetCurrentInstant();
         }
         var updateCount = await db.SaveChangesAsync().ConfigureAwait(false);
-        Log.Verbose("{GuildId} ending: {UpdateCount} user row(s)", config.GuildId, updateCount);
+        Log.Verbose("{GuildId} ending: {UpdateCount} rows updated", config.GuildId, updateCount);
     }
 
     private async Task HandleSkippedBirthdaysAsync(ulong guildId, IEnumerable<UserInformation> users)
@@ -161,7 +161,7 @@ public class BirthdayUpdater : BackgroundService
             u.DbEntry.LastSeen = SystemClock.Instance.GetCurrentInstant();
         }
         var updateCount = await db.SaveChangesAsync().ConfigureAwait(false);
-        Log.Verbose("{GuildId} skipped: {UpdateCount} user row(s)", guildId, updateCount);
+        Log.Verbose("{GuildId} skips: {UpdateCount} rows updated", guildId, updateCount);
     }
     #endregion
 

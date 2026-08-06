@@ -3,6 +3,7 @@ using BirthdayBot.Data;
 using Discord;
 using Discord.Interactions;
 using Discord.WebSocket;
+using Microsoft.EntityFrameworkCore;
 using NodaTime;
 using static BirthdayBot.Localization.CommandsEnUS.Birthday;
 
@@ -10,9 +11,11 @@ namespace BirthdayBot.InteractionModules;
 
 [Group(Name, Description)]
 [CommandContextType(InteractionContextType.Guild)]
-public class BirthdayModule : BBModuleBase {
+public class BirthdayModule : BBModuleBase
+{
     [Group(Set.Name, Set.Description)]
-    public class SubCmdsBirthdaySet : BBModuleBase {
+    public class SubCmdsBirthdaySet : BBModuleBase
+    {
         [SlashCommand(Set.Date.Name, Set.Date.Description)]
         public async Task CmdSetBday(
             [Summary(description: Set.Date.Day.Description)] string day,
@@ -22,24 +25,28 @@ public class BirthdayModule : BBModuleBase {
             // IMPORTANT: If editing here, reflect changes as needed in BirthdayOverrideModule.
 
             // Add-only check
-            var guild = ((SocketTextChannel)Context.Channel).Guild.GetConfigOrNew(DbContext);
+            var guild = await ((SocketTextChannel)Context.Channel).Guild.GetConfigOrNewAsync(DbContext).ConfigureAwait(false);
             if (guild.IsNew) DbContext.GuildConfigurations.Add(guild); // Satisfy foreign key constraint
-            var user = ((SocketGuildUser)Context.User).GetUserEntryOrNew(DbContext);
+            var user = await ((SocketGuildUser)Context.User).GetUserEntryOrNewAsync(DbContext).ConfigureAwait(false);
             if (user.IsNew) DbContext.UserEntries.Add(user);
-            if (guild.AddOnly && !user.IsNew) {
+            if (guild.AddOnly && !user.IsNew)
+            {
                 // Don't enforce if user has Manage Guild permission
-                if (!((SocketGuildUser)Context.User).GuildPermissions.ManageGuild) {
+                if (!((SocketGuildUser)Context.User).GuildPermissions.ManageGuild)
+                {
                     await RespondAsync(LRu("birthday.errAddOnly"), ephemeral: true).ConfigureAwait(false);
                     return;
                 }
             }
 
-            if (!TryParseDate(day, month, out var indate)) {
+            if (!TryParseDate(day, month, out var indate))
+            {
                 await RespondAsync(LRu("errParseDate"), ephemeral: true).ConfigureAwait(false);
                 return;
             }
             DateTimeZone? inzone = null;
-            if (zone != null && !TryParseZone(zone, out inzone)) {
+            if (zone != null && !TryParseZone(zone, out inzone))
+            {
                 await RespondAsync(LRg("errParseZone")).ConfigureAwait(false);
                 return;
             }
@@ -53,48 +60,55 @@ public class BirthdayModule : BBModuleBase {
             var response = LRg("birthday.set.date.success", DateFormat(indate.Value, GuildLocale), withZoneResponse);
             // TODO make hint configurable (on/off, default on)
             if (user.TimeZone == null) response += "\n" + LRg("birthday.set.date.tzHint");
-            await RespondAsync(response, ephemeral: IsEphemeralSet()).ConfigureAwait(false);
+            await RespondAsync(response, ephemeral: await IsEphemeralSetAsync()).ConfigureAwait(false);
         }
 
         [SlashCommand(Set.Timezone.Name, Set.Timezone.Description)]
         public async Task CmdSetZone(
             [Summary(description: Set.Timezone.Zone.Description), Autocomplete<TzAutocompleteHandler>] string zone)
         {
-            var user = ((SocketGuildUser)Context.User).GetUserEntryOrNew(DbContext);
-            if (user.IsNew) {
+            var user = await ((SocketGuildUser)Context.User).GetUserEntryOrNewAsync(DbContext).ConfigureAwait(false);
+            if (user.IsNew)
+            {
                 await RespondAsync(LRg("birthday.set.zone.errNoBirthday"), ephemeral: true).ConfigureAwait(false);
                 return;
             }
-            var isAddOnly = Context.Guild.GetConfigOrNew(DbContext).AddOnly;
-            if (isAddOnly && user.TimeZone is not null) {
+            if (await IsAddOnlyAsync() && user.TimeZone is not null)
+            {
                 // Don't enforce if user has Manage Guild permission
-                if (!((SocketGuildUser)Context.User).GuildPermissions.ManageGuild) {
+                if (!((SocketGuildUser)Context.User).GuildPermissions.ManageGuild)
+                {
                     await RespondAsync(LRu("birthday.errAddOnly"), ephemeral: true).ConfigureAwait(false);
                     return;
                 }
             }
 
-            if (!TryParseZone(zone, out var newzone)) {
+            if (!TryParseZone(zone, out var newzone))
+            {
                 await RespondAsync(LRu("errParseZone"), ephemeral: true).ConfigureAwait(false);
                 return;
             }
             user.TimeZone = newzone;
             user.LastProcessed = Instant.MinValue; // always reset on update
-            await DbContext.SaveChangesAsync();
-            await RespondAsync(LRg("birthday.set.zone.success", newzone), ephemeral: IsEphemeralSet()).ConfigureAwait(false);
+            await DbContext.SaveChangesAsync().ConfigureAwait(false);
+            await RespondAsync(LRg("birthday.set.zone.success", newzone), ephemeral: await IsEphemeralSetAsync()).ConfigureAwait(false);
         }
     }
 
     [SlashCommand(Remove.Name, Remove.Description)]
-    public async Task CmdRemove() {
-        var uEntry = ((SocketGuildUser)Context.User).GetUserEntryOrNew(DbContext);
-        if (uEntry.IsNew) {
-            await RespondAsync(LRg("birthday.remove.noData"), ephemeral: IsEphemeralSet()).ConfigureAwait(false);
+    public async Task CmdRemove()
+    {
+        var uEntry = await ((SocketGuildUser)Context.User).GetUserEntryOrNewAsync(DbContext).ConfigureAwait(false);
+        if (uEntry.IsNew)
+        {
+            await RespondAsync(LRg("birthday.remove.noData"), ephemeral: await IsEphemeralSetAsync()).ConfigureAwait(false);
             return;
         }
-        if (Context.Guild.GetConfigOrNew(DbContext).AddOnly) {
+        if (await IsAddOnlyAsync())
+        {
             // Don't enforce if user has Manage Guild permission
-            if (!((SocketGuildUser)Context.User).GuildPermissions.ManageGuild) {
+            if (!((SocketGuildUser)Context.User).GuildPermissions.ManageGuild)
+            {
                 await RespondAsync(LRu("birthday.errAddOnly"), ephemeral: true).ConfigureAwait(false);
                 return;
             }
@@ -106,17 +120,20 @@ public class BirthdayModule : BBModuleBase {
     }
 
     [SlashCommand(Get.Name, Get.Description)]
-    public async Task CmdGetBday([Summary(description: Get.User.Description)] SocketGuildUser? user = null) {
+    public async Task CmdGetBday([Summary(description: Get.User.Description)] SocketGuildUser? user = null)
+    {
         var cachedUser = Cache.Update(user);
 
         var isSelf = user is null;
-        if (isSelf) {
+        if (isSelf)
+        {
             user = (SocketGuildUser)Context.User;
             cachedUser = Cache.GetUser(Context.Guild.Id, user.Id);
         }
 
-        var targetdata = user!.GetUserEntryOrNew(DbContext);
-        if (targetdata.IsNew) {
+        var targetdata = await user!.GetUserEntryOrNewAsync(DbContext).ConfigureAwait(false);
+        if (targetdata.IsNew)
+        {
             if (isSelf) await RespondAsync(LRg("birthday.get.noData1p"), ephemeral: true).ConfigureAwait(false);
             else await RespondAsync(LRg("birthday.get.noData3p"), ephemeral: true).ConfigureAwait(false);
             return;
@@ -130,26 +147,34 @@ public class BirthdayModule : BBModuleBase {
     // The 'recent' bit removes time zone ambiguity and spares us from extra time zone processing here
     // TODO stop being lazy
     [SlashCommand(ShowNearest.Name, ShowNearest.Description)]
-    public async Task CmdShowNearest() {
+    public async Task CmdShowNearest()
+    {
         var deferred = await RefreshCacheAsync(CacheFilters.MissingWithinDays(15)).ConfigureAwait(false);
 
-        var servertz = DbContext.GuildConfigurations.Where(c => c.GuildId == Context.Guild.Id).SingleOrDefault()?.GuildTimeZone;
+        var servertz = await DbContext.GuildConfigurations
+            .Where(c => c.GuildId == Context.Guild.Id)
+            .Select(s => s.GuildTimeZone)
+            .SingleOrDefaultAsync().ConfigureAwait(false);
         servertz ??= DateTimeZone.Utc;
         var today = SystemClock.Instance.GetCurrentInstant().InZone(servertz).LocalDateTime.Date;
         var search = new DateOnly(2000, today.Month, today.Day).DayOfYear - 8;
         if (search <= 0) search = 366 - Math.Abs(search);
 
-        var query = GetAllKnownUsers(Context.Guild.Id);
+        var query = await GetAllKnownUsersAsync(Context.Guild.Id);
 
         // TODO pagination instead of this workaround
         var useFollowup = false;
         // First output is shown as an interaction response, followed then as followup messages
-        Task OutputAsync(string msg) {
-            if (!useFollowup) {
+        Task OutputAsync(string msg)
+        {
+            if (!useFollowup)
+            {
                 useFollowup = true;
                 if (deferred) return ModifyOriginalResponseAsync(response => response.Content = msg);
                 else return RespondAsync(msg);
-            } else {
+            }
+            else
+            {
                 return FollowupAsync(msg);
             }
         }
@@ -157,7 +182,8 @@ public class BirthdayModule : BBModuleBase {
         var output = new StringBuilder();
         var resultCount = 0;
         output.AppendLine(LRg("birthday.nearest.header"));
-        for (var count = 0; count <= 21; count++) { // cover 21 days total (7 prior, current day, 14 upcoming)
+        for (var count = 0; count <= 21; count++)
+        { // cover 21 days total (7 prior, current day, 14 upcoming)
             // oh I guess we sort as we go. what was I thinking?
             var results = query.Where(i => i.BirthDate.DayOfYear == search);
 
@@ -170,7 +196,8 @@ public class BirthdayModule : BBModuleBase {
 
             // Build sorted name list
             var names = new List<string>();
-            foreach (var item in results) {
+            foreach (var item in results)
+            {
                 names.Add(item.DisplayName);
             }
             names.Sort(StringComparer.OrdinalIgnoreCase);
@@ -178,9 +205,11 @@ public class BirthdayModule : BBModuleBase {
             var first = true;
             output.AppendLine();
             output.Append($"● `{DateFormat(results.First().BirthDate, GuildLocale, abbreviated: true)}`: ");
-            foreach (var item in names) {
+            foreach (var item in names)
+            {
                 // If the output is starting to fill up, send out this message and prepare a new one.
-                if (output.Length > 800) {
+                if (output.Length > 800)
+                {
                     await OutputAsync(output.ToString()).ConfigureAwait(false);
                     output.Clear();
                     first = true;

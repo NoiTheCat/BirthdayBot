@@ -48,9 +48,9 @@ public sealed class BotDatabaseContext(DbContextOptions<BotDatabaseContext> opti
     /// </summary>
     internal static BotDatabaseContext New() {
         return new BotDatabaseContext(new DbContextOptionsBuilder<BotDatabaseContext>()
-            .UseNpgsql(Instance.SqlConnectionString.ConnectionString,
+            .UseNpgsql(Instance.SqlConnectionString,
             npgopts => npgopts.UseNodaTime())
-            .UseSnakeCaseNamingConvention()
+            .UseSnakeCaseNamingConvention() // TODO consider removing
             .Options);
     }
 }

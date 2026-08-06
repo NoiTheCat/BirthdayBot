@@ -11,7 +11,8 @@ namespace BirthdayBot.InteractionModules;
 [Group(Name, Description)]
 [DefaultMemberPermissions(GuildPermission.ManageGuild)]
 [CommandContextType(InteractionContextType.Guild)]
-public class BirthdayOverrideModule : BBModuleBase {
+public class BirthdayOverrideModule : BBModuleBase
+{
     [SlashCommand(SetBirthday.Name, SetBirthday.Description)]
     public async Task OvSetBirthday(
         [Summary(description: SetBirthday.Target.Description)] SocketGuildUser target,
@@ -21,14 +22,15 @@ public class BirthdayOverrideModule : BBModuleBase {
         var cachedTarget = Cache.Update(target);
         // IMPORTANT: If editing here, reflect changes as needed in BirthdayModule.
 
-        if (!TryParseDate(day, month, out var indate)) {
+        if (!TryParseDate(day, month, out var indate))
+        {
             await RespondAsync(LRu("errParseDate"), ephemeral: true).ConfigureAwait(false);
             return;
         }
 
-        var guild = ((SocketTextChannel)Context.Channel).Guild.GetConfigOrNew(DbContext);
+        var guild = await ((SocketTextChannel)Context.Channel).Guild.GetConfigOrNewAsync(DbContext).ConfigureAwait(false);
         if (guild.IsNew) DbContext.GuildConfigurations.Add(guild); // Satisfy foreign key constraint
-        var user = target.GetUserEntryOrNew(DbContext);
+        var user = await target.GetUserEntryOrNewAsync(DbContext).ConfigureAwait(false);
         if (user.IsNew) DbContext.UserEntries.Add(user);
         user.BirthDate = indate.Value;
         user.LastProcessed = Instant.MinValue; // always reset on update
@@ -45,13 +47,15 @@ public class BirthdayOverrideModule : BBModuleBase {
     {
         var cachedTarget = Cache.Update(target);
 
-        var user = target.GetUserEntryOrNew(DbContext);
-        if (user.IsNew) {
+        var user = await target.GetUserEntryOrNewAsync(DbContext).ConfigureAwait(false);
+        if (user.IsNew)
+        {
             await RespondAsync(LRg("override.tzNoBirthday", cachedTarget.FormatName())).ConfigureAwait(false);
             return;
         }
 
-        if (!TryParseZone(zone, out var newzone)) {
+        if (!TryParseZone(zone, out var newzone))
+        {
             await RespondAsync(LRu("errParseZone"), ephemeral: true).ConfigureAwait(false);
             return;
         }
@@ -62,15 +66,19 @@ public class BirthdayOverrideModule : BBModuleBase {
     }
 
     [SlashCommand(RemoveBirthday.Name, RemoveBirthday.Description)]
-    public async Task OvRemove([Summary(description: RemoveBirthday.Target.Description)] SocketGuildUser target) {
+    public async Task OvRemove([Summary(description: RemoveBirthday.Target.Description)] SocketGuildUser target)
+    {
         var cachedTarget = Cache.Update(target);
 
         var query = await DbContext.UserEntries
             .Where(e => e.GuildId == Context.Guild.Id && e.UserId == target.Id)
             .ExecuteDeleteAsync().ConfigureAwait(false);
-        if (query != 0) {
+        if (query != 0)
+        {
             await RespondAsync(LRg("override.delSuccess", cachedTarget.FormatName())).ConfigureAwait(false);
-        } else {
+        }
+        else
+        {
             await RespondAsync(LRg("override.delNoBirthday", cachedTarget.FormatName())).ConfigureAwait(false);
         }
     }

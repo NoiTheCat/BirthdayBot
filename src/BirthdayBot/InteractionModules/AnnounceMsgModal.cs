@@ -5,20 +5,23 @@ using static BirthdayBot.Localization.StringProviders;
 
 namespace BirthdayBot.InteractionModules;
 
-public class AnnouncementMsgModal : IModal {
+public class AnnouncementMsgModal : IModal
+{
     public const string CustomId = "edit-announce";
     const string TxSingleId = "msg-single";
     const string TxMultiId = "msg-multi";
 
-    public string Title => "ignored";
+    string IModal.Title => "ignored";
 
     [ModalTextInput(TxSingleId)]
     public string? TextSingle { get; set; }
     [ModalTextInput(TxMultiId)]
     public string? TextMulti { get; set; }
 
-    public static Modal Create(GuildConfig settings, string locUser, string locGuild) {
-        return new ModalBuilder {
+    public static Modal Create(GuildConfig settings, string locUser, string locGuild)
+    {
+        return new ModalBuilder
+        {
             Title = Responses.Get(locUser, "config.announce.set-message.formTitle"),
             CustomId = CustomId,
         }.AddTextInput(

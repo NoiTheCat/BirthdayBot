@@ -14,7 +14,8 @@ using static BirthdayBot.Localization.StringProviders;
 
 namespace BirthdayBot.InteractionModules;
 
-public partial class BBModuleBase : InteractionModuleBase<SocketInteractionContext> {
+public class BBModuleBase : InteractionModuleBase<SocketInteractionContext>
+{
     // Injected by DI:
     public ShardInstance Shard { get; set; } = null!;
     public BotDatabaseContext DbContext { get; set; } = null!;
@@ -26,18 +27,21 @@ public partial class BBModuleBase : InteractionModuleBase<SocketInteractionConte
     protected ILogger Log => Shard.Log.ForContext(Constants.LProp_Src, GetType().Name);
 
     // Opportunistically caches user data coming in via interactions.
-    public override Task BeforeExecuteAsync(ICommandInfo command) {
+    public override Task BeforeExecuteAsync(ICommandInfo command)
+    {
         if (Context.User is IGuildUser incoming) Cache.Update(incoming);
         return base.BeforeExecuteAsync(command);
     }
-    
-    protected static bool TryParseZone(string tzinput, [NotNullWhen(true)] out DateTimeZone? parsedZone) {
+
+    protected static bool TryParseZone(string tzinput, [NotNullWhen(true)] out DateTimeZone? parsedZone)
+    {
         var tzdb = DateTimeZoneProviders.Tzdb;
         parsedZone = tzdb.GetZoneOrNull(tzinput);
         if (parsedZone != null) return true;
 
         var search = tzdb.Ids.FirstOrDefault(t => string.Equals(t, tzinput, StringComparison.OrdinalIgnoreCase));
-        if (search != null) {
+        if (search != null)
+        {
             parsedZone = tzdb.GetZoneOrNull(search)!;
             return true;
         }
@@ -49,29 +53,53 @@ public partial class BBModuleBase : InteractionModuleBase<SocketInteractionConte
     /// <summary>
     /// Checks if the server allows ephemeral command confirmations.
     /// </summary>
-    protected bool IsEphemeralSet()
-        => DbContext.GuildConfigurations.Where(r => r.GuildId == Context.Guild.Id).SingleOrDefault()?.EphemeralConfirm ?? false;
+    protected async Task<bool> IsEphemeralSetAsync()
+    {
+        bool? q = await DbContext.GuildConfigurations
+            .Where(r => r.GuildId == Context.Guild.Id)
+            .Select(s => s.EphemeralConfirm)
+            .SingleOrDefaultAsync();
+        return q ?? false;
+    }
+
+    /// <summary>
+    /// Checks if the guild is limiting birthday modification after setting.
+    /// </summary>
+    protected async Task<bool> IsAddOnlyAsync()
+    {
+        bool? q = await DbContext.GuildConfigurations
+            .Where(r => r.GuildId == Context.Guild.Id)
+            .Select(s => s.AddOnly)
+            .SingleOrDefaultAsync();
+        return q ?? false;
+    }
 
     #region Date handling
-    public enum MonthName {
+    public enum MonthName
+    {
         January, February, March, April, May, June, July, August, September, October, November, December
     }
 
     /// <exception cref="FormatException">Thrown for any parsing issue.</exception>
-    protected static bool TryParseDate(string dayInput, MonthName monthInput, [NotNullWhen(true)] out LocalDate? result) {
+    protected static bool TryParseDate(string dayInput, MonthName monthInput, [NotNullWhen(true)] out LocalDate? result)
+    {
         result = null;
         if (!int.TryParse(dayInput, out var day)) return false;
         var month = (int)monthInput + 1;
 
-        try {
+        try
+        {
             result = new(2000, month, day);
             return true;
-        } catch (ArgumentOutOfRangeException) {
+        }
+        catch (ArgumentOutOfRangeException)
+        {
             return false;
         }
     }
 
-    protected static string DateFormat(LocalDate date, string locale, bool abbreviated = false) {
+    protected static string DateFormat(LocalDate date, string locale, bool abbreviated = false)
+    {
         // Avoid inconsistency - if we otherwise have zero support for the given locale, fall back to default.
         if (!Localization.SupportedLocales.List.Contains(locale)) locale = "en_US";
 
@@ -88,17 +116,20 @@ public partial class BBModuleBase : InteractionModuleBase<SocketInteractionConte
     /// Fetches all guild birthdays and places them into an easily usable structure.
     /// Users currently not in the cache are excluded from the result.
     /// </summary>
-    protected List<KnownGuildUser> GetAllKnownUsers(ulong guildId) {
+    protected async Task<List<KnownGuildUser>> GetAllKnownUsersAsync(ulong guildId)
+    {
         var query = DbContext.UserEntries.AsNoTracking()
             .Where(r => r.GuildId == guildId)
-            .OrderBy(r => r.BirthDate);
+            .OrderBy(r => r.BirthDate)
+            .AsAsyncEnumerable();
         var users = Cache.GetGuild(guildId);
         if (users is null) return [];
 
         var result = new List<KnownGuildUser>();
-        foreach (var row in query) {
+        await foreach (var row in query)
+        {
             if (!users.TryGetValue(row.UserId, out var cval)) continue; // Skip user not cached
-            result.Add(new KnownGuildUser() { DbUser = row, CacheUser = cval});
+            result.Add(new KnownGuildUser() { DbUser = row, CacheUser = cval });
         }
         return result;
     }
@@ -106,7 +137,8 @@ public partial class BBModuleBase : InteractionModuleBase<SocketInteractionConte
     /// <summary>
     /// Consolidated database + usercache information
     /// </summary>
-    protected sealed record KnownGuildUser {
+    protected sealed record KnownGuildUser
+    {
         public required UserEntry DbUser;
         public required UserCacheItem CacheUser;
         public LocalDate BirthDate => DbUser.BirthDate;
@@ -120,8 +152,9 @@ public partial class BBModuleBase : InteractionModuleBase<SocketInteractionConte
     /// Helper method for updating arbitrary <see cref="GuildConfig"/> values without all the boilerplate.
     /// </summary>
     /// <param name="valueUpdater">A delegate with access to the appropriate <see cref="GuildConfig"/> in this context.</param>
-    protected async Task DbUpdateGuildAsync(Action<GuildConfig> valueUpdater) {
-        var settings = Context.Guild.GetConfigOrNew(DbContext);
+    protected async Task DbUpdateGuildAsync(Action<GuildConfig> valueUpdater)
+    {
+        var settings = await Context.Guild.GetConfigOrNewAsync(DbContext);
 
         valueUpdater(settings);
 
@@ -130,11 +163,13 @@ public partial class BBModuleBase : InteractionModuleBase<SocketInteractionConte
     }
 
     // For use when responding directly to user input
-    protected async Task<bool> RefreshCacheAsync(UserCache<BotDatabaseContext>.CacheFetchFilter filter) {
+    protected async Task<bool> RefreshCacheAsync(UserCache<BotDatabaseContext>.AsyncCacheFetchFilter filter)
+    {
         var wasDeferred = false;
         // casting a wide net here...
         var refresh = Cache.RequestGuildRefreshAsync(DbContext, Context.Guild.Id, filter);
-        if (!refresh.IsCompleted) {
+        if (!refresh.IsCompleted)
+        {
             // This may take a while
             wasDeferred = true;
             await RespondAsync(LRg("loadingUsers")).ConfigureAwait(false);
@@ -142,8 +177,10 @@ public partial class BBModuleBase : InteractionModuleBase<SocketInteractionConte
         }
         // Run a second time in case we got an ongoing task with a narrower filter than requested
         refresh = Cache.RequestGuildRefreshAsync(DbContext, Context.Guild.Id, filter);
-        if (!refresh.IsCompleted) {
-            if (!wasDeferred) {
+        if (!refresh.IsCompleted)
+        {
+            if (!wasDeferred)
+            {
                 wasDeferred = true;
                 await RespondAsync(LRg("loadingUsers")).ConfigureAwait(false);
                 await refresh.ConfigureAwait(false);
