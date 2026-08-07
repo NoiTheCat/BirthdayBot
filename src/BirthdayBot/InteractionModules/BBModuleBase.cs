@@ -183,8 +183,8 @@ public class BBModuleBase : InteractionModuleBase<SocketInteractionContext>
             {
                 wasDeferred = true;
                 await RespondAsync(LRg("loadingUsers")).ConfigureAwait(false);
-                await refresh.ConfigureAwait(false);
             }
+            await refresh.ConfigureAwait(false);
         }
         return wasDeferred;
     }
