@@ -10,24 +10,25 @@ using Serilog.Events;
 
 namespace BirthdayBot;
 
-public class ModuleConfig : ModuleConfigBase {
+public class ModuleConfig : ModuleConfigBase
+{
     public override IEnumerable<Type> BackgroundServices => [
         //typeof(DataJanitor),
         typeof(CachePreloader),
         typeof(BirthdayUpdater)
     ];
 
-    public override void PreShardSetup(ref IServiceCollection services) {
+    public override void PreShardSetup(ref IServiceCollection services)
+    {
         services.AddSingleton(
-            s => new UserCache<BotDatabaseContext>(s.GetRequiredService<ShardInstance>(),
-                                                   new EFWarmCacheProvider(BotDatabaseContext.New)));
+            s => new UserCache<BotDatabaseContext>(
+                s.GetRequiredService<ShardInstance>(), new EFWarmCacheProvider(BotDatabaseContext.New)));
         services.AddDbContext<BotDatabaseContext>(opts => opts
-            .UseNpgsql(Instance.SqlConnectionString,
-            npgopts => npgopts.UseNodaTime())
-            .UseSnakeCaseNamingConvention());
+            .UseNpgsql(Instance.SqlConnectionString, npgopts => npgopts.UseNodaTime()));
     }
 
-    public override IEnumerable<(LogEventLevel log, string message, object?[]? propertyValues)> StatusMessages(ShardInstance shard) {
+    public override IEnumerable<(LogEventLevel log, string message, object?[]? propertyValues)> StatusMessages(ShardInstance shard)
+    {
         var c = shard.LocalServices.GetRequiredService<UserCache<BotDatabaseContext>>();
         return [(LogEventLevel.Information, "Cache[g:{CachedGuildsCount:000} u:{CachedUsersCount:0000}]", [c.GuildsCount, c.UsersCount])];
     }

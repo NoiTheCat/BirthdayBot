@@ -106,7 +106,6 @@ public class BirthdayUpdater : BackgroundService
             else announceList.Add(u.CacheEntry.FormatName());
 
             u.DbEntry.LastProcessed = SystemClock.Instance.GetCurrentInstant();
-            u.DbEntry.LastSeen = SystemClock.Instance.GetCurrentInstant();
         }
         await AnnounceBirthdaysAsync(config, guild, announceList, Log).ConfigureAwait(false);
         var updateCount = await db.SaveChangesAsync().ConfigureAwait(false);
@@ -140,12 +139,12 @@ public class BirthdayUpdater : BackgroundService
                 catch (HttpException ex)
                 {
                     // TODO Check if issue has been resolved, then remove if appropriate
+                    // Still occurring as of 2026-08-07
                     Log.Warning(ex, "Encountered HTTP code {HttpCode} on attempted role removal", Enum.GetName(ex.HttpCode));
                     break;
                 }
             }
             u.DbEntry.LastProcessed = SystemClock.Instance.GetCurrentInstant();
-            u.DbEntry.LastSeen = SystemClock.Instance.GetCurrentInstant();
         }
         var updateCount = await db.SaveChangesAsync().ConfigureAwait(false);
         Log.Verbose("{GuildId} ending: {UpdateCount} rows updated", config.GuildId, updateCount);
@@ -158,7 +157,6 @@ public class BirthdayUpdater : BackgroundService
         foreach (var u in users)
         {
             u.DbEntry.LastProcessed = SystemClock.Instance.GetCurrentInstant();
-            u.DbEntry.LastSeen = SystemClock.Instance.GetCurrentInstant();
         }
         var updateCount = await db.SaveChangesAsync().ConfigureAwait(false);
         Log.Verbose("{GuildId} skips: {UpdateCount} rows updated", guildId, updateCount);
@@ -228,7 +226,7 @@ public class BirthdayUpdater : BackgroundService
     }
 
     private static (IEnumerable<UserInformation>, IEnumerable<UserInformation>, IEnumerable<UserInformation>)
-    GetCrossedThresholds(IEnumerable<UserInformation> items)
+        GetCrossedThresholds(IEnumerable<UserInformation> items)
     {
         var starting = new List<UserInformation>();
         var ending = new List<UserInformation>();

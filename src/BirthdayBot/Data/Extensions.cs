@@ -1,5 +1,7 @@
 ﻿using Discord.WebSocket;
 using Microsoft.EntityFrameworkCore;
+using NoiPublicBot;
+using Npgsql;
 
 namespace BirthdayBot.Data;
 
@@ -34,5 +36,23 @@ internal static class Extensions
                 .SingleOrDefaultAsync();
             return u ?? new UserEntry() { IsNew = true, GuildId = user.Guild.Id, UserId = user.Id };
         }
+    }
+
+    private static DbContextOptions<BotDatabaseContext> ContextOptions
+    {
+        get
+        {
+            field ??= new DbContextOptionsBuilder<BotDatabaseContext>()
+                .UseNpgsql(Instance.SqlConnectionString, opts => opts.UseNodaTime()).Options;
+            return field;
+        }
+    }
+    extension(BotDatabaseContext ctx)
+    {
+        /// <summary>
+        /// Quick little thing to get an instance outside of DI.
+        /// Assumes <see cref="NoiPublicBot.Instance"/> is initialized.
+        /// </summary>
+        public static BotDatabaseContext New() => new(ContextOptions);
     }
 }

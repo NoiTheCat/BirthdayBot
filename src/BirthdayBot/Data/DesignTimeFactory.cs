@@ -21,7 +21,6 @@ public class DesignTimeFactory : IDesignTimeDbContextFactory<BotDatabaseContext>
         }.ConnectionString;
         return new BotDatabaseContext(new DbContextOptionsBuilder<BotDatabaseContext>()
             .UseNpgsql(connstr, pgopts => { pgopts.UseNodaTime(); })
-            .UseSnakeCaseNamingConvention()
             .Options);
     }
 }
