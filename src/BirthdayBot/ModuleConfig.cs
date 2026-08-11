@@ -13,8 +13,10 @@ namespace BirthdayBot;
 public class ModuleConfig : ModuleConfigBase
 {
     public override IEnumerable<Type> BackgroundServices => [
-        //typeof(DataJanitor),
         typeof(CachePreloader),
+#if !DEBUG
+        typeof(DataJanitor),
+#endif
         typeof(BirthdayUpdater)
     ];
 
