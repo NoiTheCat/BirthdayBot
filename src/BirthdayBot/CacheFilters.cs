@@ -1,14 +1,17 @@
 using System.Linq.Expressions;
 using BirthdayBot.Data;
+using Microsoft.EntityFrameworkCore;
 using NodaTime;
 using NoiPublicBot.Common.UserCache;
 
 namespace BirthdayBot;
 
-static class CacheFilters {
+static class CacheFilters
+{
     const int DefaultCacheDaysBuffer = 5;
 
-    private static List<ulong> GetLocal(UserCache<BotDatabaseContext> cache, ulong guildId) {
+    private static List<ulong> GetLocal(UserCache<BotDatabaseContext> cache, ulong guildId)
+    {
         var g = cache.GetGuild(guildId, true);
         if (g is null) return [];
         return [.. g.Select(e => e.Value.UserId)];
@@ -18,48 +21,53 @@ static class CacheFilters {
     /// Provides a filter that returns a list of missing users, taking into account all users registered with the bot.
     /// Great for full listings, data exports, database row expiration checks, and so on. Use sparingly.
     /// </summary>
-    internal static UserCache<BotDatabaseContext>.CacheFetchFilter AllMissing()
-        => (cache, context, guildId) => {
+    internal static UserCache<BotDatabaseContext>.AsyncCacheFetchFilter AllMissing()
+        => async (cache, context, guildId) =>
+        {
             var local = GetLocal(cache, guildId);
-            var remote = context.UserEntries
+            var remote = await context.UserEntries
                 .Where(e => e.GuildId == guildId)
                 .Select(e => e.UserId)
-                .ToList();
+                .ToListAsync().ConfigureAwait(false);
             return [.. remote.Except(local)];
         };
 
     /// <summary>
     /// Provides a filter that returns a list of missing users with birthdays within <paramref name="days"/> days of the current date.
     /// </summary>
-    internal static UserCache<BotDatabaseContext>.CacheFetchFilter MissingWithinDays(int days)
-        => (cache, context, guildId) => {
+    internal static UserCache<BotDatabaseContext>.AsyncCacheFetchFilter MissingWithinDays(int days)
+        => async (cache, context, guildId) =>
+        {
             var local = GetLocal(cache, guildId);
-            var remote = context.UserEntries
+            var remote = await context.UserEntries
                 .Where(e => e.GuildId == guildId)
                 .Where(IsWithinDays(days))
                 .Select(e => e.UserId)
-                .ToList();
+                .ToListAsync().ConfigureAwait(false);
             return [.. remote.Except(local)];
         };
 
-    internal static UserCache<BotDatabaseContext>.CacheFetchFilter Background()
-        => (cache, context, guildId) => {
+    internal static UserCache<BotDatabaseContext>.AsyncCacheFetchFilter Background()
+        => async (cache, context, guildId) =>
+        {
             var local = GetLocal(cache, guildId);
-            var remote = context.UserEntries
+            var remote = await context.UserEntries
                 .Where(e => e.GuildId == guildId)
                 .Where(IsWithinDays(1)) // 3 days
                 .Select(e => e.UserId)
-                .ToList();
+                .ToListAsync().ConfigureAwait(false);
             return [.. remote.Except(local)];
         };
 
     private static readonly LocalDate _yearStart = new(2000, 1, 1);
     private static readonly LocalDate _yearEnd = new(2000, 12, 31);
-    private static Expression<Func<UserEntry, bool>> IsWithinDays(int days) {
+    private static Expression<Func<UserEntry, bool>> IsWithinDays(int days)
+    {
         // A query using this instantly becomes wildly inefficient when attempting to do time zone conversions per row.
         // It also doesn't adjust to non-leap years.
         // Usage of this predicate assumes the query's casting a wide net, narrowing down the results with further processing done later on.
-        static (LocalDate min, LocalDate max) GetDbSearchRange(int days, DateTimeZone zone) {
+        static (LocalDate min, LocalDate max) GetDbSearchRange(int days, DateTimeZone zone)
+        {
             var now = SystemClock.Instance.GetCurrentInstant().InZone(zone).Date;
 
             var normal = new LocalDate(2000, now.Month, now.Day);
@@ -74,7 +82,8 @@ static class CacheFilters {
         var (min, max) = GetDbSearchRange(days, zone);
 
         // Special case: searching across year boundaries
-        if (min.Year < 2000 || max.Year > 2000) {
+        if (min.Year < 2000 || max.Year > 2000)
+        {
             // Use two search ranges, replacing min/max with year start/end:
             return e => (e.BirthDate >= _yearStart && e.BirthDate <= max)   // if birthday between 01-01 and max, or
                 || (e.BirthDate >= min && e.BirthDate <= _yearEnd);         // if birthday between min and 12-31

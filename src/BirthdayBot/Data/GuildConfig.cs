@@ -17,7 +17,7 @@ public class GuildConfig {
 
     public bool AnnouncePing { get; set; }
 
-    public Instant LastSeen { get; set; }
+    public LocalDate LastSeen { get; set; }
 
     public bool EphemeralConfirm { get; set; }
 

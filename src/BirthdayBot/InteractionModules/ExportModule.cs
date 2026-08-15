@@ -7,7 +7,8 @@ using static BirthdayBot.Localization.CommandsEnUS;
 
 namespace BirthdayBot.InteractionModules;
 
-public class ExportModule : BBModuleBase {
+public class ExportModule : BBModuleBase
+{
     delegate MemoryStream FileBuilder(IEnumerable<KnownGuildUser> list);
 
     [SlashCommand(ExportBirthdays.Name, ExportBirthdays.Description)]
@@ -20,13 +21,14 @@ public class ExportModule : BBModuleBase {
         [Choice(ExportBirthdays.Format.Ics.Name, "ics")]
         string format = "plaintext")
     {
-        var deferred = await RefreshCacheAsync(CacheFilters.AllMissing());
+        var deferred = await RefreshCacheAsync(CacheFilters.AllMissing()).ConfigureAwait(false);
 
-        var bdlist = GetAllKnownUsers(Context.Guild.Id);
+        var bdlist = await GetAllKnownUsersAsync(Context.Guild.Id).ConfigureAwait(false);
 
         var filename = "birthdaybot-" + Context.Guild.Id;
         FileBuilder contentSource;
-        switch (format) {
+        switch (format)
+        {
             case "csv":
                 contentSource = ListExportCsv;
                 filename += ".csv";
@@ -42,22 +44,27 @@ public class ExportModule : BBModuleBase {
         }
         var output = contentSource(bdlist);
         var outtext = LRg("export-birthdays.success", bdlist.Count());
-        if (!deferred) {
+        if (!deferred)
+        {
             await RespondWithFileAsync(output, filename, text: outtext).ConfigureAwait(false);
-        } else {
+        }
+        else
+        {
             await FollowupWithFileAsync(output, filename, text: outtext).ConfigureAwait(false);
             await DeleteOriginalResponseAsync().ConfigureAwait(false);
         }
     }
 
-    private MemoryStream ListExportNormal(IEnumerable<KnownGuildUser> list) {
+    private MemoryStream ListExportNormal(IEnumerable<KnownGuildUser> list)
+    {
         // Output: "● Mon-dd: (user ID) Username [ - Nickname: (nickname)][ | Time zone: (zone)]"
         var result = new MemoryStream();
         var writer = new StreamWriter(result, Encoding.UTF8) { NewLine = "\r\n" };
 
         writer.WriteLine(LRg("export-birthdays.textHeader", Context.Guild.Name));
         writer.WriteLine();
-        foreach (var item in list) {
+        foreach (var item in list)
+        {
             writer.Write($"● {DateFormatExport(item.BirthDate)}: ");
             writer.Write(item.UserId);
             writer.Write(" " + item.CacheUser.Username);
@@ -71,17 +78,20 @@ public class ExportModule : BBModuleBase {
         return result;
     }
 
-    private static MemoryStream ListExportCsv(IEnumerable<KnownGuildUser> list) {
+    private static MemoryStream ListExportCsv(IEnumerable<KnownGuildUser> list)
+    {
         // Output: User ID, Username, Nickname, Month-Day, Month, Day
         var result = new MemoryStream();
         var writer = new StreamWriter(result, Encoding.UTF8) { NewLine = "\r\n" };
         // crlf line ending is defined for CSV per RFC 4180 - we'd do it regardless
 
-        static string csvEscape(string? input) {
+        static string csvEscape(string? input)
+        {
             if (input is null) return string.Empty;
             var result = new StringBuilder();
             result.Append('"');
-            foreach (var ch in input) {
+            foreach (var ch in input)
+            {
                 if (ch == '"') result.Append('"');
                 result.Append(ch);
             }
@@ -91,7 +101,8 @@ public class ExportModule : BBModuleBase {
 
         // Conforming to RFC 4180; with header
         writer.WriteLine("UserId,Username,DisplayName,Nickname,MonthDayDisp,Month,Day,TimeZone");
-        foreach (var item in list) {
+        foreach (var item in list)
+        {
             writer.Write(item.UserId);
             writer.Write(',');
             writer.Write(csvEscape(item.CacheUser.Username!));
@@ -114,18 +125,22 @@ public class ExportModule : BBModuleBase {
         return result;
     }
 
-    private MemoryStream ListExportICal(IEnumerable<KnownGuildUser> list) {
+    private MemoryStream ListExportICal(IEnumerable<KnownGuildUser> list)
+    {
         // iCalendar standard limits each line to 75 bytes
-        static string ICalFold(string input) {
+        static string ICalFold(string input)
+        {
             const string Fold = "\r\n "; // Fold marker; 3 bytes
             const int limit = 75;
             if (Encoding.UTF8.GetByteCount(input) <= limit) return input;
 
             var allowance = limit - 3; // adjust for fold
             var result = new StringBuilder();
-            foreach (var r in input.EnumerateRunes()) {
+            foreach (var r in input.EnumerateRunes())
+            {
                 var charSize = Encoding.UTF8.GetByteCount(r.ToString());
-                if (charSize > allowance) {
+                if (charSize > allowance)
+                {
                     result.Append(Fold);
                     allowance = limit;
                 }
@@ -143,17 +158,23 @@ public class ExportModule : BBModuleBase {
 
         var dtstamp = SystemClock.Instance.GetCurrentInstant()
             .InUtc().ToString("yyyyMMdd'T'HHmmss'Z'", DateTimeFormatInfo.InvariantInfo);
-        foreach (var item in list) {
+        foreach (var item in list)
+        {
             // FormatName is specific to Discord output, but this isn't for Discord. Need to return back to unescaped form.
             // A simple replace is not sufficient - any intended \ characters get stripped away.
-            static string Unescape(string input) {
+            static string Unescape(string input)
+            {
                 var result = new StringBuilder();
                 var priorIsSlash = false;
-                foreach (var c in input) {
-                    if (!priorIsSlash) {
+                foreach (var c in input)
+                {
+                    if (!priorIsSlash)
+                    {
                         if (c == '\\') priorIsSlash = true; // encountered slash with no prior slash. do not use in result
                         else result.Append(c);
-                    } else {
+                    }
+                    else
+                    {
                         // Previously encountered a backslash - preserve next character unconditionally
                         result.Append(c);
                         priorIsSlash = false;
