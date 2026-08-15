@@ -36,31 +36,38 @@ public class BirthdayUpdater : BackgroundService
             // Allow interruptions only in between processing guilds.
             if (token.IsCancellationRequested) return;
 
-            // Some more checks before proceeding
-            if (Shard.DiscordClient.ConnectionState != ConnectionState.Connected) break; // Quit immediately if disconnected
-            var guild = Shard.DiscordClient.GetGuild(gid);
-            if (guild is null) continue; // No longer in guild
-            var doRoleManipulation = IsRoleUsable(guild, gconf);
+            try
+            {
+                // Some more checks before proceeding
+                if (Shard.DiscordClient.ConnectionState != ConnectionState.Connected) break; // Quit immediately if disconnected
+                var guild = Shard.DiscordClient.GetGuild(gid);
+                if (guild is null) continue; // No longer in guild
+                var doRoleManipulation = IsRoleUsable(guild, gconf);
 
-            using var db = BotDatabaseContext.New();
-            var userRows = await db.UserEntries.AsNoTracking() // manually tracked later as appropriate
-                .Where(u => u.GuildId == gid)
-                .Where(u => cache[gid].Keys.ToHashSet().Contains(u.UserId))
-                .ToListAsync().ConfigureAwait(false);
-            Log.Verbose("{GuildId}: {UserConfCount} rows obtained", gid, userRows.Count);
-            if (userRows.Count == 0) continue;
-            var guildTz = await db.GuildConfigurations
-                .Where(g => g.GuildId == gid)
-                .Select(s => s.GuildTimeZone)
-                .SingleAsync().ConfigureAwait(false);
+                using var db = BotDatabaseContext.New();
+                var userRows = await db.UserEntries.AsNoTracking() // manually tracked later as appropriate
+                    .Where(u => u.GuildId == gid)
+                    .Where(u => cache[gid].Keys.ToHashSet().Contains(u.UserId))
+                    .ToListAsync().ConfigureAwait(false);
+                Log.Verbose("{GuildId}: {UserConfCount} rows obtained", gid, userRows.Count);
+                if (userRows.Count == 0) continue;
+                var guildTz = await db.GuildConfigurations
+                    .Where(g => g.GuildId == gid)
+                    .Select(s => s.GuildTimeZone)
+                    .SingleAsync().ConfigureAwait(false);
 
-            // Join cache and database info, sort into buckets
-            var items = UserInformation.Consolidate(cache[gid], userRows, guildTz);
-            var (starting, ending, skipped) = GetCrossedThresholds(items);
+                // Join cache and database info, sort into buckets
+                var items = UserInformation.Consolidate(cache[gid], userRows, guildTz);
+                var (starting, ending, skipped) = GetCrossedThresholds(items);
 
-            await HandleStartingBirthdaysAsync(guild, gconf, starting, doRoleManipulation).ConfigureAwait(false);
-            await HandleEndingBirthdaysAsync(gconf, ending, doRoleManipulation).ConfigureAwait(false);
-            await HandleSkippedBirthdaysAsync(gid, skipped).ConfigureAwait(false);
+                await HandleStartingBirthdaysAsync(guild, gconf, starting, doRoleManipulation).ConfigureAwait(false);
+                await HandleEndingBirthdaysAsync(gconf, ending, doRoleManipulation).ConfigureAwait(false);
+                await HandleSkippedBirthdaysAsync(gid, skipped).ConfigureAwait(false);
+            }
+            catch (HttpException ex)
+            {
+                Log.Error(ex, "An error interrupted the processing of guild ID {GuildId}.", gid);
+            }
         }
     }
 
