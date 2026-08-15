@@ -15,10 +15,10 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- for analyzers -->
-    <AdditionalFiles Include="Localization/Commands.*.json" />
+    <!-- for analyzers (code generation) -->
+    <AdditionalFiles Include="Localization/Commands.en-US.json" />
 
-    <!-- build output -->
+    <!-- include translations in output-->
     <Content Include="Localization/Commands.*.json" CopyToOutputDirectory="Always" />
     <Content Include="Localization/Responses.*.json" CopyToOutputDirectory="Always" />
   </ItemGroup>

@@ -3,7 +3,6 @@ using BirthdayBot.Data;
 using Discord;
 using Discord.Interactions;
 using Discord.WebSocket;
-using Microsoft.EntityFrameworkCore;
 using NodaTime;
 using static BirthdayBot.Localization.CommandsEnUS.Birthday;
 
@@ -27,13 +26,11 @@ public class BirthdayModule : BBModuleBase {
             if (guild.IsNew) DbContext.GuildConfigurations.Add(guild); // Satisfy foreign key constraint
             var user = ((SocketGuildUser)Context.User).GetUserEntryOrNew(DbContext);
             if (user.IsNew) DbContext.UserEntries.Add(user);
-            if (guild.AddOnly) {
-                if (!user.IsNew) {
-                    if (!((SocketGuildUser)Context.User).GuildPermissions.ManageGuild) {
-                        await RespondAsync(LRu("birthday.errAddOnly"), ephemeral: true).ConfigureAwait(false);
-                        return;
-                    }
-                    // Else don't enforce if user has Manage Guild permission
+            if (guild.AddOnly && !user.IsNew) {
+                // Don't enforce if user has Manage Guild permission
+                if (!((SocketGuildUser)Context.User).GuildPermissions.ManageGuild) {
+                    await RespondAsync(LRu("birthday.errAddOnly"), ephemeral: true).ConfigureAwait(false);
+                    return;
                 }
             }
 
@@ -68,15 +65,12 @@ public class BirthdayModule : BBModuleBase {
                 await RespondAsync(LRg("birthday.set.zone.errNoBirthday"), ephemeral: true).ConfigureAwait(false);
                 return;
             }
-
-            if (Context.Guild.GetConfigOrNew(DbContext).AddOnly) {
-                if (user.TimeZone is not null) {
-                    if (((SocketGuildUser)Context.User).GuildPermissions.ManageGuild) {
-                        // Don't enforce if user has Manage Guild permission
-                    } else {
-                        await RespondAsync(LRu("birthday.errAddOnly"), ephemeral: true).ConfigureAwait(false);
-                        return;
-                    }
+            var isAddOnly = Context.Guild.GetConfigOrNew(DbContext).AddOnly;
+            if (isAddOnly && user.TimeZone is not null) {
+                // Don't enforce if user has Manage Guild permission
+                if (!((SocketGuildUser)Context.User).GuildPermissions.ManageGuild) {
+                    await RespondAsync(LRu("birthday.errAddOnly"), ephemeral: true).ConfigureAwait(false);
+                    return;
                 }
             }
 
@@ -93,14 +87,22 @@ public class BirthdayModule : BBModuleBase {
 
     [SlashCommand(Remove.Name, Remove.Description)]
     public async Task CmdRemove() {
-        var query = await DbContext.UserEntries
-            .Where(e => e.GuildId == Context.Guild.Id && e.UserId == Context.User.Id)
-            .ExecuteDeleteAsync();
-        if (query != 0) {
-            await RespondAsync(LRg("birthday.remove.success")).ConfigureAwait(false);
-        } else {
+        var uEntry = ((SocketGuildUser)Context.User).GetUserEntryOrNew(DbContext);
+        if (uEntry.IsNew) {
             await RespondAsync(LRg("birthday.remove.noData"), ephemeral: IsEphemeralSet()).ConfigureAwait(false);
+            return;
         }
+        if (Context.Guild.GetConfigOrNew(DbContext).AddOnly) {
+            // Don't enforce if user has Manage Guild permission
+            if (!((SocketGuildUser)Context.User).GuildPermissions.ManageGuild) {
+                await RespondAsync(LRu("birthday.errAddOnly"), ephemeral: true).ConfigureAwait(false);
+                return;
+            }
+        }
+
+        DbContext.UserEntries.Remove(uEntry);
+        await DbContext.SaveChangesAsync();
+        await RespondAsync(LRg("birthday.remove.success")).ConfigureAwait(false);
     }
 
     [SlashCommand(Get.Name, Get.Description)]
