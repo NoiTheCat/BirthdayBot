@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <Version>4.2.2</Version>
+    <Version>4.3.0</Version>
     <Authors>NoiTheCat</Authors>
     <RootNamespace>BirthdayBot</RootNamespace>
 
@@ -43,12 +43,11 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="EFCore.NamingConventions" Version="10.0.1" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.8">
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.11">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
-    <PackageReference Include="NodaTime" Version="3.3.2" />
+    <PackageReference Include="NodaTime" Version="3.3.3" />
   </ItemGroup>
 
 </Project>

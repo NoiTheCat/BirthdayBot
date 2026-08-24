@@ -2,5 +2,6 @@
     "files.exclude": {
         "**/bin": true,
         "**/obj": true
-    }
+    },
+    "dotnet.defaultSolution": "BirthdayBot.sln"
 }

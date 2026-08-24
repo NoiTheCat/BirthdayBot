@@ -1,17 +1,20 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using NodaTime;
-using NoiPublicBot;
 using NoiPublicBot.Common.UserCache;
 
 namespace BirthdayBot.Data;
 
-public sealed class BotDatabaseContext(DbContextOptions<BotDatabaseContext> options) : DbContext(options), IWarmCacheAwareContext {
+public sealed class BotDatabaseContext(DbContextOptions<BotDatabaseContext> options)
+    : DbContext(options), IWarmCacheAwareContext
+{
     public DbSet<GuildConfig> GuildConfigurations { get; set; } = null!;
     public DbSet<UserEntry> UserEntries { get; set; } = null!;
     public DbSet<EFWarmCacheEntry> WarmCache { get; set; } = null!;
 
-    protected override void OnModelCreating(ModelBuilder modelBuilder) {
-        modelBuilder.Entity<GuildConfig>(entity => {
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<GuildConfig>(entity =>
+        {
             entity.HasKey(e => e.GuildId);
             entity.Property(e => e.GuildId).ValueGeneratedNever();
             entity.Property(e => e.LastSeen).HasDefaultValueSql("NOW()");
@@ -23,7 +26,8 @@ public sealed class BotDatabaseContext(DbContextOptions<BotDatabaseContext> opti
             entity.Ignore(e => e.IsNew);
         });
 
-        modelBuilder.Entity<UserEntry>(entity => {
+        modelBuilder.Entity<UserEntry>(entity =>
+        {
             entity.HasKey(e => new { e.GuildId, e.UserId });
             entity.HasOne(d => d.Guild)
                 .WithMany(p => p.UserEntries)
@@ -40,17 +44,5 @@ public sealed class BotDatabaseContext(DbContextOptions<BotDatabaseContext> opti
         });
 
         modelBuilder.ApplyConfiguration(new EFWarmCacheConfig());
-    }
-
-    /// <summary>
-    /// Quick little thing to get an instance outside of DI.
-    /// Assumes <see cref="NoiPublicBot.Instance"/> is initialized.
-    /// </summary>
-    internal static BotDatabaseContext New() {
-        return new BotDatabaseContext(new DbContextOptionsBuilder<BotDatabaseContext>()
-            .UseNpgsql(Instance.SqlConnectionString.ConnectionString,
-            npgopts => npgopts.UseNodaTime())
-            .UseSnakeCaseNamingConvention()
-            .Options);
     }
 }

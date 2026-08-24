@@ -17,7 +17,7 @@ namespace BirthdayBot.Data.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "10.0.3")
+                .HasAnnotation("ProductVersion", "10.0.10")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -25,110 +25,87 @@ namespace BirthdayBot.Data.Migrations
             modelBuilder.Entity("BirthdayBot.Data.GuildConfig", b =>
                 {
                     b.Property<decimal>("GuildId")
-                        .HasColumnType("numeric(20,0)")
-                        .HasColumnName("guild_id");
+                        .HasColumnType("numeric(20,0)");
 
                     b.Property<bool>("AddOnly")
-                        .HasColumnType("boolean")
-                        .HasColumnName("add_only");
+                        .HasColumnType("boolean");
 
                     b.Property<string>("AnnounceMessage")
-                        .HasColumnType("text")
-                        .HasColumnName("announce_message");
+                        .HasColumnType("text");
 
                     b.Property<string>("AnnounceMessagePl")
-                        .HasColumnType("text")
-                        .HasColumnName("announce_message_pl");
+                        .HasColumnType("text");
 
                     b.Property<bool>("AnnouncePing")
-                        .HasColumnType("boolean")
-                        .HasColumnName("announce_ping");
+                        .HasColumnType("boolean");
 
                     b.Property<decimal?>("AnnouncementChannel")
-                        .HasColumnType("numeric(20,0)")
-                        .HasColumnName("announcement_channel");
+                        .HasColumnType("numeric(20,0)");
 
                     b.Property<decimal?>("BirthdayRole")
-                        .HasColumnType("numeric(20,0)")
-                        .HasColumnName("birthday_role");
+                        .HasColumnType("numeric(20,0)");
 
                     b.Property<bool>("EphemeralConfirm")
-                        .HasColumnType("boolean")
-                        .HasColumnName("ephemeral_confirm");
+                        .HasColumnType("boolean");
 
                     b.Property<string>("GuildTimeZone")
-                        .HasColumnType("text")
-                        .HasColumnName("guild_time_zone");
+                        .HasColumnType("text");
 
-                    b.Property<Instant>("LastSeen")
+                    b.Property<LocalDate>("LastSeen")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("last_seen")
+                        .HasColumnType("date")
                         .HasDefaultValueSql("NOW()");
 
-                    b.HasKey("GuildId")
-                        .HasName("pk_guild_configurations");
+                    b.HasKey("GuildId");
 
-                    b.ToTable("guild_configurations", (string)null);
+                    b.ToTable("GuildConfigurations");
                 });
 
             modelBuilder.Entity("BirthdayBot.Data.UserEntry", b =>
                 {
                     b.Property<decimal>("GuildId")
-                        .HasColumnType("numeric(20,0)")
-                        .HasColumnName("guild_id");
+                        .HasColumnType("numeric(20,0)");
 
                     b.Property<decimal>("UserId")
-                        .HasColumnType("numeric(20,0)")
-                        .HasColumnName("user_id");
+                        .HasColumnType("numeric(20,0)");
 
                     b.Property<LocalDate>("BirthDate")
-                        .HasColumnType("date")
-                        .HasColumnName("birth_date");
+                        .HasColumnType("date");
 
                     b.Property<Instant>("LastProcessed")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("last_processed");
+                        .HasColumnType("timestamp with time zone");
 
-                    b.Property<Instant>("LastSeen")
+                    b.Property<LocalDate>("LastSeen")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("last_seen")
+                        .HasColumnType("date")
                         .HasDefaultValueSql("NOW()");
 
                     b.Property<string>("TimeZone")
-                        .HasColumnType("text")
-                        .HasColumnName("time_zone");
+                        .HasColumnType("text");
 
-                    b.HasKey("GuildId", "UserId")
-                        .HasName("pk_user_entries");
+                    b.HasKey("GuildId", "UserId");
 
-                    b.ToTable("user_entries", (string)null);
+                    b.ToTable("UserEntries");
                 });
 
-            modelBuilder.Entity("NoiPublicBot.Common.UserCache.WarmCacheItem", b =>
+            modelBuilder.Entity("NoiPublicBot.Common.UserCache.EFWarmCacheEntry", b =>
                 {
                     b.Property<decimal>("GuildId")
-                        .HasColumnType("numeric(20,0)")
-                        .HasColumnName("guild_id");
+                        .HasColumnType("numeric(20,0)");
 
                     b.Property<decimal>("UserId")
-                        .HasColumnType("numeric(20,0)")
-                        .HasColumnName("user_id");
+                        .HasColumnType("numeric(20,0)");
 
                     b.Property<string>("Data")
                         .IsRequired()
-                        .HasColumnType("jsonb")
-                        .HasColumnName("data");
+                        .HasColumnType("jsonb");
 
                     b.Property<Instant>("ExpiresAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("expires_at");
+                        .HasColumnType("timestamp with time zone");
 
-                    b.HasKey("GuildId", "UserId")
-                        .HasName("pk_warm_cache");
+                    b.HasKey("GuildId", "UserId");
 
-                    b.ToTable("warm_cache", (string)null);
+                    b.ToTable("WarmCache");
                 });
 
             modelBuilder.Entity("BirthdayBot.Data.UserEntry", b =>
@@ -137,8 +114,7 @@ namespace BirthdayBot.Data.Migrations
                         .WithMany("UserEntries")
                         .HasForeignKey("GuildId")
                         .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired()
-                        .HasConstraintName("fk_user_entries_guild_configurations_guild_id");
+                        .IsRequired();
 
                     b.Navigation("Guild");
                 });

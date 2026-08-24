@@ -2,18 +2,20 @@
 
 namespace BirthdayBot.Data;
 
-public class UserEntry {
+public class UserEntry
+{
     // Composite PK: GuildId, UserId
     public ulong GuildId { get; set; }
     public ulong UserId { get; set; }
-    
+
     public LocalDate BirthDate { get; set; }
     public DateTimeZone? TimeZone { get; set; }
-    
+
     /// <summary>
-    /// To measure the entry's TTL.
+    /// This entry's TTL, used to determine whether to drop this entry.
+    /// Used exclusively by <see cref="BackgroundServices.DataJanitor"/>.
     /// </summary>
-    public Instant LastSeen { get; set; }
+    public LocalDate LastSeen { get; set; }
     /// <summary>
     /// The last time that <see cref="BackgroundServices.BirthdayUpdater"/> acted on this entry in a meaningful way.
     /// </summary>

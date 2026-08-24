@@ -6,26 +6,32 @@ using static BirthdayBot.Localization.CommandsEnUS.Help;
 namespace BirthdayBot.InteractionModules;
 
 [CommandContextType(InteractionContextType.Guild, InteractionContextType.BotDm)]
-public class HelpModule : BBModuleBase {
+public class HelpModule : BBModuleBase
+{
     private bool? _isGuild;
 
     // This is the only command that can be invoked outside a guild.
     // Need custom logic to determine whether to use guild or user-specific locale.
-    private Func<string, string> LR {
-        get {
+    private Func<string, string> LR
+    {
+        get
+        {
             if (!_isGuild.HasValue) _isGuild = Context.Channel is not IDMChannel;
             return _isGuild.Value ? key => LRg(key) : key => LRu(key);
         }
     }
-    private Func<string, string> LC {
-        get {
+    private Func<string, string> LC
+    {
+        get
+        {
             if (!_isGuild.HasValue) _isGuild = Context.Channel is not IDMChannel;
             return _isGuild.Value ? key => LCg(key) : key => LCu(key);
         }
     }
 
     [SlashCommand(Name, Description)]
-    public async Task CmdHelp() {
+    public async Task CmdHelp()
+    {
 #if DEBUG
         var ver = "I'm a Debug build";
 #else
@@ -40,10 +46,11 @@ public class HelpModule : BBModuleBase {
             .AddField(LR("help.headerRegCmds"), reg)
             .AddField(LR("help.headerModCmds"), mod)
             .Build();
-        await RespondAsync(text: _isGuild!.Value ? null : LR("help.warnDM") , embed: result).ConfigureAwait(false);
+        await RespondAsync(text: _isGuild!.Value ? null : LR("help.warnDM"), embed: result).ConfigureAwait(false);
     }
 
-    private (string reg, string mod) BuildHelpMessage() {
+    private (string reg, string mod) BuildHelpMessage()
+    {
         // Note: This may not work for more international groups...
         // TODO Find a way to grab the slash command name directly from Discord, place them here. Will need a different type of formatting
         var RegularCommandsField = $"""
