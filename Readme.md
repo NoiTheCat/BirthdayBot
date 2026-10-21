@@ -37,6 +37,13 @@ Get your bot token and set up your database user and schema, then create a JSON 
 }
 ```
 
+#### Registering commands
+The bot's slash commands must be registered with Discord before first use. Run with `--register` to do this; it prompts for confirmation, sends the commands, then exits:
+```sh
+$ dotnet run -p src/BirthdayBot -c Release -- -c path/to/config.json --register
+```
+Global commands can take about an hour to appear in Discord. Run this again any time the bot's commands change.
+
 #### Usage
 To run the bot:
 ```sh
