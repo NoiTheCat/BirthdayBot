@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using BirthdayBot.Data;
 using Discord;
 using Discord.Net;
@@ -38,12 +39,20 @@ public class BirthdayUpdater : BackgroundService
 
             try
             {
+                var st = new Stopwatch();
+                st.Start();
+
                 // Some more checks before proceeding
                 if (Shard.DiscordClient.ConnectionState != ConnectionState.Connected) break; // Quit immediately if disconnected
                 var guild = Shard.DiscordClient.GetGuild(gid);
                 if (guild is null) continue; // No longer in guild
                 var doRoleManipulation = IsRoleUsable(guild, gconf);
 
+                st.Stop();
+                Log.Debug("Stopwatch 1: {elapsed}ms", st.ElapsedMilliseconds);
+
+                st = new();
+                st.Start();
                 using var db = BotDatabaseContext.New();
                 var userRows = await db.UserEntries.AsNoTracking() // manually tracked later as appropriate
                     .Where(u => u.GuildId == gid)
@@ -55,14 +64,24 @@ public class BirthdayUpdater : BackgroundService
                     .Where(g => g.GuildId == gid)
                     .Select(s => s.GuildTimeZone)
                     .SingleAsync().ConfigureAwait(false);
+                st.Stop();
+                Log.Debug("Stopwatch 2: {elapsed}ms", st.ElapsedMilliseconds);
 
+                st = new();
+                st.Start();
                 // Join cache and database info, sort into buckets
                 var items = UserInformation.Consolidate(cache[gid], userRows, guildTz);
                 var (starting, ending, skipped) = GetCrossedThresholds(items);
+                st.Stop();
+                Log.Debug("Stopwatch 3: {elapsed}ms", st.ElapsedMilliseconds);
 
+                st = new();
+                st.Start();
                 await HandleStartingBirthdaysAsync(guild, gconf, starting, doRoleManipulation).ConfigureAwait(false);
                 await HandleEndingBirthdaysAsync(gconf, ending, doRoleManipulation).ConfigureAwait(false);
                 await HandleSkippedBirthdaysAsync(gid, skipped).ConfigureAwait(false);
+                st.Stop();
+                Log.Debug("Stopwatch 4: {elapsed}ms", st.ElapsedMilliseconds);
             }
             catch (HttpException ex)
             {
