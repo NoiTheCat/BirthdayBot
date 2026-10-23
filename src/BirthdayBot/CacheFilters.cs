@@ -13,47 +13,53 @@ static class CacheFilters
     /// Meant for full listings, data exports, database row expiration checks, and so on.
     /// </summary>
     internal static UserCache<BotDatabaseContext>.AsyncCacheFetchFilter AllMissing()
-        => async (cache, context, guildId)
-            => await context.UserEntries.AsNoTracking()
+        => async (cache, context, guildId) =>
+        {
+            var local = LocalCache(cache, guildId);
+            var remote = await context.UserEntries
                 .Where(e => e.GuildId == guildId)
                 .Select(e => e.UserId)
-                .ToAsyncEnumerable()
-                .Except(LocalCache(cache, guildId))
                 .ToListAsync().ConfigureAwait(false);
+            return [.. remote.Except(local)];
+        };
 
     /// <summary>
     /// Provides a filter that returns a list of missing users with birthdays within <paramref name="days"/> days of the current date.
     /// </summary>
     internal static UserCache<BotDatabaseContext>.AsyncCacheFetchFilter MissingWithinDays(int days)
-        => async (cache, context, guildId)
-            => await context.UserEntries.AsNoTracking()
+        => async (cache, context, guildId) =>
+        {
+            var local = LocalCache(cache, guildId);
+            var remote = await context.UserEntries
                 .Where(e => e.GuildId == guildId)
                 .Where(IsWithinDays(days))
                 .Select(e => e.UserId)
-                .ToAsyncEnumerable()
-                .Except(LocalCache(cache, guildId))
                 .ToListAsync().ConfigureAwait(false);
+            return [.. remote.Except(local)];
+        };
 
     /// <summary>
     /// Provides a filter that returns all users missing in cache which have a strong likelihood to be acted upon
     /// by the BirthdayUpdater background service.
     /// </summary>
     internal static UserCache<BotDatabaseContext>.AsyncCacheFetchFilter PrepareBackground()
-        => async (cache, context, guildId)
-            => await context.UserEntries.AsNoTracking()
+        => async (cache, context, guildId) =>
+        {
+            var local = LocalCache(cache, guildId);
+            var remote = await context.UserEntries
                 .Where(e => e.GuildId == guildId)
                 .Where(IsWithinDays(1)) // 3 days
                 .Select(e => e.UserId)
-                .ToAsyncEnumerable()
-                .Except(LocalCache(cache, guildId))
                 .ToListAsync().ConfigureAwait(false);
+            return [.. remote.Except(local)];
+        };
 
     #region Helpers
-    private static IAsyncEnumerable<ulong> LocalCache(UserCache<BotDatabaseContext> cache, ulong guildId)
+    private static IEnumerable<ulong> LocalCache(UserCache<BotDatabaseContext> cache, ulong guildId)
     {
         var g = cache.GetGuild(guildId, true);
-        if (g is null) return Array.Empty<ulong>().ToAsyncEnumerable();
-        return g.Select(e => e.Value.UserId).ToAsyncEnumerable();
+        if (g is null) return [];
+        return g.Select(e => e.Value.UserId);
     }
 
     private static readonly LocalDate YearStart = new(2000, 1, 1);
