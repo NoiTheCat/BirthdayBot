@@ -206,7 +206,7 @@ public class ConfigModule : BBModuleBase
             .CountAsync().ConfigureAwait(false);
         results[2] = confUserCount.ToString();
         results[3] = (Cache.GetGuild(guild.Id)?.Count ?? 0).ToString();
-        var cacheCount = await CacheFilters.Background()(Cache, DbContext, guild.Id).ConfigureAwait(false);
+        var cacheCount = await CacheFilters.PrepareBackground()(Cache, DbContext, guild.Id).ConfigureAwait(false);
         results[4] = cacheCount.Count.ToString();
         results[6] = guildconf.GuildTimeZone?.Id ?? LRg("config.check.usingUtcFallback");
         results[7] = SystemClock.Instance.GetCurrentInstant()
