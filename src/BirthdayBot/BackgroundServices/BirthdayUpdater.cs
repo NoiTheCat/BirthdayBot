@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using BirthdayBot.Data;
 using Discord;
 using Discord.Net;
@@ -39,6 +38,7 @@ public class BirthdayUpdater : BackgroundService
 
             try
             {
+                Log.Debug("Iterator arrived at guild {GuildId}", gid);
                 // Some more checks before proceeding
                 if (Shard.DiscordClient.ConnectionState != ConnectionState.Connected) break; // Quit immediately if disconnected
                 var guild = Shard.DiscordClient.GetGuild(gid);
@@ -61,15 +61,11 @@ public class BirthdayUpdater : BackgroundService
                 var items = UserInformation.Consolidate(cache[gid], userRows, guildTz);
                 var (starting, ending, skipped) = GetCrossedThresholds(items);
 
-                var st = Stopwatch.GetTimestamp();
-                await HandleStartingBirthdaysAsync(guild, gconf, starting, doRoleManipulation).ConfigureAwait(false);
-                Log.Debug("Stopwatch 1: {duration}ms", Stopwatch.GetElapsedTime(st));
-                st = Stopwatch.GetTimestamp();
-                await HandleEndingBirthdaysAsync(gconf, ending, doRoleManipulation).ConfigureAwait(false);
-                Log.Debug("Stopwatch 2: {duration}ms", Stopwatch.GetElapsedTime(st));
-                st = Stopwatch.GetTimestamp();
-                await HandleSkippedBirthdaysAsync(gid, skipped).ConfigureAwait(false);
-                Log.Debug("Stopwatch 3: {duration}ms", Stopwatch.GetElapsedTime(st));
+                var run = new List<Task>(3);
+                if (starting.Count != 0) run.Add(HandleStartingBirthdaysAsync(guild, gconf, starting, doRoleManipulation));
+                if (ending.Count != 0) run.Add(HandleEndingBirthdaysAsync(gconf, ending, doRoleManipulation));
+                if (skipped.Count != 0) run.Add(HandleSkippedBirthdaysAsync(gid, skipped));
+                await Task.WhenAll(run).ConfigureAwait(false);
             }
             catch (HttpException ex)
             {
@@ -166,6 +162,7 @@ public class BirthdayUpdater : BackgroundService
 
     private async Task HandleSkippedBirthdaysAsync(ulong guildId, IEnumerable<UserInformation> users)
     {
+        if (!users.Any()) return;
         using var db = BotDatabaseContext.New();
         db.AttachRange(users.Select(u => u.DbEntry));
         foreach (var u in users)
@@ -239,7 +236,7 @@ public class BirthdayUpdater : BackgroundService
         else return TimePosition.During;
     }
 
-    private static (IEnumerable<UserInformation>, IEnumerable<UserInformation>, IEnumerable<UserInformation>)
+    private static (List<UserInformation>, List<UserInformation>, List<UserInformation>)
         GetCrossedThresholds(IEnumerable<UserInformation> items)
     {
         var starting = new List<UserInformation>();
