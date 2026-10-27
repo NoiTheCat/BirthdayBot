@@ -41,6 +41,9 @@ public sealed class BotDatabaseContext(DbContextOptions<BotDatabaseContext> opti
                     dbstr => dbstr == null ? null : DateTimeZoneProviders.Tzdb[dbstr]
                 );
             entity.Ignore(e => e.IsNew);
+
+            // Birthdate index greatly improves date range searching performance
+            entity.HasIndex(c => c.BirthDate);
         });
 
         modelBuilder.ApplyConfiguration(new EFWarmCacheConfig());
