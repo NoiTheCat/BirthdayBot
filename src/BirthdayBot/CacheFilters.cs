@@ -66,32 +66,36 @@ static class CacheFilters
     private static readonly LocalDate YearEnd = new(2000, 12, 31);
     private static Expression<Func<UserEntry, bool>> IsWithinDays(int days)
     {
-        static (LocalDate min, LocalDate max) GetDbSearchRange(int days, DateTimeZone zone)
+        var today = SystemClock.Instance.GetCurrentInstant().InZone(DateTimeZone.Utc).Date;
+
+        var normal = new LocalDate(2000, today.Month, today.Day);
+        var min = normal.PlusDays(-days);
+        var max = normal.PlusDays(days);
+
+        /*
+           Special case occurs when min or max end up outside the year 2000.
+           (That is, when there are birthdays very near the start/end of the year.)
+
+            Two date ranges are considered instead within the year 2000:
+            01-01 <=======x------------------------------------x====> 12-31
+                         max                                  min
+        */
+        if (min.Year < 2000)
         {
-            var now = SystemClock.Instance.GetCurrentInstant().InZone(zone).Date;
-
-            var normal = new LocalDate(2000, now.Month, now.Day);
-            var min = normal.PlusDays(-days);
-            var max = normal.PlusDays(days);
-
-            static LocalDate toDate(LocalDate d) => new(d.Year, d.Month, d.Day);
-            return (toDate(min), toDate(max));
+            var min2000 = new LocalDate(2000, min.Month, min.Day);
+            return e => (YearStart <= e.BirthDate && e.BirthDate <= max) ||
+                        (min2000 <= e.BirthDate && e.BirthDate <= YearEnd);
         }
-
-        var zone = DateTimeZone.Utc;
-        var (min, max) = GetDbSearchRange(days, zone);
-
-        if (min.Year < 2000 || max.Year > 2000)
+        else if (max.Year > 2000)
         {
-            // Special case: searching across year boundaries
-            // Use two search ranges, replacing min/max with year start/end:
-            return e => (e.BirthDate >= YearStart && e.BirthDate <= max)   // if birthday between 01-01 and max, or
-                || (e.BirthDate >= min && e.BirthDate <= YearEnd);         // if birthday between min and 12-31
+            var max2000 = new LocalDate(2000, max.Month, max.Day);
+            return e => (min <= e.BirthDate && e.BirthDate <= YearEnd) ||
+                        (YearStart <= e.BirthDate && e.BirthDate <= max2000);
         }
         else
         {
-            // Simple range
-            return e => e.BirthDate >= min && e.BirthDate <= max;
+            // No special case. Select dates between calculated minimum and maximum dates inclusive.
+            return e => min <= e.BirthDate && e.BirthDate <= max;
         }
     }
     #endregion
