@@ -12,6 +12,12 @@ namespace BirthdayBot;
 
 public class ModuleConfig : ModuleConfigBase
 {
+    public override int BackgroundServiceInterval =>
+#if !DEBUG
+    10 * 60 * 1000;
+#else
+    15 * 1000;
+#endif
     public override IEnumerable<Type> BackgroundServices => [
         typeof(CachePreloader),
 #if !DEBUG
