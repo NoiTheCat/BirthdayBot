@@ -23,7 +23,8 @@ public class ModuleConfig : ModuleConfigBase
 #if !DEBUG
         typeof(DataJanitor),
 #endif
-        typeof(BirthdayUpdater)
+        typeof(BirthdayUpdater),
+        typeof(AutoSweep<BotDatabaseContext>)
     ];
 
     public override void PreShardSetup(ref IServiceCollection services)
