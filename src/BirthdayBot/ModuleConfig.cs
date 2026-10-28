@@ -20,10 +20,10 @@ public class ModuleConfig : ModuleConfigBase
 #endif
     public override IEnumerable<Type> BackgroundServices => [
         typeof(CachePreloader),
+        typeof(BirthdayUpdater),
 #if !DEBUG
         typeof(DataJanitor),
 #endif
-        typeof(BirthdayUpdater),
         typeof(AutoSweep<BotDatabaseContext>)
     ];
 
