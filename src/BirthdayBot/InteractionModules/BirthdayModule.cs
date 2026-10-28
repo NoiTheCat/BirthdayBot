@@ -25,6 +25,7 @@ public class BirthdayModule : BBModuleBase
             // IMPORTANT: If editing here, reflect changes as needed in BirthdayOverrideModule.
 
             // Add-only check
+            // TODO exception is occasionally thrown in the next line. what is this?
             var guild = await ((SocketTextChannel)Context.Channel).Guild.GetConfigOrNewAsync(DbContext).ConfigureAwait(false);
             if (guild.IsNew) DbContext.GuildConfigurations.Add(guild); // Satisfy foreign key constraint
             var user = await ((SocketGuildUser)Context.User).GetUserEntryOrNewAsync(DbContext).ConfigureAwait(false);
