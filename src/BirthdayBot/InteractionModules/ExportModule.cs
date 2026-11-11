@@ -12,7 +12,6 @@ public class ExportModule : BBModuleBase
     delegate MemoryStream FileBuilder(IEnumerable<KnownGuildUser> list);
 
     [SlashCommand(ExportBirthdays.Name, ExportBirthdays.Description)]
-    [DefaultMemberPermissions(GuildPermission.ManageGuild)]
     [CommandContextType(InteractionContextType.Guild)]
     public async Task CmdExport(
         [Summary(description: ExportBirthdays.Format.Description)]
