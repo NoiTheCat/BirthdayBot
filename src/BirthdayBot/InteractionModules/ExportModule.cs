@@ -45,11 +45,11 @@ public class ExportModule : BBModuleBase
         var outtext = LRg("export-birthdays.success", bdlist.Count());
         if (!deferred)
         {
-            await RespondWithFileAsync(output, filename, text: outtext).ConfigureAwait(false);
+            await RespondWithFileAsync(output, filename, text: outtext, ephemeral: true).ConfigureAwait(false);
         }
         else
         {
-            await FollowupWithFileAsync(output, filename, text: outtext).ConfigureAwait(false);
+            await FollowupWithFileAsync(output, filename, text: outtext, ephemeral: true).ConfigureAwait(false);
             await DeleteOriginalResponseAsync().ConfigureAwait(false);
         }
     }
