@@ -12,7 +12,6 @@ public class ExportModule : BBModuleBase
     delegate MemoryStream FileBuilder(IEnumerable<KnownGuildUser> list);
 
     [SlashCommand(ExportBirthdays.Name, ExportBirthdays.Description)]
-    [DefaultMemberPermissions(GuildPermission.ManageGuild)]
     [CommandContextType(InteractionContextType.Guild)]
     public async Task CmdExport(
         [Summary(description: ExportBirthdays.Format.Description)]
@@ -46,11 +45,11 @@ public class ExportModule : BBModuleBase
         var outtext = LRg("export-birthdays.success", bdlist.Count());
         if (!deferred)
         {
-            await RespondWithFileAsync(output, filename, text: outtext).ConfigureAwait(false);
+            await RespondWithFileAsync(output, filename, text: outtext, ephemeral: true).ConfigureAwait(false);
         }
         else
         {
-            await FollowupWithFileAsync(output, filename, text: outtext).ConfigureAwait(false);
+            await FollowupWithFileAsync(output, filename, text: outtext, ephemeral: true).ConfigureAwait(false);
             await DeleteOriginalResponseAsync().ConfigureAwait(false);
         }
     }
